@@ -14,7 +14,7 @@ const elements = Object.freeze({
   resultGrid: $('result-grid'),
   resultsTitle: $('results-title'),
   battlerPanel: $('battler-panel'),
-  tserPanel: $('tser-panel'),
+  tserPanels: [...document.querySelectorAll('.tser-result-panel')],
   battlerSummary: $('summary-battler-card'),
   tserSummaries: [...document.querySelectorAll('.tser-only')],
   updateButton: $('update-btn'),
@@ -26,27 +26,35 @@ function num(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function formatUnit(value, divisor, suffix, decimals = 2) {
-  if (!Number.isFinite(value)) return 'N/A';
-  const formatted = (value / divisor).toLocaleString(undefined, {
-    maximumFractionDigits: decimals,
-    minimumFractionDigits: decimals,
-  });
-  return `${formatted} ${suffix}`;
-}
-
 function formatCompact(value) {
-  const magnitude = Math.abs(value);
-  if (magnitude >= 1e15) return formatUnit(value, 1e15, 'Q');
-  if (magnitude >= 1e12) return formatUnit(value, 1e12, 'T');
-  if (magnitude >= 1e9) return formatUnit(value, 1e9, 'B');
-  return Number.isFinite(value) ? Math.round(value).toLocaleString() : 'N/A';
+  if (!Number.isFinite(value)) return 'N/A';
+
+  const tiers = [
+    [1e33, 'Dc'],
+    [1e30, 'No'],
+    [1e27, 'Oc'],
+    [1e24, 'Sp'],
+    [1e21, 'Sx'],
+    [1e18, 'Qi'],
+    [1e15, 'Q'],
+    [1e12, 'T'],
+    [1e9, 'B'],
+    [1e6, 'M'],
+    [1e3, 'K'],
+  ];
+  const tier = tiers.find(([divisor]) => Math.abs(value) >= divisor);
+  if (!tier) return Math.round(value).toLocaleString();
+
+  const [divisor, suffix] = tier;
+  const formatted = (value / divisor).toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+  });
+  return `${formatted}${suffix}`;
 }
 
 const formatters = Object.freeze({
-  billions: (value) => formatUnit(value, 1e9, 'B'),
-  trillions: (value) => formatUnit(value, 1e12, 'T'),
-  quadrillions: (value) => formatUnit(value, 1e15, 'Q'),
+  compact: formatCompact,
   days: (value) => Number.isFinite(value)
     ? `${value.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })} d`
     : 'N/A',
@@ -125,7 +133,7 @@ function applyRoleView(role) {
   elements.battlerSummary.hidden = !isBattler;
   elements.tserSummaries.forEach((element) => { element.hidden = !isTser; });
   elements.battlerPanel.hidden = !isBattler;
-  elements.tserPanel.hidden = !isTser;
+  elements.tserPanels.forEach((element) => { element.hidden = !isTser; });
   elements.overview.dataset.role = role;
   elements.resultGrid.dataset.role = role;
   elements.resultsTitle.textContent = isTser ? 'TSer breakdown' : 'Battler breakdown';
@@ -138,23 +146,23 @@ function applyRoleView(role) {
 }
 
 function renderDetails(result) {
-  setMetric('b-left-bloom', result.battler.leftoverBloom, formatters.billions, true);
-  setMetric('b-left-sage', result.battler.leftoverSage, formatters.billions, true);
-  setMetric('b-dust', result.battler.leftoverSold, formatters.trillions, true);
-  setMetric('b-tax', result.battler.farmTax, formatters.trillions, true);
-  setMetric('b-md', result.battler.mdEarned, formatters.quadrillions, true);
-  setMetric('b-total', result.battler.fullIncome, formatters.trillions, true);
+  setMetric('b-left-bloom', result.battler.leftoverBloom, formatters.compact, true);
+  setMetric('b-left-sage', result.battler.leftoverSage, formatters.compact, true);
+  setMetric('b-dust', result.battler.leftoverSold, formatters.compact, true);
+  setMetric('b-tax', result.battler.farmTax, formatters.compact, true);
+  setMetric('b-md', result.battler.mdEarned, formatters.compact, true);
+  setMetric('b-total', result.battler.fullIncome, formatters.compact, true);
 
-  setMetric('t-left-bloom', result.tser.leftoverBloom, formatters.billions, true);
-  setMetric('t-left-sage', result.tser.leftoverSage, formatters.billions, true);
-  setMetric('t-dust', result.tser.leftoverSold, formatters.trillions, true);
-  setMetric('t-tax', result.tser.farmTax, formatters.trillions, true);
-  setMetric('t-extra', result.tser.extraResValue, formatters.trillions, true);
-  setMetric('t-farm-pot', result.tser.farmPlusPotIncome, formatters.trillions, true);
-  setMetric('t-total', result.tser.fullIncome, formatters.trillions, true);
+  setMetric('t-left-bloom', result.tser.leftoverBloom, formatters.compact, true);
+  setMetric('t-left-sage', result.tser.leftoverSage, formatters.compact, true);
+  setMetric('t-dust', result.tser.leftoverSold, formatters.compact, true);
+  setMetric('t-tax', result.tser.farmTax, formatters.compact, true);
+  setMetric('t-extra', result.tser.extraResValue, formatters.compact, true);
+  setMetric('t-farm-pot', result.tser.farmPlusPotIncome, formatters.compact, true);
+  setMetric('t-total', result.tser.fullIncome, formatters.compact, true);
   setMetric('t-best-pot', result.tser.bestPotion, formatters.integer);
-  setMetric('t-best-income', result.tser.bestIncome, formatters.trillions, true);
-  setMetric('t-loss', result.tser.lossFromCurrentPotion, formatters.trillions, true);
+  setMetric('t-best-income', result.tser.bestIncome, formatters.compact, true);
+  setMetric('t-loss', result.tser.lossFromCurrentPotion, formatters.compact, true);
   setMetric('t-loss-pct', result.tser.percentLoss, formatters.percent, true);
 
   setRoi('b-roi', result.roi.battler);

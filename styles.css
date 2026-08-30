@@ -453,6 +453,14 @@ summary:focus-visible {
   align-items: start;
 }
 
+.result-grid[data-role="tser"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tser-income-panel {
+  grid-column: 1 / -1;
+}
+
 .panel {
   --role-accent: var(--green);
   overflow: hidden;
@@ -486,6 +494,10 @@ summary:focus-visible {
   margin: 0;
   font-size: 25px;
   letter-spacing: -.035em;
+}
+
+.panel-head-compact {
+  min-height: 76px;
 }
 
 .role-tag {
@@ -568,6 +580,10 @@ summary:focus-visible {
 
 .roi {
   border-top: 1px solid var(--line);
+}
+
+.roi-standalone {
+  border-top: 0;
 }
 
 .roi-title {
@@ -686,6 +702,14 @@ noscript {
 
   .result-grid {
     grid-template-columns: 1fr;
+  }
+
+  .result-grid[data-role="tser"] {
+    grid-template-columns: 1fr;
+  }
+
+  .tser-income-panel {
+    grid-column: auto;
   }
 
   .panel {

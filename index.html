@@ -135,7 +135,7 @@
           </div>
 
           <div class="roi">
-            <div class="roi-title"><span>Upgrade ROI</span><span>lower is faster</span></div>
+            <div class="roi-title"><span>ROI (in days)</span><span>lower is faster</span></div>
             <div class="roi-row"><span class="name">Lab 1×</span><span id="b-roi-lab" class="days">—</span></div>
             <div class="roi-row"><span class="name">Dust Collector 1×</span><span id="b-roi-dustCollector" class="days">—</span></div>
             <div class="roi-row"><span class="name">Farm — no hedge</span><span id="b-roi-farmNoHedge" class="days">—</span></div>
@@ -145,11 +145,11 @@
           </div>
         </article>
 
-        <article class="panel role-tser" id="tser-panel">
+        <article class="panel role-tser tser-result-panel tser-income-panel" id="tser-income-panel">
           <header class="panel-head">
             <div>
               <p class="role-number">Role 02</p>
-              <h3>TSer</h3>
+              <h3>TSer daily income</h3>
             </div>
             <span class="role-tag">event-aware</span>
           </header>
@@ -162,14 +162,35 @@
             <div class="metric"><span class="label">Extra resource value (incl. tax)</span><span id="t-extra" class="value">—</span></div>
             <div class="metric"><span class="label">Full farm + potion resource income</span><span id="t-farm-pot" class="value">—</span></div>
             <div class="metric total"><span class="label">Full income + unpotted resources</span><span id="t-total" class="value">—</span></div>
+          </div>
+        </article>
+
+        <article class="panel role-tser tser-result-panel" id="tser-potion-panel">
+          <header class="panel-head panel-head-compact">
+            <div>
+              <p class="role-number">Potion analysis</p>
+              <h3>Highest-income potion</h3>
+            </div>
+          </header>
+
+          <div class="metrics" aria-label="TSer highest-income potion comparison">
             <div class="metric"><span class="label">Highest-income potion</span><span id="t-best-pot" class="value">—</span></div>
             <div class="metric"><span class="label">Total income from it</span><span id="t-best-income" class="value">—</span></div>
             <div class="metric"><span class="label">Loss from current potion</span><span id="t-loss" class="value">—</span></div>
             <div class="metric"><span class="label">Percent loss</span><span id="t-loss-pct" class="value">—</span></div>
           </div>
+        </article>
 
-          <div class="roi">
-            <div class="roi-title"><span>Upgrade ROI</span><span>lower is faster</span></div>
+        <article class="panel role-tser tser-result-panel" id="tser-roi-panel">
+          <header class="panel-head panel-head-compact">
+            <div>
+              <p class="role-number">Upgrade efficiency</p>
+              <h3>ROI (in days)</h3>
+            </div>
+            <span class="role-tag">lower is faster</span>
+          </header>
+
+          <div class="roi roi-standalone">
             <div class="roi-row"><span class="name">Lab 1×</span><span id="t-roi-lab" class="days">—</span></div>
             <div class="roi-row"><span class="name">Spire 1×</span><span id="t-roi-spire" class="days">—</span></div>
             <div class="roi-row"><span class="name">Potion boost</span><span id="t-roi-potionBoost" class="days">—</span></div>
@@ -187,6 +208,6 @@
 
   <noscript>This calculator needs JavaScript enabled to load live data and run its formulas.</noscript>
   <script src="calculator.js?v=20260830"></script>
-  <script src="app.js?v=20260830-local-inputs"></script>
+  <script src="app.js?v=20260830-display-sections"></script>
 </body>
 </html>

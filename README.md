@@ -6,6 +6,8 @@ Static browser calculator converted from the supplied Google Sheet and Apps Scri
 
 - Username / Resource-MD tax / Harvest-Wisdom potion / Resonance potion inputs
 - Battler / TSer role selector with role-specific results
+- Adaptive number abbreviations that promote values through K, M, B, T, Q, Qi, and higher tiers
+- Separate TSer cards for daily income, potion comparison, and ROI
 - Live Manarion player, market, and guild API normalization
 - Battler daily totals
 - TSer daily totals
