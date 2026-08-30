@@ -170,13 +170,34 @@ function clearResults() {
   setText('summary-ambitious-caption', 'equipped Ambitious items');
 }
 
-async function fetchJson(url) {
+async function requestJson(url, headers = {}) {
   const response = await fetch(url, {
     cache: 'no-store',
-    headers: { Accept: 'application/json' },
+    headers: { Accept: 'application/json', ...headers },
   });
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
   return response.json();
+}
+
+async function fetchJson(url) {
+  try {
+    return await requestJson(url);
+  } catch (directError) {
+    const readerUrl = `https://r.jina.ai/${url}`;
+    try {
+      const envelope = await requestJson(readerUrl, {
+        'X-Engine': 'direct',
+        'X-No-Cache': 'true',
+      });
+      const content = envelope?.data?.content;
+      if (typeof content !== 'string') throw new Error('response did not contain API data');
+      return JSON.parse(content);
+    } catch (readerError) {
+      throw new Error(
+        `direct request failed (${directError.message}); live relay failed (${readerError.message})`,
+      );
+    }
+  }
 }
 
 async function getLiveData(inputs) {

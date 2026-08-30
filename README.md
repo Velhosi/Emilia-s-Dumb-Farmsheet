@@ -22,10 +22,11 @@ Static browser calculator converted from the supplied Google Sheet and Apps Scri
 - Dust Collector ROI
 - Workshop -> Dust Collector ROI
 - Fresh live API requests on initial load, player updates, and reset; runtime responses are not cached
+- Automatic browser-CORS relay fallback when a direct Manarion request is rejected
 
 ## Hosting
 
-Serve the repository root directly with GitHub Pages. The calculator has no server, dependencies, or build step. At runtime it requests the current player, market, and guild data directly from Manarion and does not load workbook snapshots or substitute stored results when a request fails.
+Serve the repository root directly with GitHub Pages. The calculator has no server, package dependencies, or build step. At runtime it requests the current player, market, and guild data from Manarion. It tries the API directly first and uses Jina Reader's direct-fetch relay with caching disabled when the browser rejects the direct cross-origin request. The site does not load workbook snapshots or substitute stored results when a request fails.
 
 ## Validation
 
