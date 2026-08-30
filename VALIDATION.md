@@ -58,3 +58,5 @@ The earlier workbook also matched the JavaScript engine for the core Battler out
 ## Automated regression check
 
 `validation.test.js` runs the Hohmono snapshot through the same `calculator.js` engine used in the browser. It asserts the documented TSer outputs and ROI values, the 125,000 best-potion result, and the shared Battler/TSer Tome Drop ROI. Run it with `node validation.test.js`; it requires no installed packages and does not alter any workbook-derived formulas.
+
+The regression check also covers the post-workbook Aspiration rule. It verifies that each detected equipped Aspiration prefix reduces potted and unpotted TSer resources by 1%, adjusts resource-derived ROI, leaves Battler and non-resource ROI unchanged, and caps the penalty at eight items. It also verifies that a player running a lower potion can receive a higher upgrade recommendation from the 0-1,000,000 search and that the full one-million ceiling is evaluated. Both workbook snapshots have an Aspiration count of zero, preserving every previously validated value.

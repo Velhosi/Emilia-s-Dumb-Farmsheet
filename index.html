@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#08110d">
+  <meta name="theme-color" content="#07101d">
   <meta name="description" content="Compare Battler and TSer daily farm income and upgrade ROI in Manarion.">
-  <title>Manarion Farm Calculator</title>
+  <title>Emilia's Dumb Farm Sheet</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,14 +14,7 @@
   <main class="shell">
     <header class="topbar">
       <div class="intro">
-        <p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span> Manarion farm intelligence</p>
-        <h1><span id="username-label">Emilia</span>’s farm calculator</h1>
-        <p class="subhead">Compare Battler and TSer income, tune your potions, and find the quickest upgrade payback.</p>
-      </div>
-
-      <div class="meta" aria-label="Data freshness">
-        <span class="badge source-badge" id="source" data-kind="snapshot">Workbook snapshot</span>
-        <span class="badge">Calculated <time id="updated">—</time></span>
+        <h1>Emilia’s dumb farm sheet</h1>
       </div>
     </header>
 
@@ -58,41 +51,57 @@
           <input id="resonance" name="resonance" type="number" inputmode="numeric" step="1" min="0" value="62000">
         </div>
 
+        <div class="field">
+          <label for="role">Player role</label>
+          <div class="select-shell">
+            <select id="role" name="role">
+              <option value="tser" selected>TSer</option>
+              <option value="battler">Battler</option>
+            </select>
+          </div>
+        </div>
+
         <div class="actions">
           <button class="btn primary" id="update-btn" type="submit">
             <span class="btn-label">Update player</span>
             <span class="btn-arrow" aria-hidden="true">→</span>
           </button>
-          <button class="btn secondary" id="demo-btn" type="button">Reset demo</button>
+          <button class="btn secondary" id="demo-btn" type="button">Reset</button>
         </div>
       </form>
 
       <div id="status" class="status" role="status" aria-live="polite"></div>
     </section>
 
-    <section class="overview" aria-label="Current calculation summary">
-      <article class="summary-card role-battler">
-        <p class="summary-label"><span aria-hidden="true">01</span> Battler income</p>
+    <section class="overview" id="overview" data-role="tser" aria-label="Current calculation summary">
+      <article class="summary-card role-battler" id="summary-battler-card" hidden>
+        <p class="summary-label"><span class="summary-index" aria-hidden="true">01</span> Battler income</p>
         <p class="summary-value" id="summary-battler">—</p>
         <p class="summary-caption">full daily income</p>
       </article>
 
-      <article class="summary-card role-tser">
-        <p class="summary-label"><span aria-hidden="true">02</span> TSer income</p>
+      <article class="summary-card role-tser tser-only" id="summary-tser-card">
+        <p class="summary-label"><span class="summary-index" aria-hidden="true">01</span> TSer income</p>
         <p class="summary-value" id="summary-tser">—</p>
         <p class="summary-caption">full daily income</p>
       </article>
 
-      <article class="summary-card">
-        <p class="summary-label"><span aria-hidden="true">03</span> Best harvest potion</p>
+      <article class="summary-card tser-only" id="summary-potion-card">
+        <p class="summary-label"><span class="summary-index" aria-hidden="true">02</span> Best harvest potion</p>
         <p class="summary-value" id="summary-potion">—</p>
-        <p class="summary-caption">within the 0–250k search range</p>
+        <p class="summary-caption">best result for this player’s stats from 0–1m</p>
       </article>
 
-      <article class="summary-card">
-        <p class="summary-label"><span aria-hidden="true">04</span> Current potion gap</p>
+      <article class="summary-card tser-only" id="summary-loss-card">
+        <p class="summary-label"><span class="summary-index" aria-hidden="true">03</span> <span id="summary-loss-label">Loss compared to highest-income potion</span></p>
         <p class="summary-value" id="summary-loss">—</p>
-        <p class="summary-caption">below best TSer farm + potion income</p>
+        <p class="summary-caption">using this player’s current stats</p>
+      </article>
+
+      <article class="summary-card aspiration-card tser-only" id="summary-aspiration-card">
+        <p class="summary-label"><span class="summary-index" aria-hidden="true">04</span> Aspiration penalty</p>
+        <p class="summary-value" id="summary-aspiration">—</p>
+        <p class="summary-caption" id="summary-aspiration-caption">equipped Aspiration items</p>
       </article>
     </section>
 
@@ -100,13 +109,13 @@
       <div class="section-heading">
         <div>
           <p class="section-kicker">Daily model</p>
-          <h2 id="results-title">Role breakdown</h2>
+          <h2 id="results-title">TSer breakdown</h2>
         </div>
         <p>Negative herb totals mean the role consumes more than the farm produces.</p>
       </div>
 
-      <div class="result-grid">
-        <article class="panel role-battler">
+      <div class="result-grid" id="result-grid" data-role="tser">
+        <article class="panel role-battler" id="battler-panel" hidden>
           <header class="panel-head">
             <div>
               <p class="role-number">Role 01</p>
@@ -135,7 +144,7 @@
           </div>
         </article>
 
-        <article class="panel role-tser">
+        <article class="panel role-tser" id="tser-panel">
           <header class="panel-head">
             <div>
               <p class="role-number">Role 02</p>
@@ -173,19 +182,6 @@
       </div>
     </section>
 
-    <details class="method-note">
-      <summary>Calculation notes</summary>
-      <div>
-        <p id="note"></p>
-        <p>The workbook’s Workshop level (650), construction pet (11), Codex boost (100), and build speed (1×) remain backend defaults because the supplied Apps Script does not fetch them.</p>
-      </div>
-    </details>
-
-    <footer class="footer">
-      <span>Static by design</span>
-      <span>Workbook-validated formulas</span>
-      <span>No account connection required</span>
-    </footer>
   </main>
 
   <noscript>This calculator needs JavaScript enabled to run its workbook formulas.</noscript>

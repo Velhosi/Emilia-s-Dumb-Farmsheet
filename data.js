@@ -52,6 +52,7 @@
     constructionPetLevel: 11,
     constructionCodex: 100,
     buildSpeed: 1,
+    aspirationCount: 0,
   });
 
   const SNAPSHOT_HOHMONO = Object.freeze({
@@ -101,6 +102,7 @@
     constructionPetLevel: 11,
     constructionCodex: 100,
     buildSpeed: 1,
+    aspirationCount: 0,
   });
 
   return {

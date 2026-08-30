@@ -5,10 +5,12 @@ Static browser calculator converted from the supplied Google Sheet and Apps Scri
 ## What is implemented
 
 - Username / Resource-MD tax / Harvest-Wisdom potion / Resonance potion inputs
+- Battler / TSer role selector with role-specific results
 - Live Manarion player, market, and guild API normalization
 - Battler daily totals
 - TSer daily totals
-- TSer best-potion optimizer (0-250,000 in 1,000 steps)
+- TSer best-potion optimizer (0-1,000,000 in 1,000 steps)
+- Aspiration equipment-prefix detection and -1% total TSer resources per equipped item (maximum 8%)
 - Lab ROI
 - Spire ROI
 - Potion Boost ROI
@@ -40,6 +42,8 @@ The check locks the Hohmono values documented in `VALIDATION.md`, including the 
 TSer Tome Drop ROI uses the same calculation as the Battler row (`K31 = G148`), so it is now calculated dynamically for every player.
 
 The newer Hohmono workbook also resolved the TSer farm no-hedge and Farm + Hedge rows: K29 and K30 contain formulas, and those formulas have been ported.
+
+The post-workbook Aspiration rule is applied as a final multiplier to TSer resources: `1 - (Aspiration item count / 100)`. The count comes from equipped API items whose name or explicit prefix starts with `Aspiration`, and is capped at eight. The original validated workbook snapshots use a count of zero, so their documented outputs remain unchanged.
 
 See `VALIDATION.md` for exact comparison values and the discrepancy between the older stored 79.99 / 52.07 values and the formulas in the newest workbook.
 

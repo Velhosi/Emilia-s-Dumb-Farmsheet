@@ -7,8 +7,14 @@ const $ = (id) => document.getElementById(id);
 const elements = Object.freeze({
   form: $('settings-form'),
   status: $('status'),
-  source: $('source'),
-  updated: $('updated'),
+  role: $('role'),
+  overview: $('overview'),
+  resultGrid: $('result-grid'),
+  resultsTitle: $('results-title'),
+  battlerPanel: $('battler-panel'),
+  tserPanel: $('tser-panel'),
+  battlerSummary: $('summary-battler-card'),
+  tserSummaries: [...document.querySelectorAll('.tser-only')],
   updateButton: $('update-btn'),
   updateButtonLabel: $('update-btn').querySelector('.btn-label'),
 });
@@ -85,11 +91,41 @@ function setStatus(message, state) {
   elements.status.dataset.state = state;
 }
 
-function renderSummary(result) {
+function renderSummary(data, result) {
   setText('summary-battler', formatCompact(result.battler.fullIncome));
   setText('summary-tser', formatCompact(result.tser.fullIncome));
   setText('summary-potion', formatters.integer(result.tser.bestPotion));
   setText('summary-loss', formatters.percent(result.tser.percentLoss));
+  setText(
+    'summary-loss-label',
+    `Loss compared to highest-income potion: ${formatters.integer(result.tser.bestPotion)}`,
+  );
+
+  const aspirationCount = Math.min(Math.max(Math.trunc(num(data.aspirationCount)), 0), 8);
+  const aspirationPenalty = Math.round(result.tser.aspirationPenaltyPercent * 1000) / 1000;
+  setText(
+    'summary-aspiration',
+    aspirationPenalty > 0 ? `−${aspirationPenalty.toLocaleString()}% res` : '0% res',
+  );
+  setText(
+    'summary-aspiration-caption',
+    `${aspirationCount.toLocaleString()} equipped Aspiration ${aspirationCount === 1 ? 'item' : 'items'}`,
+  );
+}
+
+function applyRoleView(role) {
+  const isTser = role === 'tser';
+  elements.battlerSummary.hidden = isTser;
+  elements.tserSummaries.forEach((element) => { element.hidden = !isTser; });
+  elements.battlerPanel.hidden = isTser;
+  elements.tserPanel.hidden = !isTser;
+  elements.overview.dataset.role = isTser ? 'tser' : 'battler';
+  elements.resultGrid.dataset.role = isTser ? 'tser' : 'battler';
+  elements.resultsTitle.textContent = isTser ? 'TSer breakdown' : 'Battler breakdown';
+  elements.overview.setAttribute(
+    'aria-label',
+    isTser ? 'Current TSer calculation summary' : 'Current Battler calculation summary',
+  );
 }
 
 function renderDetails(result) {
@@ -116,27 +152,10 @@ function renderDetails(result) {
   setRoi('t-roi', result.roi.tser);
 }
 
-function renderSource(data, sourceKind) {
-  $('username-label').textContent = data.username || 'Player';
-  elements.source.textContent = sourceKind === 'live' ? 'Live Manarion API' : 'Workbook snapshot';
-  elements.source.dataset.kind = sourceKind;
-
-  const now = new Date();
-  elements.updated.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  elements.updated.dateTime = now.toISOString();
-}
-
-function renderNotes(result) {
-  $('note').textContent = Number.isFinite(result.roi.tser.shards)
-    ? 'All displayed values are calculated dynamically.'
-    : 'Shard ROI needs a Nexus level and is shown as N/A when that value is unavailable.';
-}
-
-function render(data, result, sourceKind) {
-  renderSummary(result);
+function render(data, result) {
+  renderSummary(data, result);
   renderDetails(result);
-  renderSource(data, sourceKind);
-  renderNotes(result);
+  applyRoleView(elements.role.value);
 }
 
 async function fetchJson(url) {
@@ -162,6 +181,7 @@ function getInputs() {
     tax: num($('tax').value),
     harvestPotion: num($('harvest').value),
     resonancePotion: num($('resonance').value),
+    role: elements.role.value,
   };
 }
 
@@ -197,12 +217,12 @@ async function update() {
 
   try {
     const live = await getLiveData(inputs);
-    render(live, Calc.calculate(live), 'live');
+    render(live, Calc.calculate(live));
     setStatus('Updated from the live Manarion API.', 'ok');
   } catch (error) {
     const snapshot = snapshotForInputs(inputs);
     if (snapshot) {
-      render(snapshot, Calc.calculate(snapshot), 'snapshot');
+      render(snapshot, Calc.calculate(snapshot));
       setStatus(
         `Live API request was unavailable; showing the ${snapshot.username} workbook snapshot. (${error.message})`,
         'warn',
@@ -220,9 +240,10 @@ function loadDemo() {
   $('tax').value = '25';
   $('harvest').value = '120000';
   $('resonance').value = '62000';
+  elements.role.value = 'tser';
 
   const snapshot = snapshotForInputs(getInputs());
-  render(snapshot, Calc.calculate(snapshot), 'snapshot');
+  render(snapshot, Calc.calculate(snapshot));
   setStatus('Reset to the Emilia workbook snapshot.', 'ok');
 }
 
@@ -232,8 +253,9 @@ elements.form.addEventListener('submit', (event) => {
 });
 
 $('demo-btn').addEventListener('click', loadDemo);
+elements.role.addEventListener('change', () => applyRoleView(elements.role.value));
 
 // Render a complete, validated example immediately; live data remains opt-in.
 const initial = snapshotForInputs(getInputs());
-render(initial, Calc.calculate(initial), 'snapshot');
-setStatus('Loaded the Emilia workbook snapshot. Update player to try the live API.', 'ok');
+render(initial, Calc.calculate(initial));
+setStatus('Update player to try the live API.', 'ok');

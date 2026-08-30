@@ -47,4 +47,101 @@ for (const [label, [actual, expected]] of Object.entries(validatedOutputs)) {
   approximately(actual, expected, label);
 }
 
-console.log(`Validated ${Object.keys(validatedOutputs).length + 2} workbook behaviors.`);
+const fourAspirationResult = Calc.calculate({
+  ...WORKBOOK_SNAPSHOTS.hohmono,
+  aspirationCount: 4,
+});
+
+approximately(
+  fourAspirationResult.tser.aspirationPenaltyPercent,
+  4,
+  'Four Aspiration prefixes apply a 4% total-resource penalty',
+);
+approximately(
+  fourAspirationResult.tser.grossUnpotted,
+  result.tser.grossUnpotted * 0.96,
+  'Aspiration penalty applies to unpotted TSer resources',
+);
+approximately(
+  fourAspirationResult.tser.grossPotted,
+  result.tser.grossPotted * 0.96,
+  'Aspiration penalty applies to potted TSer resources',
+);
+assert.equal(
+  fourAspirationResult.battler.fullIncome,
+  result.battler.fullIncome,
+  'Aspiration prefixes do not change Battler income',
+);
+
+for (const key of ['spire', 'potionBoost', 'baseRes', 'shards']) {
+  approximately(
+    fourAspirationResult.roi.tser[key],
+    result.roi.tser[key] / 0.96,
+    `Aspiration penalty applies to ${key} ROI`,
+  );
+}
+
+for (const key of ['lab', 'farmNoHedge', 'farmHedge', 'tomeDrop']) {
+  assert.equal(
+    fourAspirationResult.roi.tser[key],
+    result.roi.tser[key],
+    `Aspiration prefixes do not change ${key} ROI`,
+  );
+}
+
+const upgradeRecommendationResult = Calc.calculate({
+  ...WORKBOOK_SNAPSHOTS.hohmono,
+  harvestPotion: 64000,
+});
+assert.equal(
+  upgradeRecommendationResult.tser.bestPotion,
+  125000,
+  'A player running a lower potion still receives the higher-income upgrade recommendation',
+);
+
+const millionCeilingResult = Calc.calculate({
+  ...WORKBOOK_SNAPSHOTS.hohmono,
+  bloomwellPrice: 0,
+  sagerootPrice: 0,
+  farmDiscount: 0,
+});
+assert.equal(
+  millionCeilingResult.tser.bestPotion,
+  1_000_000,
+  'The optimizer evaluates recommendations through the one-million potion ceiling',
+);
+
+const prefixPlayer = {
+  MiningLevel: 1,
+  FishingLevel: 2,
+  WoodcuttingLevel: 3,
+  Equipment: {
+    1: { Name: 'Aspiration Staff', IsEquipped: true },
+    2: { Name: 'Plain Robes', Prefix: 'Aspiration', IsEquipped: true },
+    3: { Name: 'Plain Sandals', prefix: { name: 'Aspiration' }, IsEquipped: true },
+    4: { Name: 'aspiration Gloves', IsEquipped: true },
+    5: { Name: 'Aspiration Hood', IsEquipped: false },
+  },
+};
+const normalizedPrefixPlayer = Calc.normalizeFromApis(
+  prefixPlayer,
+  { Buy: {}, Sell: {} },
+  [],
+  { username: 'PrefixTest', tax: 0, harvestPotion: 1000, resonancePotion: 1000 },
+);
+assert.equal(normalizedPrefixPlayer.aspirationCount, 4, 'Aspiration prefixes are detected from API equipment');
+
+const cappedPrefixPlayer = Calc.normalizeFromApis(
+  {
+    ...prefixPlayer,
+    Equipment: Object.fromEntries(
+      Array.from({ length: 9 }, (_, index) => [index + 1, { Name: `Aspiration Item ${index + 1}` }]),
+    ),
+  },
+  { Buy: {}, Sell: {} },
+  [],
+  { username: 'PrefixCapTest', tax: 0, harvestPotion: 1000, resonancePotion: 1000 },
+);
+assert.equal(cappedPrefixPlayer.aspirationCount, 8, 'Aspiration prefix count is capped at eight');
+
+console.log('Validated workbook parity, upgrade-aware potion search, and Aspiration-prefix behavior.');
