@@ -56,7 +56,7 @@ function formatCompact(value) {
 const formatters = Object.freeze({
   compact: formatCompact,
   days: (value) => Number.isFinite(value)
-    ? `${value.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })} d`
+    ? value.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })
     : 'N/A',
   integer: (value) => Number.isFinite(value) ? Math.round(value).toLocaleString() : 'N/A',
   percent: (value) => Number.isFinite(value)
