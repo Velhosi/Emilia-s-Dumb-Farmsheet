@@ -1,7 +1,6 @@
 'use strict';
 
 const Calc = window.ManarionCalculator;
-const { WORKBOOK_SNAPSHOTS } = window.ManarionData;
 
 const $ = (id) => document.getElementById(id);
 const elements = Object.freeze({
@@ -101,15 +100,15 @@ function renderSummary(data, result) {
     `Loss compared to highest-income potion: ${formatters.integer(result.tser.bestPotion)}`,
   );
 
-  const aspirationCount = Math.min(Math.max(Math.trunc(num(data.aspirationCount)), 0), 8);
-  const aspirationPenalty = Math.round(result.tser.aspirationPenaltyPercent * 1000) / 1000;
+  const ambitiousCount = Math.min(Math.max(Math.trunc(num(data.ambitiousCount)), 0), 8);
+  const ambitiousPenalty = Math.round(result.tser.ambitiousPenaltyPercent * 1000) / 1000;
   setText(
-    'summary-aspiration',
-    aspirationPenalty > 0 ? `−${aspirationPenalty.toLocaleString()}% res` : '0% res',
+    'summary-ambitious',
+    ambitiousPenalty > 0 ? `−${ambitiousPenalty.toLocaleString()}% res` : '0% res',
   );
   setText(
-    'summary-aspiration-caption',
-    `${aspirationCount.toLocaleString()} equipped Aspiration ${aspirationCount === 1 ? 'item' : 'items'}`,
+    'summary-ambitious-caption',
+    `${ambitiousCount.toLocaleString()} equipped Ambitious ${ambitiousCount === 1 ? 'item' : 'items'}`,
   );
 }
 
@@ -158,8 +157,24 @@ function render(data, result) {
   applyRoleView(elements.role.value);
 }
 
+function clearResults() {
+  elements.overview.querySelectorAll('.summary-value').forEach((element) => {
+    element.textContent = '—';
+  });
+  elements.resultGrid.querySelectorAll('.value, .days').forEach((element) => {
+    element.textContent = '—';
+    element.classList.remove('positive', 'negative');
+    element.closest('.roi-row')?.classList.remove('best');
+  });
+  setText('summary-loss-label', 'Loss compared to highest-income potion');
+  setText('summary-ambitious-caption', 'equipped Ambitious items');
+}
+
 async function fetchJson(url) {
-  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  const response = await fetch(url, {
+    cache: 'no-store',
+    headers: { Accept: 'application/json' },
+  });
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
   return response.json();
 }
@@ -185,20 +200,6 @@ function getInputs() {
   };
 }
 
-function snapshotForInputs(inputs) {
-  const key = (inputs.username || 'Emilia').trim().toLowerCase();
-  const base = WORKBOOK_SNAPSHOTS[key];
-  if (!base) return null;
-
-  return {
-    ...base,
-    username: inputs.username || base.username,
-    tax: inputs.tax,
-    harvestPotion: inputs.harvestPotion,
-    resonancePotion: inputs.resonancePotion,
-  };
-}
-
 function setBusy(isBusy) {
   elements.updateButton.disabled = isBusy;
   elements.updateButton.setAttribute('aria-busy', String(isBusy));
@@ -212,6 +213,7 @@ async function update() {
     return;
   }
 
+  clearResults();
   setBusy(true);
   setStatus('Fetching player, market, and guild data…', 'working');
 
@@ -220,31 +222,20 @@ async function update() {
     render(live, Calc.calculate(live));
     setStatus('Updated from the live Manarion API.', 'ok');
   } catch (error) {
-    const snapshot = snapshotForInputs(inputs);
-    if (snapshot) {
-      render(snapshot, Calc.calculate(snapshot));
-      setStatus(
-        `Live API request was unavailable; showing the ${snapshot.username} workbook snapshot. (${error.message})`,
-        'warn',
-      );
-    } else {
-      setStatus(`Could not reach the Manarion API from this browser: ${error.message}`, 'error');
-    }
+    setStatus(`Could not load live Manarion data: ${error.message}`, 'error');
   } finally {
     setBusy(false);
   }
 }
 
-function loadDemo() {
+function resetInputs() {
   $('username').value = 'Emilia';
   $('tax').value = '25';
   $('harvest').value = '120000';
   $('resonance').value = '62000';
   elements.role.value = 'tser';
-
-  const snapshot = snapshotForInputs(getInputs());
-  render(snapshot, Calc.calculate(snapshot));
-  setStatus('Reset to the Emilia workbook snapshot.', 'ok');
+  applyRoleView(elements.role.value);
+  update();
 }
 
 elements.form.addEventListener('submit', (event) => {
@@ -252,10 +243,8 @@ elements.form.addEventListener('submit', (event) => {
   update();
 });
 
-$('demo-btn').addEventListener('click', loadDemo);
+$('demo-btn').addEventListener('click', resetInputs);
 elements.role.addEventListener('change', () => applyRoleView(elements.role.value));
 
-// Render a complete, validated example immediately; live data remains opt-in.
-const initial = snapshotForInputs(getInputs());
-render(initial, Calc.calculate(initial));
-setStatus('Update player to try the live API.', 'ok');
+applyRoleView(elements.role.value);
+update();

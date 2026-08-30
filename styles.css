@@ -408,7 +408,7 @@ summary:focus-visible {
   --card-accent: var(--gold);
 }
 
-.summary-card.aspiration-card {
+.summary-card.ambitious-card {
   --card-accent: var(--blue);
 }
 

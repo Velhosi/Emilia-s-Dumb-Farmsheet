@@ -47,45 +47,45 @@ for (const [label, [actual, expected]] of Object.entries(validatedOutputs)) {
   approximately(actual, expected, label);
 }
 
-const fourAspirationResult = Calc.calculate({
+const fourAmbitiousResult = Calc.calculate({
   ...WORKBOOK_SNAPSHOTS.hohmono,
-  aspirationCount: 4,
+  ambitiousCount: 4,
 });
 
 approximately(
-  fourAspirationResult.tser.aspirationPenaltyPercent,
+  fourAmbitiousResult.tser.ambitiousPenaltyPercent,
   4,
-  'Four Aspiration prefixes apply a 4% total-resource penalty',
+  'Four Ambitious prefixes apply a 4% total-resource penalty',
 );
 approximately(
-  fourAspirationResult.tser.grossUnpotted,
+  fourAmbitiousResult.tser.grossUnpotted,
   result.tser.grossUnpotted * 0.96,
-  'Aspiration penalty applies to unpotted TSer resources',
+  'Ambitious penalty applies to unpotted TSer resources',
 );
 approximately(
-  fourAspirationResult.tser.grossPotted,
+  fourAmbitiousResult.tser.grossPotted,
   result.tser.grossPotted * 0.96,
-  'Aspiration penalty applies to potted TSer resources',
+  'Ambitious penalty applies to potted TSer resources',
 );
 assert.equal(
-  fourAspirationResult.battler.fullIncome,
+  fourAmbitiousResult.battler.fullIncome,
   result.battler.fullIncome,
-  'Aspiration prefixes do not change Battler income',
+  'Ambitious prefixes do not change Battler income',
 );
 
 for (const key of ['spire', 'potionBoost', 'baseRes', 'shards']) {
   approximately(
-    fourAspirationResult.roi.tser[key],
+    fourAmbitiousResult.roi.tser[key],
     result.roi.tser[key] / 0.96,
-    `Aspiration penalty applies to ${key} ROI`,
+    `Ambitious penalty applies to ${key} ROI`,
   );
 }
 
 for (const key of ['lab', 'farmNoHedge', 'farmHedge', 'tomeDrop']) {
   assert.equal(
-    fourAspirationResult.roi.tser[key],
+    fourAmbitiousResult.roi.tser[key],
     result.roi.tser[key],
-    `Aspiration prefixes do not change ${key} ROI`,
+    `Ambitious prefixes do not change ${key} ROI`,
   );
 }
 
@@ -116,11 +116,11 @@ const prefixPlayer = {
   FishingLevel: 2,
   WoodcuttingLevel: 3,
   Equipment: {
-    1: { Name: 'Aspiration Staff', IsEquipped: true },
-    2: { Name: 'Plain Robes', Prefix: 'Aspiration', IsEquipped: true },
-    3: { Name: 'Plain Sandals', prefix: { name: 'Aspiration' }, IsEquipped: true },
-    4: { Name: 'aspiration Gloves', IsEquipped: true },
-    5: { Name: 'Aspiration Hood', IsEquipped: false },
+    1: { Name: 'Ambitious Staff', IsEquipped: true },
+    2: { Name: 'Plain Robes', Prefix: 'Ambitious', IsEquipped: true },
+    3: { Name: 'Plain Sandals', prefix: { name: 'Ambitious' }, IsEquipped: true },
+    4: { Name: 'ambitious Gloves', IsEquipped: true },
+    5: { Name: 'Ambitious Hood', IsEquipped: false },
   },
 };
 const normalizedPrefixPlayer = Calc.normalizeFromApis(
@@ -129,19 +129,19 @@ const normalizedPrefixPlayer = Calc.normalizeFromApis(
   [],
   { username: 'PrefixTest', tax: 0, harvestPotion: 1000, resonancePotion: 1000 },
 );
-assert.equal(normalizedPrefixPlayer.aspirationCount, 4, 'Aspiration prefixes are detected from API equipment');
+assert.equal(normalizedPrefixPlayer.ambitiousCount, 4, 'Ambitious prefixes are detected from API equipment');
 
 const cappedPrefixPlayer = Calc.normalizeFromApis(
   {
     ...prefixPlayer,
     Equipment: Object.fromEntries(
-      Array.from({ length: 9 }, (_, index) => [index + 1, { Name: `Aspiration Item ${index + 1}` }]),
+      Array.from({ length: 9 }, (_, index) => [index + 1, { Name: `Ambitious Item ${index + 1}` }]),
     ),
   },
   { Buy: {}, Sell: {} },
   [],
   { username: 'PrefixCapTest', tax: 0, harvestPotion: 1000, resonancePotion: 1000 },
 );
-assert.equal(cappedPrefixPlayer.aspirationCount, 8, 'Aspiration prefix count is capped at eight');
+assert.equal(cappedPrefixPlayer.ambitiousCount, 8, 'Ambitious prefix count is capped at eight');
 
-console.log('Validated workbook parity, upgrade-aware potion search, and Aspiration-prefix behavior.');
+console.log('Validated workbook parity, upgrade-aware potion search, and Ambitious-prefix behavior.');

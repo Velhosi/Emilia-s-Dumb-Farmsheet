@@ -18,7 +18,7 @@
     SHARD_UPGRADE_SIZE: 1000,
     HEDGE_ROI_DAYS: 41,
     MAX_TSER_POTION: 1_000_000,
-    MAX_ASPIRATION_PREFIXES: 8,
+    MAX_AMBITIOUS_PREFIXES: 8,
   });
 
   const finite = (v, fallback = 0) => Number.isFinite(Number(v)) ? Number(v) : fallback;
@@ -55,10 +55,10 @@
     return finite(harvestPotion) * 0.1 * (1 + finite(potionBoost) / 100);
   }
 
-  function aspirationResourceMultiplier(d) {
+  function ambitiousResourceMultiplier(d) {
     const prefixCount = Math.min(
-      Math.max(Math.trunc(finite(d.aspirationCount)), 0),
-      C.MAX_ASPIRATION_PREFIXES,
+      Math.max(Math.trunc(finite(d.ambitiousCount)), 0),
+      C.MAX_AMBITIOUS_PREFIXES,
     );
     return 1 - prefixCount / 100;
   }
@@ -67,7 +67,7 @@
     return (1 + finite(d.level) * 0.03 + finite(d.baseRes))
       * (1 + finite(d.baseResResearch) / 100)
       * (1 + finite(d.research) / 100)
-      * aspirationResourceMultiplier(d);
+      * ambitiousResourceMultiplier(d);
   }
 
   function grossPottedResourcePerAction(d, harvestPotion, researchEventBonus = C.TS_EVENT_RESEARCH_BONUS) {
@@ -75,7 +75,7 @@
     return (1 + finite(d.level) * 0.03 + potBase + finite(d.baseRes))
       * (1 + finite(d.baseResResearch) / 100)
       * ((finite(d.research) + finite(researchEventBonus)) / 100)
-      * aspirationResourceMultiplier(d);
+      * ambitiousResourceMultiplier(d);
   }
 
   function dustPerBattleBase(enemy) {
@@ -211,7 +211,7 @@
     const grossExtra = upgraded - current;
     const taxedExtra = grossExtra * pctAfterTax(d.tax);
     const valuePerDay = taxedExtra * finite(d.averageResourcePrice)
-      * aspirationResourceMultiplier(d);
+      * ambitiousResourceMultiplier(d);
     return safeDiv(buildingCost(d.spire, d.averageResourcePrice), valuePerDay);
   }
 
@@ -224,7 +224,7 @@
     const nextRes = (1 + finite(d.level) * 0.03 + nextPotBase + finite(d.baseRes)) * common;
     const valuePerDay = (nextRes - currentRes) * C.TS_POTTED_ACTIONS
       * finite(d.averageResourcePrice) * pctAfterTax(d.tax)
-      * aspirationResourceMultiplier(d);
+      * ambitiousResourceMultiplier(d);
     const cost = Math.floor(10_000_000 * 1.1 ** current);
     return safeDiv(cost, valuePerDay);
   }
@@ -240,7 +240,7 @@
     const current = (1 + finite(d.level) * 0.03 + potBase + finite(d.baseRes)) * common;
     const upgraded = (1 + finite(d.level) * 0.03 + potBase + finite(d.baseRes) + extraBase) * common;
     const valuePerDay = (upgraded - current) * pctAfterTax(d.tax)
-      * finite(d.averageResourcePrice) * aspirationResourceMultiplier(d);
+      * finite(d.averageResourcePrice) * ambitiousResourceMultiplier(d);
     return safeDiv(cost, valuePerDay);
   }
 
@@ -266,7 +266,7 @@
     const currentRes = baseFactor * (finite(d.research) / 100) * C.TS_POTTED_ACTIONS;
     const upgradedRes = baseFactor * ((finite(d.research) + addedResearch) / 100) * C.TS_POTTED_ACTIONS;
     const valuePerDay = (upgradedRes - currentRes) * pctAfterTax(d.tax)
-      * finite(d.averageResourcePrice) * aspirationResourceMultiplier(d);
+      * finite(d.averageResourcePrice) * ambitiousResourceMultiplier(d);
     return safeDiv(cost, valuePerDay);
   }
 
@@ -384,7 +384,7 @@
     const opt = optimizeTserPotion(d);
     const loss = opt.bestIncome - tserTotals.farmPlusPotIncome;
     const lossPct = safeDiv(loss, opt.bestIncome);
-    const aspirationPenaltyPercent = (1 - aspirationResourceMultiplier(d)) * 100;
+    const ambitiousPenaltyPercent = (1 - ambitiousResourceMultiplier(d)) * 100;
 
     const sharedLabROI = labROI(d);
     const result = {
@@ -395,7 +395,7 @@
         bestIncome: opt.bestIncome,
         lossFromCurrentPotion: loss,
         percentLoss: lossPct == null ? null : lossPct * 100,
-        aspirationPenaltyPercent,
+        ambitiousPenaltyPercent,
       },
       roi: {
         battler: {
@@ -440,15 +440,15 @@
       }
       return '';
     };
-    const hasAspirationPrefix = (item) => {
+    const hasAmbitiousPrefix = (item) => {
       if (!item || item.IsEquipped === false || item.isEquipped === false) return false;
       const name = String(item.Name ?? item.name ?? '').trim();
       const explicitPrefix = String(prefixName(item)).trim();
-      return /^Aspiration(?:\s|$)/i.test(name) || /^Aspiration$/i.test(explicitPrefix);
+      return /^Ambitious(?:\s|$)/i.test(name) || /^Ambitious$/i.test(explicitPrefix);
     };
-    const aspirationCount = Math.min(
-      equipmentItems.filter(hasAspirationPrefix).length,
-      C.MAX_ASPIRATION_PREFIXES,
+    const ambitiousCount = Math.min(
+      equipmentItems.filter(hasAmbitiousPrefix).length,
+      C.MAX_AMBITIOUS_PREFIXES,
     );
 
     const mining = finite(playerData?.MiningLevel);
@@ -520,7 +520,7 @@
       spire: getNum(totalBoosts, '152'),
       equipmentBaseRes,
       equipmentResearch,
-      aspirationCount,
+      ambitiousCount,
       powerOrbPrice: averageMarketPrice(35),
       perfectOrbPrice: averageMarketPrice(50),
       divineEssencePrice: averageMarketPrice(47),
@@ -557,7 +557,7 @@
     normalizeFromApis,
     helpers: {
       buildingCost, herbsPerHour, harvestHerbsPerPot, resonanceHerbsPerPot,
-      aspirationResourceMultiplier, tserAtPotion, optimizeTserPotion,
+      ambitiousResourceMultiplier, tserAtPotion, optimizeTserPotion,
       tomeTotalCost, farmUpgradeStats,
     },
   };
