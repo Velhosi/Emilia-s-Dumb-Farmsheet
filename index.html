@@ -30,32 +30,33 @@
       <form id="settings-form" class="settings" aria-describedby="status">
         <div class="field field-player">
           <label for="username">Username</label>
-          <input id="username" name="username" value="Emilia" autocomplete="off" spellcheck="false" required>
+          <input id="username" name="username" placeholder="Enter username" autocomplete="off" spellcheck="false" required>
         </div>
 
         <div class="field">
           <label for="tax">Resource / MD tax</label>
           <div class="input-shell">
-            <input id="tax" name="tax" type="number" inputmode="decimal" step="0.01" min="0" max="100" value="25">
+            <input id="tax" name="tax" type="number" inputmode="decimal" step="0.01" min="0" max="100" placeholder="0–100" required>
             <span aria-hidden="true">%</span>
           </div>
         </div>
 
         <div class="field">
           <label for="harvest">Harvest / Wisdom potion</label>
-          <input id="harvest" name="harvest" type="number" inputmode="numeric" step="1" min="0" value="120000">
+          <input id="harvest" name="harvest" type="number" inputmode="numeric" step="1" min="0" placeholder="Enter potion level" required>
         </div>
 
         <div class="field">
           <label for="resonance">Potion of Resonance</label>
-          <input id="resonance" name="resonance" type="number" inputmode="numeric" step="1" min="0" value="62000">
+          <input id="resonance" name="resonance" type="number" inputmode="numeric" step="1" min="0" placeholder="Enter potion level" required>
         </div>
 
         <div class="field">
           <label for="role">Player role</label>
           <div class="select-shell">
-            <select id="role" name="role">
-              <option value="tser" selected>TSer</option>
+            <select id="role" name="role" required>
+              <option value="" selected disabled>Choose role</option>
+              <option value="tser">TSer</option>
               <option value="battler">Battler</option>
             </select>
           </div>
@@ -66,14 +67,14 @@
             <span class="btn-label">Update player</span>
             <span class="btn-arrow" aria-hidden="true">→</span>
           </button>
-          <button class="btn secondary" id="demo-btn" type="button">Reset</button>
+          <button class="btn secondary" id="reset-btn" type="button">Reset</button>
         </div>
       </form>
 
       <div id="status" class="status" role="status" aria-live="polite"></div>
     </section>
 
-    <section class="overview" id="overview" data-role="tser" aria-label="Current calculation summary">
+    <section class="overview" id="overview" data-role="" aria-label="Current calculation summary" hidden>
       <article class="summary-card role-battler" id="summary-battler-card" hidden>
         <p class="summary-label"><span class="summary-index" aria-hidden="true">01</span> Battler income</p>
         <p class="summary-value" id="summary-battler">—</p>
@@ -105,7 +106,7 @@
       </article>
     </section>
 
-    <section id="results" class="results" aria-labelledby="results-title">
+    <section id="results" class="results" aria-labelledby="results-title" hidden>
       <div class="section-heading">
         <div>
           <p class="section-kicker">Daily model</p>
@@ -186,6 +187,6 @@
 
   <noscript>This calculator needs JavaScript enabled to load live data and run its formulas.</noscript>
   <script src="calculator.js?v=20260830"></script>
-  <script src="app.js?v=20260830-live-relay"></script>
+  <script src="app.js?v=20260830-local-inputs"></script>
 </body>
 </html>

@@ -21,8 +21,9 @@ Static browser calculator converted from the supplied Google Sheet and Apps Scri
 - Battler + TSer Tome Drop ROI (same calculation)
 - Dust Collector ROI
 - Workshop -> Dust Collector ROI
-- Fresh live API requests on initial load, player updates, and reset; runtime responses are not cached
+- Fresh live API requests only after the player submits the setup form; runtime responses are not cached
 - Automatic browser-CORS relay fallback when a direct Manarion request is rejected
+- Submitted setup values are remembered only in that browser; restoring them never triggers an automatic API request
 
 ## Hosting
 

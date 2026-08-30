@@ -1,6 +1,8 @@
 'use strict';
 
 const Calc = window.ManarionCalculator;
+const INPUT_STORAGE_KEY = 'emilia-farm-sheet-inputs-v1';
+let hasRenderedResults = false;
 
 const $ = (id) => document.getElementById(id);
 const elements = Object.freeze({
@@ -8,6 +10,7 @@ const elements = Object.freeze({
   status: $('status'),
   role: $('role'),
   overview: $('overview'),
+  results: $('results'),
   resultGrid: $('result-grid'),
   resultsTitle: $('results-title'),
   battlerPanel: $('battler-panel'),
@@ -114,16 +117,23 @@ function renderSummary(data, result) {
 
 function applyRoleView(role) {
   const isTser = role === 'tser';
-  elements.battlerSummary.hidden = isTser;
+  const isBattler = role === 'battler';
+  const hasRole = isTser || isBattler;
+  const showResults = hasRole && hasRenderedResults;
+  elements.overview.hidden = !showResults;
+  elements.results.hidden = !showResults;
+  elements.battlerSummary.hidden = !isBattler;
   elements.tserSummaries.forEach((element) => { element.hidden = !isTser; });
-  elements.battlerPanel.hidden = isTser;
+  elements.battlerPanel.hidden = !isBattler;
   elements.tserPanel.hidden = !isTser;
-  elements.overview.dataset.role = isTser ? 'tser' : 'battler';
-  elements.resultGrid.dataset.role = isTser ? 'tser' : 'battler';
+  elements.overview.dataset.role = role;
+  elements.resultGrid.dataset.role = role;
   elements.resultsTitle.textContent = isTser ? 'TSer breakdown' : 'Battler breakdown';
   elements.overview.setAttribute(
     'aria-label',
-    isTser ? 'Current TSer calculation summary' : 'Current Battler calculation summary',
+    isTser
+      ? 'Current TSer calculation summary'
+      : isBattler ? 'Current Battler calculation summary' : 'Calculation summary',
   );
 }
 
@@ -154,10 +164,14 @@ function renderDetails(result) {
 function render(data, result) {
   renderSummary(data, result);
   renderDetails(result);
+  hasRenderedResults = true;
   applyRoleView(elements.role.value);
 }
 
 function clearResults() {
+  hasRenderedResults = false;
+  elements.overview.hidden = true;
+  elements.results.hidden = true;
   elements.overview.querySelectorAll('.summary-value').forEach((element) => {
     element.textContent = '—';
   });
@@ -221,6 +235,35 @@ function getInputs() {
   };
 }
 
+function getInputValues() {
+  return {
+    username: $('username').value.trim(),
+    tax: $('tax').value,
+    harvestPotion: $('harvest').value,
+    resonancePotion: $('resonance').value,
+    role: elements.role.value,
+  };
+}
+
+function saveInputs() {
+  try {
+    localStorage.setItem(INPUT_STORAGE_KEY, JSON.stringify(getInputValues()));
+  } catch (_) {}
+}
+
+function restoreInputs() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(INPUT_STORAGE_KEY));
+    if (!saved || typeof saved !== 'object') return;
+
+    $('username').value = typeof saved.username === 'string' ? saved.username : '';
+    $('tax').value = typeof saved.tax === 'string' ? saved.tax : '';
+    $('harvest').value = typeof saved.harvestPotion === 'string' ? saved.harvestPotion : '';
+    $('resonance').value = typeof saved.resonancePotion === 'string' ? saved.resonancePotion : '';
+    elements.role.value = ['tser', 'battler'].includes(saved.role) ? saved.role : '';
+  } catch (_) {}
+}
+
 function setBusy(isBusy) {
   elements.updateButton.disabled = isBusy;
   elements.updateButton.setAttribute('aria-busy', String(isBusy));
@@ -250,22 +293,24 @@ async function update() {
 }
 
 function resetInputs() {
-  $('username').value = 'Emilia';
-  $('tax').value = '25';
-  $('harvest').value = '120000';
-  $('resonance').value = '62000';
-  elements.role.value = 'tser';
+  try {
+    localStorage.removeItem(INPUT_STORAGE_KEY);
+  } catch (_) {}
+  elements.form.reset();
+  clearResults();
   applyRoleView(elements.role.value);
-  update();
+  setStatus('', '');
 }
 
 elements.form.addEventListener('submit', (event) => {
   event.preventDefault();
+  saveInputs();
   update();
 });
 
-$('demo-btn').addEventListener('click', resetInputs);
+$('reset-btn').addEventListener('click', resetInputs);
 elements.role.addEventListener('change', () => applyRoleView(elements.role.value));
 
-applyRoleView(elements.role.value);
-update();
+clearResults();
+restoreInputs();
+setStatus('', '');
