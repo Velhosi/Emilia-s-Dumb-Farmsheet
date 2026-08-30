@@ -3,103 +3,194 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#090c12">
+  <meta name="theme-color" content="#08110d">
+  <meta name="description" content="Compare Battler and TSer daily farm income and upgrade ROI in Manarion.">
   <title>Manarion Farm Calculator</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <a class="skip-link" href="#results">Skip to results</a>
+
   <main class="shell">
     <header class="topbar">
-      <div>
-        <p class="eyebrow">Manarion Calculator</p>
-        <h1><span id="username-label">Emilia</span>'s Farm Dashboard</h1>
-        <p class="subhead">Battler vs. TSer daily income and upgrade ROI.</p>
+      <div class="intro">
+        <p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span> Manarion farm intelligence</p>
+        <h1><span id="username-label">Emilia</span>’s farm calculator</h1>
+        <p class="subhead">Compare Battler and TSer income, tune your potions, and find the quickest upgrade payback.</p>
       </div>
-      <div class="meta">
-        <span class="badge" id="source" data-kind="snapshot">Workbook snapshot</span>
-        <span class="badge">Updated <span id="updated">—</span></span>
+
+      <div class="meta" aria-label="Data freshness">
+        <span class="badge source-badge" id="source" data-kind="snapshot">Workbook snapshot</span>
+        <span class="badge">Calculated <time id="updated">—</time></span>
       </div>
     </header>
 
-    <form id="settings-form" class="settings">
-      <div class="field">
-        <label for="username">Username</label>
-        <input id="username" name="username" value="Emilia" autocomplete="off">
+    <section class="settings-card" aria-labelledby="settings-title">
+      <div class="settings-heading">
+        <div>
+          <p class="section-kicker">Inputs</p>
+          <h2 id="settings-title">Player setup</h2>
+        </div>
+        <p>Use a saved workbook player or fetch current Manarion data.</p>
       </div>
-      <div class="field">
-        <label for="tax">Resource / MD tax (%)</label>
-        <input id="tax" name="tax" type="number" step="0.01" value="25">
-      </div>
-      <div class="field">
-        <label for="harvest">Harvest / Wisdom potion</label>
-        <input id="harvest" name="harvest" type="number" step="1" value="120000">
-      </div>
-      <div class="field">
-        <label for="resonance">Potion of Resonance</label>
-        <input id="resonance" name="resonance" type="number" step="1" value="62000">
-      </div>
-      <div class="actions">
-        <button class="btn" id="update-btn" type="submit">Update</button>
-        <button class="btn secondary" id="demo-btn" type="button">Demo</button>
-      </div>
-    </form>
-    <div id="status" class="status" role="status"></div>
 
-    <section class="grid" aria-label="Farm results">
-      <article class="panel">
-        <div class="panel-head"><h2>Battler</h2><span>event-aware</span></div>
-        <div class="metrics">
-          <div class="metric"><span class="label">Leftover Bloomwells daily</span><span id="b-left-bloom" class="value">—</span></div>
-          <div class="metric"><span class="label">Leftover Sageroots daily</span><span id="b-left-sage" class="value">—</span></div>
-          <div class="metric"><span class="label">Dust daily, leftovers sold</span><span id="b-dust" class="value">—</span></div>
-          <div class="metric"><span class="label">Farm tax taken</span><span id="b-tax" class="value">—</span></div>
-          <div class="metric"><span class="label">MD earned daily</span><span id="b-md" class="value">—</span></div>
-          <div class="metric total"><span class="label">Full income with herbs + MD</span><span id="b-total" class="value">—</span></div>
+      <form id="settings-form" class="settings" aria-describedby="status">
+        <div class="field field-player">
+          <label for="username">Username</label>
+          <input id="username" name="username" value="Emilia" autocomplete="off" spellcheck="false" required>
         </div>
-        <div class="roi">
-          <div class="roi-title">ROI</div>
-          <div class="roi-row"><span class="name">Lab 1×</span><span id="b-roi-lab" class="days">—</span></div>
-          <div class="roi-row"><span class="name">Dust Collector 1×</span><span id="b-roi-dustCollector" class="days">—</span></div>
-          <div class="roi-row"><span class="name">Farm — no hedge</span><span id="b-roi-farmNoHedge" class="days">—</span></div>
-          <div class="roi-row"><span class="name">Farm + hedge</span><span id="b-roi-farmHedge" class="days">—</span></div>
-          <div class="roi-row"><span class="name">Tome drop</span><span id="b-roi-tomeDrop" class="days">—</span></div>
-          <div class="roi-row"><span class="name">Workshop → Dust Collector</span><span id="b-roi-workshopDustCollector" class="days">—</span></div>
+
+        <div class="field">
+          <label for="tax">Resource / MD tax</label>
+          <div class="input-shell">
+            <input id="tax" name="tax" type="number" inputmode="decimal" step="0.01" min="0" max="100" value="25">
+            <span aria-hidden="true">%</span>
+          </div>
         </div>
+
+        <div class="field">
+          <label for="harvest">Harvest / Wisdom potion</label>
+          <input id="harvest" name="harvest" type="number" inputmode="numeric" step="1" min="0" value="120000">
+        </div>
+
+        <div class="field">
+          <label for="resonance">Potion of Resonance</label>
+          <input id="resonance" name="resonance" type="number" inputmode="numeric" step="1" min="0" value="62000">
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="update-btn" type="submit">
+            <span class="btn-label">Update player</span>
+            <span class="btn-arrow" aria-hidden="true">→</span>
+          </button>
+          <button class="btn secondary" id="demo-btn" type="button">Reset demo</button>
+        </div>
+      </form>
+
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="overview" aria-label="Current calculation summary">
+      <article class="summary-card role-battler">
+        <p class="summary-label"><span aria-hidden="true">01</span> Battler income</p>
+        <p class="summary-value" id="summary-battler">—</p>
+        <p class="summary-caption">full daily income</p>
       </article>
 
-      <article class="panel">
-        <div class="panel-head"><h2>TSer</h2><span>event-aware</span></div>
-        <div class="metrics">
-          <div class="metric"><span class="label">Leftover Bloomwells daily</span><span id="t-left-bloom" class="value">—</span></div>
-          <div class="metric"><span class="label">Leftover Sageroots daily</span><span id="t-left-sage" class="value">—</span></div>
-          <div class="metric"><span class="label">Dust daily, leftovers sold</span><span id="t-dust" class="value">—</span></div>
-          <div class="metric"><span class="label">Farm tax taken</span><span id="t-tax" class="value">—</span></div>
-          <div class="metric"><span class="label">Extra resource value (incl. tax)</span><span id="t-extra" class="value">—</span></div>
-          <div class="metric"><span class="label">Full farm + potion resource income</span><span id="t-farm-pot" class="value">—</span></div>
-          <div class="metric total"><span class="label">Full income + unpotted resources</span><span id="t-total" class="value">—</span></div>
-          <div class="metric"><span class="label">Highest-income potion</span><span id="t-best-pot" class="value">—</span></div>
-          <div class="metric"><span class="label">Total income from it</span><span id="t-best-income" class="value">—</span></div>
-          <div class="metric"><span class="label">Loss from current potion</span><span id="t-loss" class="value">—</span></div>
-          <div class="metric"><span class="label">Percent loss</span><span id="t-loss-pct" class="value">—</span></div>
-        </div>
-        <div class="roi">
-          <div class="roi-title">ROI</div>
-          <div class="roi-row"><span class="name">Lab 1×</span><span id="t-roi-lab" class="days">—</span></div>
-          <div class="roi-row"><span class="name">Spire 1×</span><span id="t-roi-spire" class="days">—</span></div>
-          <div class="roi-row"><span class="name">Potion boost</span><span id="t-roi-potionBoost" class="days">—</span></div>
-          <div class="roi-row"><span class="name">Base resources</span><span id="t-roi-baseRes" class="days">—</span></div>
-          <div class="roi-row"><span class="name">Shards</span><span id="t-roi-shards" class="days">—</span></div>
-          <div class="roi-row"><span class="name">Farm — no hedge</span><span id="t-roi-farmNoHedge" class="days">—</span></div>
-          <div class="roi-row"><span class="name">Farm + hedge</span><span id="t-roi-farmHedge" class="days">—</span></div>
-          <div class="roi-row"><span class="name">Tome drop</span><span id="t-roi-tomeDrop" class="days">—</span></div>
-        </div>
+      <article class="summary-card role-tser">
+        <p class="summary-label"><span aria-hidden="true">02</span> TSer income</p>
+        <p class="summary-value" id="summary-tser">—</p>
+        <p class="summary-caption">full daily income</p>
+      </article>
+
+      <article class="summary-card">
+        <p class="summary-label"><span aria-hidden="true">03</span> Best harvest potion</p>
+        <p class="summary-value" id="summary-potion">—</p>
+        <p class="summary-caption">within the 0–250k search range</p>
+      </article>
+
+      <article class="summary-card">
+        <p class="summary-label"><span aria-hidden="true">04</span> Current potion gap</p>
+        <p class="summary-value" id="summary-loss">—</p>
+        <p class="summary-caption">below best TSer farm + potion income</p>
       </article>
     </section>
 
-    <div class="footer-note"><strong>Prototype note:</strong> <span id="note"></span> The workbook's Workshop level (650), construction pet (11), Codex boost (100), and build speed (1×) are currently kept as backend defaults because the supplied Apps Script does not fetch them.</div>
+    <section id="results" class="results" aria-labelledby="results-title">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Daily model</p>
+          <h2 id="results-title">Role breakdown</h2>
+        </div>
+        <p>Negative herb totals mean the role consumes more than the farm produces.</p>
+      </div>
+
+      <div class="result-grid">
+        <article class="panel role-battler">
+          <header class="panel-head">
+            <div>
+              <p class="role-number">Role 01</p>
+              <h3>Battler</h3>
+            </div>
+            <span class="role-tag">event-aware</span>
+          </header>
+
+          <div class="metrics" aria-label="Battler daily values">
+            <div class="metric"><span class="label">Leftover Bloomwells daily</span><span id="b-left-bloom" class="value">—</span></div>
+            <div class="metric"><span class="label">Leftover Sageroots daily</span><span id="b-left-sage" class="value">—</span></div>
+            <div class="metric"><span class="label">Dust daily, leftovers sold</span><span id="b-dust" class="value">—</span></div>
+            <div class="metric"><span class="label">Farm tax taken</span><span id="b-tax" class="value">—</span></div>
+            <div class="metric"><span class="label">MD earned daily</span><span id="b-md" class="value">—</span></div>
+            <div class="metric total"><span class="label">Full income with herbs + MD</span><span id="b-total" class="value">—</span></div>
+          </div>
+
+          <div class="roi">
+            <div class="roi-title"><span>Upgrade ROI</span><span>lower is faster</span></div>
+            <div class="roi-row"><span class="name">Lab 1×</span><span id="b-roi-lab" class="days">—</span></div>
+            <div class="roi-row"><span class="name">Dust Collector 1×</span><span id="b-roi-dustCollector" class="days">—</span></div>
+            <div class="roi-row"><span class="name">Farm — no hedge</span><span id="b-roi-farmNoHedge" class="days">—</span></div>
+            <div class="roi-row"><span class="name">Farm + hedge</span><span id="b-roi-farmHedge" class="days">—</span></div>
+            <div class="roi-row"><span class="name">Tome drop</span><span id="b-roi-tomeDrop" class="days">—</span></div>
+            <div class="roi-row"><span class="name">Workshop → Dust Collector</span><span id="b-roi-workshopDustCollector" class="days">—</span></div>
+          </div>
+        </article>
+
+        <article class="panel role-tser">
+          <header class="panel-head">
+            <div>
+              <p class="role-number">Role 02</p>
+              <h3>TSer</h3>
+            </div>
+            <span class="role-tag">event-aware</span>
+          </header>
+
+          <div class="metrics" aria-label="TSer daily values">
+            <div class="metric"><span class="label">Leftover Bloomwells daily</span><span id="t-left-bloom" class="value">—</span></div>
+            <div class="metric"><span class="label">Leftover Sageroots daily</span><span id="t-left-sage" class="value">—</span></div>
+            <div class="metric"><span class="label">Dust daily, leftovers sold</span><span id="t-dust" class="value">—</span></div>
+            <div class="metric"><span class="label">Farm tax taken</span><span id="t-tax" class="value">—</span></div>
+            <div class="metric"><span class="label">Extra resource value (incl. tax)</span><span id="t-extra" class="value">—</span></div>
+            <div class="metric"><span class="label">Full farm + potion resource income</span><span id="t-farm-pot" class="value">—</span></div>
+            <div class="metric total"><span class="label">Full income + unpotted resources</span><span id="t-total" class="value">—</span></div>
+            <div class="metric"><span class="label">Highest-income potion</span><span id="t-best-pot" class="value">—</span></div>
+            <div class="metric"><span class="label">Total income from it</span><span id="t-best-income" class="value">—</span></div>
+            <div class="metric"><span class="label">Loss from current potion</span><span id="t-loss" class="value">—</span></div>
+            <div class="metric"><span class="label">Percent loss</span><span id="t-loss-pct" class="value">—</span></div>
+          </div>
+
+          <div class="roi">
+            <div class="roi-title"><span>Upgrade ROI</span><span>lower is faster</span></div>
+            <div class="roi-row"><span class="name">Lab 1×</span><span id="t-roi-lab" class="days">—</span></div>
+            <div class="roi-row"><span class="name">Spire 1×</span><span id="t-roi-spire" class="days">—</span></div>
+            <div class="roi-row"><span class="name">Potion boost</span><span id="t-roi-potionBoost" class="days">—</span></div>
+            <div class="roi-row"><span class="name">Base resources</span><span id="t-roi-baseRes" class="days">—</span></div>
+            <div class="roi-row"><span class="name">Shards</span><span id="t-roi-shards" class="days">—</span></div>
+            <div class="roi-row"><span class="name">Farm — no hedge</span><span id="t-roi-farmNoHedge" class="days">—</span></div>
+            <div class="roi-row"><span class="name">Farm + hedge</span><span id="t-roi-farmHedge" class="days">—</span></div>
+            <div class="roi-row"><span class="name">Tome drop</span><span id="t-roi-tomeDrop" class="days">—</span></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <details class="method-note">
+      <summary>Calculation notes</summary>
+      <div>
+        <p id="note"></p>
+        <p>The workbook’s Workshop level (650), construction pet (11), Codex boost (100), and build speed (1×) remain backend defaults because the supplied Apps Script does not fetch them.</p>
+      </div>
+    </details>
+
+    <footer class="footer">
+      <span>Static by design</span>
+      <span>Workbook-validated formulas</span>
+      <span>No account connection required</span>
+    </footer>
   </main>
 
+  <noscript>This calculator needs JavaScript enabled to run its workbook formulas.</noscript>
   <script src="calculator.js"></script>
+  <script src="data.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

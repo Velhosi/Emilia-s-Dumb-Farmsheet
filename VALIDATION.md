@@ -54,3 +54,7 @@ TSer **Tome drop** should reference the Battler Tome Drop ROI directly (`K31 = G
 ## Emilia validation already completed
 
 The earlier workbook also matched the JavaScript engine for the core Battler outputs and dynamic ROIs, including Lab, Dust Collector, farm upgrades, Battler tome drop, Workshop -> Dust Collector, Potion Boost, and Base Resources. The Hohmono workbook additionally validates Spire and Shard ROI with finite values.
+
+## Automated regression check
+
+`validation.test.js` runs the Hohmono snapshot through the same `calculator.js` engine used in the browser. It asserts the documented TSer outputs and ROI values, the 125,000 best-potion result, and the shared Battler/TSer Tome Drop ROI. Run it with `node validation.test.js`; it requires no installed packages and does not alter any workbook-derived formulas.

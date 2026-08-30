@@ -1,188 +1,142 @@
 'use strict';
 
 const Calc = window.ManarionCalculator;
-
-const SNAPSHOT_EMILIA = {
-  username: 'Emilia',
-  tax: 25,
-  harvestPotion: 120000,
-  resonancePotion: 62000,
-  potDuration: 1673,
-  bloomwellPrice: 129997,
-  sagerootPrice: 117625,
-  golems: 490000,
-  fertilizer: 480000,
-  plots: 480000,
-  level: 79413,
-  potionBoost: 235,
-  baseRes: 7100.13,
-  baseResResearch: 1305.7127018642018,
-  research: 1332400.0000000002,
-  averageResourcePrice: 35,
-  farmDiscount: 1108061,
-  spire: 650,
-  equipmentBaseRes: 0,
-  equipmentResearch: 0,
-  powerOrbPrice: 1365000000001,
-  perfectOrbPrice: 2182801833446367,
-  divineEssencePrice: 5339170286518,
-  elementiumPrice: 13638428518,
-  baseResAmount: 710013,
-  labLevel: 525,
-  shardBoost: 300000,
-  shardPrice: 14806,
-  nexusLevel: null,
-  natureTomePrice: 6431250770,
-  waterTomePrice: 6484023064,
-  fireTomePrice: 6514199998,
-  dropBoost: 192,
-  natureTomeLevel: 268,
-  waterTomeLevel: 350,
-  fireTomeLevel: 100,
-  guildLevel: 2018,
-  highestEnemy: 593213,
-  dustCollector: 915,
-  dustCodex: 202,
-  dustEquipment: 264794,
-  currentEnemy: 582813,
-  workshopLevel: 650,
-  constructionPetLevel: 11,
-  constructionCodex: 100,
-  buildSpeed: 1,
-};
-
-const SNAPSHOT_HOHMONO = {
-  username: 'Hohmono',
-  tax: 40,
-  harvestPotion: 171000,
-  resonancePotion: 57000,
-  potDuration: 2163,
-  bloomwellPrice: 127401,
-  sagerootPrice: 118814,
-  golems: 655000,
-  fertilizer: 655000,
-  plots: 655000,
-  level: 98647,
-  potionBoost: 245,
-  baseRes: 22252.63,
-  baseResResearch: 1363.127527699864,
-  research: 44426660.256400004,
-  averageResourcePrice: 33,
-  farmDiscount: 2517333,
-  spire: 1022,
-  equipmentBaseRes: 11952.67,
-  equipmentResearch: 956202.99,
-  powerOrbPrice: 1332090000000,
-  perfectOrbPrice: 2057801833446367,
-  divineEssencePrice: 5148657047400,
-  elementiumPrice: 14025550002,
-  baseResAmount: 1030000,
-  labLevel: 1000,
-  shardBoost: 7579389,
-  shardPrice: 13053,
-  nexusLevel: 22130,
-  natureTomePrice: 6732000000,
-  waterTomePrice: 7034667743,
-  fireTomePrice: 6998999997,
-  dropBoost: 192,
-  natureTomeLevel: 0,
-  waterTomeLevel: 425,
-  fireTomeLevel: 0,
-  guildLevel: 2020,
-  highestEnemy: 389000,
-  dustCollector: 0,
-  dustCodex: 92,
-  dustEquipment: 0,
-  currentEnemy: 389000,
-  workshopLevel: 650,
-  constructionPetLevel: 11,
-  constructionCodex: 100,
-  buildSpeed: 1,
-};
-
-const WORKBOOK_SNAPSHOTS = {
-  emilia: SNAPSHOT_EMILIA,
-  hohmono: SNAPSHOT_HOHMONO,
-};
+const { WORKBOOK_SNAPSHOTS } = window.ManarionData;
 
 const $ = (id) => document.getElementById(id);
-const form = $('settings-form');
-const statusEl = $('status');
-const sourceEl = $('source');
-const updatedEl = $('updated');
+const elements = Object.freeze({
+  form: $('settings-form'),
+  status: $('status'),
+  source: $('source'),
+  updated: $('updated'),
+  updateButton: $('update-btn'),
+  updateButtonLabel: $('update-btn').querySelector('.btn-label'),
+});
 
-function num(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
+function num(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function formatUnit(value, divisor, suffix, decimals = 2) {
   if (!Number.isFinite(value)) return 'N/A';
-  return `${(value / divisor).toLocaleString(undefined, { maximumFractionDigits: decimals, minimumFractionDigits: decimals })} ${suffix}`;
+  const formatted = (value / divisor).toLocaleString(undefined, {
+    maximumFractionDigits: decimals,
+    minimumFractionDigits: decimals,
+  });
+  return `${formatted} ${suffix}`;
 }
 
-function fmtB(v) { return formatUnit(v, 1e9, 'B', 2); }
-function fmtT(v) { return formatUnit(v, 1e12, 'T', 2); }
-function fmtQ(v) { return formatUnit(v, 1e15, 'Q', 2); }
-function fmtDays(v) {
-  return Number.isFinite(v) ? `${v.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })} d` : 'N/A';
+function formatCompact(value) {
+  const magnitude = Math.abs(value);
+  if (magnitude >= 1e15) return formatUnit(value, 1e15, 'Q');
+  if (magnitude >= 1e12) return formatUnit(value, 1e12, 'T');
+  if (magnitude >= 1e9) return formatUnit(value, 1e9, 'B');
+  return Number.isFinite(value) ? Math.round(value).toLocaleString() : 'N/A';
 }
-function fmtInt(v) { return Number.isFinite(v) ? Math.round(v).toLocaleString() : 'N/A'; }
-function fmtPct(v) { return Number.isFinite(v) ? `${v.toLocaleString(undefined, { maximumFractionDigits: 3 })}%` : 'N/A'; }
+
+const formatters = Object.freeze({
+  billions: (value) => formatUnit(value, 1e9, 'B'),
+  trillions: (value) => formatUnit(value, 1e12, 'T'),
+  quadrillions: (value) => formatUnit(value, 1e15, 'Q'),
+  days: (value) => Number.isFinite(value)
+    ? `${value.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })} d`
+    : 'N/A',
+  integer: (value) => Number.isFinite(value) ? Math.round(value).toLocaleString() : 'N/A',
+  percent: (value) => Number.isFinite(value)
+    ? `${value.toLocaleString(undefined, { maximumFractionDigits: 3 })}%`
+    : 'N/A',
+});
+
+function setText(id, value) {
+  const element = $(id);
+  if (element) element.textContent = value;
+}
 
 function setMetric(id, value, formatter, signAware = false) {
-  const el = $(id);
-  el.textContent = formatter(value);
-  el.classList.remove('positive', 'negative');
-  if (signAware && Number.isFinite(value)) el.classList.add(value >= 0 ? 'positive' : 'negative');
-}
+  const element = $(id);
+  if (!element) return;
 
-function setRoi(prefix, values) {
-  const entries = Object.entries(values).filter(([, v]) => Number.isFinite(v));
-  const best = entries.length ? Math.min(...entries.map(([, v]) => v)) : null;
-  for (const [key, value] of Object.entries(values)) {
-    const el = $(`${prefix}-${key}`);
-    if (!el) continue;
-    el.textContent = fmtDays(value);
-    el.closest('.roi-row')?.classList.toggle('best', Number.isFinite(value) && value === best);
+  element.textContent = formatter(value);
+  element.classList.remove('positive', 'negative');
+  if (signAware && Number.isFinite(value)) {
+    element.classList.add(value >= 0 ? 'positive' : 'negative');
   }
 }
 
-function render(data, result, sourceKind) {
-  setMetric('b-left-bloom', result.battler.leftoverBloom, fmtB, true);
-  setMetric('b-left-sage', result.battler.leftoverSage, fmtB, true);
-  setMetric('b-dust', result.battler.leftoverSold, fmtT, true);
-  setMetric('b-tax', result.battler.farmTax, fmtT, true);
-  setMetric('b-md', result.battler.mdEarned, fmtQ, true);
-  setMetric('b-total', result.battler.fullIncome, fmtT, true);
+function setRoi(prefix, values) {
+  const finiteValues = Object.values(values).filter(Number.isFinite);
+  const best = finiteValues.length ? Math.min(...finiteValues) : null;
 
-  setMetric('t-left-bloom', result.tser.leftoverBloom, fmtB, true);
-  setMetric('t-left-sage', result.tser.leftoverSage, fmtB, true);
-  setMetric('t-dust', result.tser.leftoverSold, fmtT, true);
-  setMetric('t-tax', result.tser.farmTax, fmtT, true);
-  setMetric('t-extra', result.tser.extraResValue, fmtT, true);
-  setMetric('t-farm-pot', result.tser.farmPlusPotIncome, fmtT, true);
-  setMetric('t-total', result.tser.fullIncome, fmtT, true);
-  setMetric('t-best-pot', result.tser.bestPotion, fmtInt);
-  setMetric('t-best-income', result.tser.bestIncome, fmtT, true);
-  setMetric('t-loss', result.tser.lossFromCurrentPotion, fmtT, true);
-  setMetric('t-loss-pct', result.tser.percentLoss, fmtPct, true);
+  for (const [key, value] of Object.entries(values)) {
+    const element = $(`${prefix}-${key}`);
+    if (!element) continue;
+
+    element.textContent = formatters.days(value);
+    element.closest('.roi-row')?.classList.toggle(
+      'best',
+      Number.isFinite(value) && value === best,
+    );
+  }
+}
+
+function setStatus(message, state) {
+  elements.status.textContent = message;
+  elements.status.dataset.state = state;
+}
+
+function renderSummary(result) {
+  setText('summary-battler', formatCompact(result.battler.fullIncome));
+  setText('summary-tser', formatCompact(result.tser.fullIncome));
+  setText('summary-potion', formatters.integer(result.tser.bestPotion));
+  setText('summary-loss', formatters.percent(result.tser.percentLoss));
+}
+
+function renderDetails(result) {
+  setMetric('b-left-bloom', result.battler.leftoverBloom, formatters.billions, true);
+  setMetric('b-left-sage', result.battler.leftoverSage, formatters.billions, true);
+  setMetric('b-dust', result.battler.leftoverSold, formatters.trillions, true);
+  setMetric('b-tax', result.battler.farmTax, formatters.trillions, true);
+  setMetric('b-md', result.battler.mdEarned, formatters.quadrillions, true);
+  setMetric('b-total', result.battler.fullIncome, formatters.trillions, true);
+
+  setMetric('t-left-bloom', result.tser.leftoverBloom, formatters.billions, true);
+  setMetric('t-left-sage', result.tser.leftoverSage, formatters.billions, true);
+  setMetric('t-dust', result.tser.leftoverSold, formatters.trillions, true);
+  setMetric('t-tax', result.tser.farmTax, formatters.trillions, true);
+  setMetric('t-extra', result.tser.extraResValue, formatters.trillions, true);
+  setMetric('t-farm-pot', result.tser.farmPlusPotIncome, formatters.trillions, true);
+  setMetric('t-total', result.tser.fullIncome, formatters.trillions, true);
+  setMetric('t-best-pot', result.tser.bestPotion, formatters.integer);
+  setMetric('t-best-income', result.tser.bestIncome, formatters.trillions, true);
+  setMetric('t-loss', result.tser.lossFromCurrentPotion, formatters.trillions, true);
+  setMetric('t-loss-pct', result.tser.percentLoss, formatters.percent, true);
 
   setRoi('b-roi', result.roi.battler);
+  setRoi('t-roi', result.roi.tser);
+}
 
-  const tserRoi = { ...result.roi.tser };
-  setRoi('t-roi', tserRoi);
-
+function renderSource(data, sourceKind) {
   $('username-label').textContent = data.username || 'Player';
-  sourceEl.textContent = sourceKind === 'live' ? 'Live Manarion API' : 'Workbook snapshot';
-  sourceEl.dataset.kind = sourceKind;
-  updatedEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  elements.source.textContent = sourceKind === 'live' ? 'Live Manarion API' : 'Workbook snapshot';
+  elements.source.dataset.kind = sourceKind;
 
-  const unresolved = [];
-  if (!Number.isFinite(result.roi.tser.shards)) unresolved.push('Shard ROI');
-  $('note').textContent = unresolved.length
-    ? `${unresolved.join(' and ')} ${unresolved.length === 1 ? 'is' : 'are'} shown as N/A until its missing workbook logic is reconstructed.`
-    : 'All displayed values are calculated dynamically.';
+  const now = new Date();
+  elements.updated.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  elements.updated.dateTime = now.toISOString();
+}
+
+function renderNotes(result) {
+  $('note').textContent = Number.isFinite(result.roi.tser.shards)
+    ? 'All displayed values are calculated dynamically.'
+    : 'Shard ROI needs a Nexus level and is shown as N/A when that value is unavailable.';
+}
+
+function render(data, result, sourceKind) {
+  renderSummary(result);
+  renderDetails(result);
+  renderSource(data, sourceKind);
+  renderNotes(result);
 }
 
 async function fetchJson(url) {
@@ -198,6 +152,7 @@ async function getLiveData(inputs) {
     fetchJson('https://api.manarion.com/market'),
     fetchJson('https://api.manarion.com/guilds'),
   ]);
+
   return Calc.normalizeFromApis(playerData, marketData, guilds, inputs);
 }
 
@@ -214,6 +169,7 @@ function snapshotForInputs(inputs) {
   const key = (inputs.username || 'Emilia').trim().toLowerCase();
   const base = WORKBOOK_SNAPSHOTS[key];
   if (!base) return null;
+
   return {
     ...base,
     username: inputs.username || base.username,
@@ -223,62 +179,61 @@ function snapshotForInputs(inputs) {
   };
 }
 
+function setBusy(isBusy) {
+  elements.updateButton.disabled = isBusy;
+  elements.updateButton.setAttribute('aria-busy', String(isBusy));
+  elements.updateButtonLabel.textContent = isBusy ? 'Updating…' : 'Update player';
+}
+
 async function update() {
   const inputs = getInputs();
   if (!inputs.username) {
-    statusEl.textContent = 'Enter a username.';
-    statusEl.dataset.state = 'error';
+    setStatus('Enter a username.', 'error');
     return;
   }
 
-  const button = $('update-btn');
-  button.disabled = true;
-  button.textContent = 'Updating…';
-  statusEl.textContent = 'Fetching player, market, and guild data…';
-  statusEl.dataset.state = 'working';
+  setBusy(true);
+  setStatus('Fetching player, market, and guild data…', 'working');
 
   try {
     const live = await getLiveData(inputs);
-    const result = Calc.calculate(live);
-    render(live, result, 'live');
-    statusEl.textContent = 'Updated from the live Manarion API.';
-    statusEl.dataset.state = 'ok';
+    render(live, Calc.calculate(live), 'live');
+    setStatus('Updated from the live Manarion API.', 'ok');
   } catch (error) {
-    // GitHub Pages can only call the API directly if the API allows browser CORS.
-    // The supplied workbook snapshot keeps the prototype usable while we test that.
     const snapshot = snapshotForInputs(inputs);
     if (snapshot) {
       render(snapshot, Calc.calculate(snapshot), 'snapshot');
-      statusEl.textContent = `Live API request was blocked/unavailable; showing the ${snapshot.username} workbook snapshot. (${error.message})`;
-      statusEl.dataset.state = 'warn';
+      setStatus(
+        `Live API request was unavailable; showing the ${snapshot.username} workbook snapshot. (${error.message})`,
+        'warn',
+      );
     } else {
-      statusEl.textContent = `Could not reach the Manarion API from this browser: ${error.message}`;
-      statusEl.dataset.state = 'error';
+      setStatus(`Could not reach the Manarion API from this browser: ${error.message}`, 'error');
     }
   } finally {
-    button.disabled = false;
-    button.textContent = 'Update';
+    setBusy(false);
   }
 }
 
-form.addEventListener('submit', (event) => {
-  event.preventDefault();
-  update();
-});
-
-$('demo-btn').addEventListener('click', () => {
+function loadDemo() {
   $('username').value = 'Emilia';
   $('tax').value = '25';
   $('harvest').value = '120000';
   $('resonance').value = '62000';
+
   const snapshot = snapshotForInputs(getInputs());
   render(snapshot, Calc.calculate(snapshot), 'snapshot');
-  statusEl.textContent = 'Loaded the workbook snapshot.';
-  statusEl.dataset.state = 'ok';
+  setStatus('Reset to the Emilia workbook snapshot.', 'ok');
+}
+
+elements.form.addEventListener('submit', (event) => {
+  event.preventDefault();
+  update();
 });
 
-// Show a useful first screen immediately.
+$('demo-btn').addEventListener('click', loadDemo);
+
+// Render a complete, validated example immediately; live data remains opt-in.
 const initial = snapshotForInputs(getInputs());
 render(initial, Calc.calculate(initial), 'snapshot');
-statusEl.textContent = 'Prototype loaded from the supplied workbook. Click Update to try the live API.';
-statusEl.dataset.state = 'ok';
+setStatus('Loaded the Emilia workbook snapshot. Update player to try the live API.', 'ok');

@@ -1,6 +1,6 @@
-# Manarion Farm Calculator Prototype
+# Manarion Farm Calculator
 
-Static browser prototype converted from the supplied Google Sheet and Apps Script.
+Static browser calculator converted from the supplied Google Sheet and Apps Script. It uses plain HTML, CSS, and JavaScript with no dependencies or build step.
 
 ## What is implemented
 
@@ -23,7 +23,17 @@ Static browser prototype converted from the supplied Google Sheet and Apps Scrip
 
 ## Hosting
 
-The site is plain HTML/CSS/JavaScript and can be hosted on GitHub Pages. If `api.manarion.com` does not permit browser CORS requests from the GitHub Pages origin, a very small API proxy will be required. The calculator itself does not need a server.
+Serve the repository root directly with GitHub Pages. If `api.manarion.com` does not permit browser CORS requests from the GitHub Pages origin, a very small API proxy will be required. The calculator itself does not need a server, and the validated workbook snapshots remain available as fallbacks.
+
+## Validation
+
+Run the dependency-free regression check with Node:
+
+```sh
+node validation.test.js
+```
+
+The check locks the Hohmono values documented in `VALIDATION.md`, including the best-potion search, all validated TSer ROI rows, and the shared Battler/TSer Tome Drop ROI.
 
 ## Formula notes
 
@@ -38,5 +48,7 @@ See `VALIDATION.md` for exact comparison values and the discrepancy between the 
 - `index.html` - page structure
 - `styles.css` - responsive dark UI
 - `calculator.js` - spreadsheet formulas converted to named JavaScript functions
-- `app.js` - API fetching, snapshot fallback, and rendering
+- `data.js` - validated Emilia and Hohmono workbook snapshots
+- `app.js` - API fetching, fallback selection, and UI rendering
+- `validation.test.js` - dependency-free formula regression checks
 - `VALIDATION.md` - workbook-vs-JavaScript validation notes
