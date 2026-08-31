@@ -22,7 +22,7 @@ Static browser calculator converted from the supplied Google Sheet and Apps Scri
 - Farm + Hedge ROI
 - Battler + TSer Tome Drop ROI (same calculation)
 - Dust Collector ROI
-- Workshop -> Dust Collector ROI
+- Workshop -> Dust Collector ROI using live Workshop, Construction boost, and active Construction pet data
 - Fresh live API requests only after the player submits the setup form; runtime responses are not cached
 - Automatic browser-CORS relay fallback when a direct Manarion request is rejected
 - Submitted setup values are remembered only in that browser; restoring them never triggers an automatic API request

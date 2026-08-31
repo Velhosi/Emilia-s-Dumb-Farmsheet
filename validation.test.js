@@ -193,6 +193,50 @@ assert.equal(
   'A non-Distillation sigil triggers the warning',
 );
 
+const liveConstructionPlayer = Calc.normalizeFromApis(
+  {
+    ...prefixPlayer,
+    BaseBoosts: { 104: 75, 150: 640 },
+    TotalBoosts: { 104: 715 },
+    Pets: { 24: { Level: 13, Active: true } },
+  },
+  { Buy: {}, Sell: {} },
+  [],
+  { username: 'ConstructionTest', tax: 0, harvestPotion: 1000, resonancePotion: 1000 },
+);
+assert.equal(liveConstructionPlayer.workshopLevel, 640, 'Workshop level is read from API boost 150');
+assert.equal(liveConstructionPlayer.constructionBoost, 715, 'Construction boost is read from API boost 104');
+assert.equal(liveConstructionPlayer.constructionPetLevel, 13, 'Active construction pet level is read from pet 24');
+
+const inactiveConstructionPetPlayer = Calc.normalizeFromApis(
+  {
+    ...prefixPlayer,
+    BaseBoosts: { 104: 75, 150: 640 },
+    TotalBoosts: { 104: 715 },
+    Pets: { 24: { Level: 13, Active: false } },
+  },
+  { Buy: {}, Sell: {} },
+  [],
+  { username: 'InactiveConstructionPetTest', tax: 0, harvestPotion: 1000, resonancePotion: 1000 },
+);
+assert.equal(inactiveConstructionPetPlayer.constructionPetLevel, 0, 'Inactive construction pet is not applied');
+
+const constructionRoiInputs = {
+  ...WORKBOOK_SNAPSHOTS.hohmono,
+  workshopLevel: liveConstructionPlayer.workshopLevel,
+  constructionPetLevel: liveConstructionPlayer.constructionPetLevel,
+  constructionBoost: liveConstructionPlayer.constructionBoost,
+};
+const liveConstructionRoi = Calc.calculate(constructionRoiInputs).roi.battler.workshopDustCollector;
+const changedConstructionRoi = Calc.calculate({
+  ...constructionRoiInputs,
+  constructionBoost: constructionRoiInputs.constructionBoost + 100,
+}).roi.battler.workshopDustCollector;
+assert.ok(
+  Number.isFinite(liveConstructionRoi) && liveConstructionRoi !== changedConstructionRoi,
+  'Workshop to Dust Collector ROI responds to the live Construction boost',
+);
+
 const cappedPrefixPlayer = Calc.normalizeFromApis(
   {
     ...prefixPlayer,
@@ -206,4 +250,4 @@ const cappedPrefixPlayer = Calc.normalizeFromApis(
 );
 assert.equal(cappedPrefixPlayer.ambitiousCount, 8, 'Ambitious prefix count is capped at eight');
 
-console.log('Validated the action baseline, sustainable-potion analysis, sigil detection, and Ambitious-prefix behavior.');
+console.log('Validated action counts, potion analysis, sigils, Ambitious prefixes, and live construction data.');

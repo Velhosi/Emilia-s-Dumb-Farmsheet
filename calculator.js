@@ -391,13 +391,15 @@
   function workshopDustCollectorROI(d) {
     const workshop = finite(d.workshopLevel);
     const pet = finite(d.constructionPetLevel);
-    const codex = finite(d.constructionCodex);
+    const constructionBoost = d.constructionBoost == null
+      ? workshop + finite(d.constructionCodex)
+      : finite(d.constructionBoost);
     const speed = finite(d.buildSpeed, 1) || 1;
     const petEffective = (((1 - 0.02 * pet) * 3) + ((pet * 0.02) * 6)) / 3;
-    const buildSeconds = ((1 + ((workshop + codex) / 100)) * petEffective) * speed;
+    const buildSeconds = ((1 + constructionBoost / 100) * petEffective) * speed;
     const buildsPerDay = (86400 / buildSeconds) * speed;
     const timeSavePerBuild = buildsPerDay
-      * (1 - ((1 + (workshop + codex) / 100) / (1 + (workshop + codex + 1) / 100))
+      * (1 - ((1 + constructionBoost / 100) / (1 + (constructionBoost + 1) / 100))
       ) / speed;
     const collectorDailyValue = dustDaily(d, true, 0.2) - dustDaily(d, true, 0);
     const dustTowerValuePerSecond = collectorDailyValue * buildSeconds / 86400;
@@ -533,6 +535,17 @@
     const averageMarketPrice = (id) => Math.round((getNum(buy, String(id)) + getNum(sell, String(id))) / 2);
     const research = Math.max(getNum(totalBoosts, '30'), getNum(totalBoosts, '31'), getNum(totalBoosts, '32')) * 100;
     const sigilBoost = finite(playerData?.SigilBoost);
+    const pets = playerData?.Pets || {};
+    const constructionPet = pets?.['24'] ?? Object.values(pets).find(
+      pet => String(pet?.ID ?? pet?.id ?? '') === '24',
+    );
+    const constructionPetActive = constructionPet?.Active ?? constructionPet?.active ?? true;
+    const workshopLevel = getNum(baseBoosts, '150');
+    const constructionCodex = getNum(baseBoosts, '104');
+    const apiConstructionBoost = getNum(totalBoosts, '104', NaN);
+    const constructionBoost = Number.isFinite(apiConstructionBoost)
+      ? apiConstructionBoost
+      : workshopLevel + constructionCodex;
 
     return {
       username: userInputs.username,
@@ -580,11 +593,11 @@
       dustCodex: getNum(totalBoosts, '101'),
       dustEquipment: getNum(totalBoosts, '121'),
       currentEnemy: finite(playerData?.Enemy),
-      // These are manual inputs in the supplied workbook. Keep its defaults for now.
-      workshopLevel: 650,
-      constructionPetLevel: 11,
-      constructionCodex: 100,
-      buildSpeed: 1,
+      workshopLevel,
+      constructionPetLevel: constructionPet && constructionPetActive
+        ? finite(constructionPet.Level ?? constructionPet.level)
+        : 0,
+      constructionBoost,
     };
   }
 
