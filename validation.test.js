@@ -20,6 +20,7 @@ function approximately(actual, expected, label) {
 }
 
 const validatedOutputs = {
+  'Battler net herbs': [result.battler.netHerbs, 127428845084.422],
   'TSer leftover Bloomwells': [result.tser.leftoverBloom, -438460707709.667],
   'TSer leftover Sageroots': [result.tser.leftoverSage, 565889552794.089],
   'TSer net herbs': [result.tser.netHerbs, 127428845084.422],
@@ -42,7 +43,18 @@ const validatedOutputs = {
 };
 
 assert.equal(result.tser.bestPotion, 125000, 'Highest-income potion');
+assert.equal(result.battler.maxSustainablePotion, 177000, 'Battler maximum sustainable potion');
 assert.equal(result.tser.maxSustainablePotion, 177000, 'Maximum sustainable potion');
+assert.equal(
+  result.battler.maxSustainablePotion,
+  result.tser.maxSustainablePotion,
+  'Herb trading gives Battler and TSer the same maximum sustainable potion',
+);
+assert.equal(
+  result.battler.netHerbs,
+  result.tser.netHerbs,
+  'Herb trading gives Battler and TSer the same combined net herbs',
+);
 assert.ok(
   result.tser.netHerbs > 0 && result.tser.maxSustainablePotion >= WORKBOOK_SNAPSHOTS.hohmono.harvestPotion,
   'A current potion with positive net herbs remains sustainable after herb trading',
@@ -50,6 +62,14 @@ assert.ok(
 const sustainableTotals = Calc.helpers.tserAtPotion(
   WORKBOOK_SNAPSHOTS.hohmono,
   result.tser.maxSustainablePotion,
+);
+const sustainableBattlerTotals = Calc.helpers.battlerAtPotion(
+  WORKBOOK_SNAPSHOTS.hohmono,
+  result.battler.maxSustainablePotion,
+);
+const nextBattlerPotionTotals = Calc.helpers.battlerAtPotion(
+  WORKBOOK_SNAPSHOTS.hohmono,
+  result.battler.maxSustainablePotion + Calc.C.POTION_SEARCH_STEP,
 );
 const nextPotionTotals = Calc.helpers.tserAtPotion(
   WORKBOOK_SNAPSHOTS.hohmono,
@@ -62,6 +82,14 @@ assert.ok(
 assert.ok(
   nextPotionTotals.leftoverBloom + nextPotionTotals.leftoverSage < 0,
   'The next potion tier has negative combined herbs',
+);
+assert.ok(
+  sustainableBattlerTotals.leftoverBloom + sustainableBattlerTotals.leftoverSage >= 0,
+  'Battler maximum sustainable potion has nonnegative combined herbs',
+);
+assert.ok(
+  nextBattlerPotionTotals.leftoverBloom + nextBattlerPotionTotals.leftoverSage < 0,
+  'The next Battler potion tier has negative combined herbs',
 );
 assert.ok(
   Calc.helpers.maxSustainableTserPotion({ ...WORKBOOK_SNAPSHOTS.hohmono, resonancePotion: 0 })

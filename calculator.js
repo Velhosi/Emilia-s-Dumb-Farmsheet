@@ -112,8 +112,8 @@
     return { herbHr, herbDaily, bloomDaily, sageDaily, harvestPerPot, harvestHr, resPerPot, resHr };
   }
 
-  function battler(d) {
-    const f = farmTotals(d, d.harvestPotion);
+  function battlerAtPotion(d, harvestPotion) {
+    const f = farmTotals(d, harvestPotion);
     const leftoverBloom = f.bloomDaily - ((f.resHr * C.BATTLE_HOURS_PER_DAY) / 2);
     const leftoverSage = f.sageDaily - ((f.harvestHr * C.BATTLE_HOURS_PER_DAY) + ((f.resHr / 2) * C.BATTLE_HOURS_PER_DAY));
     const leftoverSold = leftoverBloom * finite(d.bloomwellPrice) + leftoverSage * finite(d.sagerootPrice);
@@ -128,6 +128,10 @@
       mdEarned,
       fullIncome: farmTax + mdEarned,
     };
+  }
+
+  function battler(d) {
+    return battlerAtPotion(d, d.harvestPotion);
   }
 
   function tserAtPotion(d, harvestPotion) {
@@ -187,10 +191,10 @@
     return { bestPotion, bestIncome };
   }
 
-  function maxSustainableTserPotion(d, { step = C.POTION_SEARCH_STEP } = {}) {
+  function maxSustainablePotion(d, totalsAtPotion, { step = C.POTION_SEARCH_STEP } = {}) {
     const increment = Math.max(1, Math.trunc(finite(step, C.POTION_SEARCH_STEP)));
     const canSustain = (potion) => {
-      const totals = tserAtPotion(d, potion);
+      const totals = totalsAtPotion(d, potion);
       return totals.leftoverBloom + totals.leftoverSage >= 0;
     };
 
@@ -213,6 +217,14 @@
     }
 
     return sustainableUnits * increment;
+  }
+
+  function maxSustainableTserPotion(d, options) {
+    return maxSustainablePotion(d, tserAtPotion, options);
+  }
+
+  function maxSustainableBattlerPotion(d, options) {
+    return maxSustainablePotion(d, battlerAtPotion, options);
   }
 
   function labROI(d) {
@@ -419,10 +431,16 @@
     const ambitiousPenaltyPercent = (1 - ambitiousResourceMultiplier(d)) * 100;
     const netHerbs = tserTotals.leftoverBloom + tserTotals.leftoverSage;
     const maxSustainablePotion = maxSustainableTserPotion(d);
+    const battlerNetHerbs = battlerTotals.leftoverBloom + battlerTotals.leftoverSage;
+    const battlerMaxSustainablePotion = maxSustainableBattlerPotion(d);
 
     const sharedLabROI = labROI(d);
     const result = {
-      battler: battlerTotals,
+      battler: {
+        ...battlerTotals,
+        netHerbs: battlerNetHerbs,
+        maxSustainablePotion: battlerMaxSustainablePotion,
+      },
       tser: {
         ...tserTotals,
         bestPotion: opt.bestPotion,
@@ -607,7 +625,8 @@
     normalizeFromApis,
     helpers: {
       buildingCost, herbsPerHour, harvestHerbsPerPot, resonanceHerbsPerPot,
-      ambitiousResourceMultiplier, tserAtPotion, optimizeTserPotion, maxSustainableTserPotion,
+      ambitiousResourceMultiplier, battlerAtPotion, tserAtPotion, optimizeTserPotion,
+      maxSustainableBattlerPotion, maxSustainableTserPotion,
       tomeTotalCost, farmUpgradeStats,
     },
   };

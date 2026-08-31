@@ -375,8 +375,7 @@ summary:focus-visible {
 }
 
 .overview[data-role="battler"] {
-  grid-template-columns: minmax(0, 1fr);
-  max-width: 305px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .summary-card {
@@ -414,6 +413,10 @@ summary:focus-visible {
 
 .summary-card.net-herbs-card {
   --card-accent: var(--blue);
+}
+
+.summary-card.sustainable-card {
+  --card-accent: var(--green);
 }
 
 .summary-label {
@@ -685,6 +688,10 @@ noscript {
   .overview {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .overview[data-role="battler"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 780px) {
@@ -738,6 +745,10 @@ noscript {
 
   .settings,
   .overview {
+    grid-template-columns: 1fr;
+  }
+
+  .overview[data-role="battler"] {
     grid-template-columns: 1fr;
   }
 

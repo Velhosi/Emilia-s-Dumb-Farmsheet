@@ -10,6 +10,7 @@ Static browser calculator converted from the supplied Google Sheet and Apps Scri
 - Separate TSer cards for daily income, potion comparison, and ROI
 - Live Manarion player, market, and guild API normalization
 - Battler daily totals
+- Battler Net herbs and maximum sustainable potion summaries
 - TSer daily totals
 - TSer best-potion optimizer (0-1,000,000 in 1,000 steps)
 - Ambitious equipment-prefix detection and -1% total TSer resources per equipped item (maximum 8%)
@@ -26,6 +27,7 @@ Static browser calculator converted from the supplied Google Sheet and Apps Scri
 - Fresh live API requests only after the player submits the setup form; runtime responses are not cached
 - Automatic browser-CORS relay fallback when a direct Manarion request is rejected
 - Submitted setup values are remembered only in that browser; restoring them never triggers an automatic API request
+- Unified asset-version query strings are bumped on deployment so browsers fetch current CSS and JavaScript without clearing saved inputs
 
 ## Hosting
 

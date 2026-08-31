@@ -29,8 +29,8 @@ Outputs that do not depend on the updated daily-action counts still reproduce th
 
 ### Derived herb and potion values
 
-- Net herbs combine the current-potion Bloomwell and Sageroot leftovers. For the Hohmono snapshot this is **127,428,845,084.422** herbs.
-- Maximum sustainable potion is the highest 1,000-level Harvest/Wisdom potion whose combined Bloomwell and Sageroot total stays at or above zero, allowing either herb to be traded into the other as needed. The calculation keeps the entered Resonance potion active and uses the API's total Potion Duration boost, which includes Laboratory duration. For the Hohmono snapshot this is **177,000**.
+- Net herbs combine the current-potion Bloomwell and Sageroot leftovers. For the Hohmono snapshot this is **127,428,845,084.422** herbs for either role once herb trading is allowed.
+- Maximum sustainable potion is the highest 1,000-level Harvest/Wisdom potion whose combined Bloomwell and Sageroot total stays at or above zero, allowing either herb to be traded into the other as needed. The calculation keeps the entered Resonance potion active and uses the API's total Potion Duration boost, which includes Laboratory duration. For the Hohmono snapshot this is **177,000** for both Battler and TSer.
 - A nonzero `SigilBoost` other than the Distillation/Potion Duration identifier (`110`) activates the event-accuracy warning. Missing or zero values do not.
 - Workshop → Dust Collector ROI reads Workshop level from `BaseBoosts[150]`, total Construction boost from `TotalBoosts[104]`, and the active Construction pet's level from `Pets[24]`. Stored workbook fixtures retain their original manual values through the calculator's compatibility fallback.
 

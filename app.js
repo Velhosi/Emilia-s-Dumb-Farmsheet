@@ -16,7 +16,7 @@ const elements = Object.freeze({
   sigilWarning: $('sigil-warning'),
   battlerPanel: $('battler-panel'),
   tserPanels: [...document.querySelectorAll('.tser-result-panel')],
-  battlerSummary: $('summary-battler-card'),
+  battlerSummaries: [...document.querySelectorAll('.battler-only')],
   tserSummaries: [...document.querySelectorAll('.tser-only')],
   updateButton: $('update-btn'),
   updateButtonLabel: $('update-btn').querySelector('.btn-label'),
@@ -110,6 +110,8 @@ function setStatus(message, state) {
 
 function renderSummary(result) {
   setText('summary-battler', formatCompact(result.battler.fullIncome));
+  setMetric('summary-battler-net-herbs', result.battler.netHerbs, formatSignedCompact, true);
+  setText('summary-battler-max-potion', formatters.integer(result.battler.maxSustainablePotion));
   setText('summary-tser', formatCompact(result.tser.fullIncome));
   setText('summary-potion', formatters.integer(result.tser.bestPotion));
   setText('summary-loss', formatters.percent(result.tser.percentLoss));
@@ -127,7 +129,7 @@ function applyRoleView(role) {
   const showResults = hasRole && hasRenderedResults;
   elements.overview.hidden = !showResults;
   elements.results.hidden = !showResults;
-  elements.battlerSummary.hidden = !isBattler;
+  elements.battlerSummaries.forEach((element) => { element.hidden = !isBattler; });
   elements.tserSummaries.forEach((element) => { element.hidden = !isTser; });
   elements.battlerPanel.hidden = !isBattler;
   elements.tserPanels.forEach((element) => { element.hidden = !isTser; });
