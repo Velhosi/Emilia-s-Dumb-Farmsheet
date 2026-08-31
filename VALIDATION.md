@@ -30,7 +30,7 @@ Outputs that do not depend on the updated daily-action counts still reproduce th
 ### Derived herb and potion values
 
 - Net herbs combine the current-potion Bloomwell and Sageroot leftovers. For the Hohmono snapshot this is **127,428,845,084.422** herbs.
-- Maximum sustainable potion is the highest 1,000-level Harvest/Wisdom potion that leaves both herb totals at or above zero. The calculation keeps the entered Resonance potion active and uses the API's total Potion Duration boost, which includes Laboratory duration. For the Hohmono snapshot this is **141,000**.
+- Maximum sustainable potion is the highest 1,000-level Harvest/Wisdom potion whose combined Bloomwell and Sageroot total stays at or above zero, allowing either herb to be traded into the other as needed. The calculation keeps the entered Resonance potion active and uses the API's total Potion Duration boost, which includes Laboratory duration. For the Hohmono snapshot this is **177,000**.
 - A nonzero `SigilBoost` other than the Distillation/Potion Duration identifier (`110`) activates the event-accuracy warning. Missing or zero values do not.
 
 ### Hohmono TSer ROI validation

@@ -42,11 +42,31 @@ const validatedOutputs = {
 };
 
 assert.equal(result.tser.bestPotion, 125000, 'Highest-income potion');
-assert.equal(result.tser.maxSustainablePotion, 141000, 'Maximum sustainable potion');
+assert.equal(result.tser.maxSustainablePotion, 177000, 'Maximum sustainable potion');
+assert.ok(
+  result.tser.netHerbs > 0 && result.tser.maxSustainablePotion >= WORKBOOK_SNAPSHOTS.hohmono.harvestPotion,
+  'A current potion with positive net herbs remains sustainable after herb trading',
+);
+const sustainableTotals = Calc.helpers.tserAtPotion(
+  WORKBOOK_SNAPSHOTS.hohmono,
+  result.tser.maxSustainablePotion,
+);
+const nextPotionTotals = Calc.helpers.tserAtPotion(
+  WORKBOOK_SNAPSHOTS.hohmono,
+  result.tser.maxSustainablePotion + Calc.C.POTION_SEARCH_STEP,
+);
+assert.ok(
+  sustainableTotals.leftoverBloom + sustainableTotals.leftoverSage >= 0,
+  'Maximum sustainable potion has nonnegative combined herbs',
+);
+assert.ok(
+  nextPotionTotals.leftoverBloom + nextPotionTotals.leftoverSage < 0,
+  'The next potion tier has negative combined herbs',
+);
 assert.ok(
   Calc.helpers.maxSustainableTserPotion({ ...WORKBOOK_SNAPSHOTS.hohmono, resonancePotion: 0 })
     > result.tser.maxSustainablePotion,
-  'Maximum sustainable potion accounts for Resonance herb consumption',
+  'Maximum sustainable potion accounts for Resonance herb consumption after herb trading',
 );
 assert.ok(
   Calc.helpers.maxSustainableTserPotion({

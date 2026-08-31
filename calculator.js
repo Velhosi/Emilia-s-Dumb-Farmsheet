@@ -191,7 +191,7 @@
     const increment = Math.max(1, Math.trunc(finite(step, C.POTION_SEARCH_STEP)));
     const canSustain = (potion) => {
       const totals = tserAtPotion(d, potion);
-      return totals.leftoverBloom >= 0 && totals.leftoverSage >= 0;
+      return totals.leftoverBloom + totals.leftoverSage >= 0;
     };
 
     if (!canSustain(0)) return 0;
