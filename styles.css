@@ -694,6 +694,24 @@ summary:focus-visible {
   padding: 7px 0;
 }
 
+.info-section-label {
+  display: block;
+  margin-top: 6px;
+  border-top: 1px solid rgba(190, 211, 235, .1);
+  padding: 10px 0 3px;
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.info-section-label:first-child {
+  margin-top: 0;
+  border-top: 0;
+  padding-top: 8px;
+}
+
 .info-row-label {
   min-width: 0;
   color: var(--muted);

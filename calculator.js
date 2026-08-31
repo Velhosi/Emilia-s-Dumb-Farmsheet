@@ -16,7 +16,9 @@
     FARM_UPGRADE_SIZE: 1000,
     BASE_RES_UPGRADE_SIZE: 5000,
     SHARD_UPGRADE_SIZE: 1000,
-    HEDGE_ROI_DAYS: 41,
+    HEDGE_COST_PER_LEVEL: 1_000_000_000_000,
+    HEDGE_DISCOUNT_PER_HOUR: 1_000_000_000,
+    HEDGE_ROI_DAYS: 1_000_000_000_000 / (1_000_000_000 * 24),
     MAX_TSER_POTION: 1_000_000,
     POTION_SEARCH_STEP: 1_000,
     MAX_AMBITIOUS_PREFIXES: 8,
@@ -374,23 +376,122 @@
     return rows;
   }
 
-  function battlerFarmROI(d) {
+  function farmNoHedgeRoiBreakdown(d) {
     const rows = farmUpgradeStats(d);
-    const taxed = rows.map(r => r.taxedROI).filter(Number.isFinite);
-    return taxed.length ? taxed.reduce((a, b) => a + b, 0) / taxed.length : null;
+    const valid = rows.filter(row => Number.isFinite(row.taxedROI));
+    const averageHerbPrice = (finite(d.bloomwellPrice) + finite(d.sagerootPrice)) / 2;
+    if (!valid.length) {
+      return {
+        bestUpgrade: null,
+        upgradeSize: C.FARM_UPGRADE_SIZE,
+        averageHerbPrice,
+        extraHerbsPerDay: null,
+        grossHerbValuePerDay: null,
+        farmTaxPerDay: null,
+        netDailyBenefit: null,
+        cost: null,
+        roi: null,
+      };
+    }
+
+    const best = valid.reduce((currentBest, row) => (
+      row.taxedROI < currentBest.taxedROI ? row : currentBest
+    ));
+    const extraHerbsPerDay = best.extraHerbsHr * 24;
+    const grossHerbValuePerDay = extraHerbsPerDay * averageHerbPrice;
+    const farmTaxPerDay = extraHerbsPerDay * C.FARM_DUST_PER_HERB;
+    const netDailyBenefit = grossHerbValuePerDay - farmTaxPerDay;
+
+    return {
+      bestUpgrade: best.label,
+      upgradeSize: C.FARM_UPGRADE_SIZE,
+      averageHerbPrice,
+      extraHerbsPerDay,
+      grossHerbValuePerDay,
+      farmTaxPerDay,
+      netDailyBenefit,
+      cost: best.cost,
+      roi: best.taxedROI,
+    };
+  }
+
+  function battlerFarmROI(d) {
+    return farmNoHedgeRoiBreakdown(d).roi;
+  }
+
+  function farmHedgeRoiBreakdown(d) {
+    const rows = farmUpgradeStats(d);
+    const averageHerbPrice = (finite(d.bloomwellPrice) + finite(d.sagerootPrice)) / 2;
+    const combinations = rows.map((row) => {
+      const extraHerbsPerDay = row.extraHerbsHr * 24;
+      const grossHerbValuePerDay = extraHerbsPerDay * averageHerbPrice;
+      const addedFarmTaxPerHour = row.extraHerbsHr * C.FARM_DUST_PER_HERB;
+      const farmTaxAvoidedPerDay = addedFarmTaxPerHour * 24;
+      const hedgeLevelsNeeded = Math.ceil(Math.max(addedFarmTaxPerHour, 0)
+        / C.HEDGE_DISCOUNT_PER_HOUR);
+      const hedgeCost = hedgeLevelsNeeded * C.HEDGE_COST_PER_LEVEL;
+      const hedgeDiscountPerHour = hedgeLevelsNeeded * C.HEDGE_DISCOUNT_PER_HOUR;
+      const combinedCost = row.cost + hedgeCost;
+      const combinedDailyBenefit = grossHerbValuePerDay + farmTaxAvoidedPerDay;
+      return {
+        ...row,
+        extraHerbsPerDay,
+        grossHerbValuePerDay,
+        addedFarmTaxPerHour,
+        farmTaxAvoidedPerDay,
+        hedgeLevelsNeeded,
+        hedgeCost,
+        hedgeDiscountPerHour,
+        combinedCost,
+        combinedDailyBenefit,
+        roi: safeDiv(combinedCost, combinedDailyBenefit),
+      };
+    });
+    const valid = combinations.filter(row => Number.isFinite(row.roi));
+    if (!valid.length) {
+      return {
+        bestUpgrade: null,
+        upgradeSize: C.FARM_UPGRADE_SIZE,
+        averageHerbPrice,
+        extraHerbsPerDay: null,
+        grossHerbValuePerDay: null,
+        addedFarmTaxPerHour: null,
+        farmTaxAvoidedPerDay: null,
+        hedgeLevelsNeeded: null,
+        hedgeCost: null,
+        hedgeDiscountPerHour: null,
+        hedgeStandaloneRoiDays: C.HEDGE_ROI_DAYS,
+        farmUpgradeCost: null,
+        combinedCost: null,
+        combinedDailyBenefit: null,
+        roi: null,
+      };
+    }
+
+    const best = valid.reduce((currentBest, row) => (
+      row.roi < currentBest.roi ? row : currentBest
+    ));
+    return {
+      bestUpgrade: best.label,
+      upgradeSize: C.FARM_UPGRADE_SIZE,
+      averageHerbPrice,
+      extraHerbsPerDay: best.extraHerbsPerDay,
+      grossHerbValuePerDay: best.grossHerbValuePerDay,
+      addedFarmTaxPerHour: best.addedFarmTaxPerHour,
+      farmTaxAvoidedPerDay: best.farmTaxAvoidedPerDay,
+      hedgeLevelsNeeded: best.hedgeLevelsNeeded,
+      hedgeCost: best.hedgeCost,
+      hedgeDiscountPerHour: best.hedgeDiscountPerHour,
+      hedgeStandaloneRoiDays: C.HEDGE_ROI_DAYS,
+      farmUpgradeCost: best.cost,
+      combinedCost: best.combinedCost,
+      combinedDailyBenefit: best.combinedDailyBenefit,
+      roi: best.roi,
+    };
   }
 
   function battlerFarmHedgeROI(d) {
-    const rows = farmUpgradeStats(d);
-    const valid = rows.filter(r => Number.isFinite(r.noTaxROI));
-    if (!valid.length) return null;
-    const minCostRow = rows.reduce((a, b) => b.cost < a.cost ? b : a);
-    const minNoTaxROI = Math.min(...valid.map(r => r.noTaxROI));
-    const hedgeCost = 1000 * (C.FARM_DUST_PER_HERB * minCostRow.extraHerbsHr);
-    return safeDiv(
-      minCostRow.cost + hedgeCost,
-      (minCostRow.cost / minNoTaxROI) + (hedgeCost / C.HEDGE_ROI_DAYS)
-    );
+    return farmHedgeRoiBreakdown(d).roi;
   }
 
   function tomeTotalCost(level) {
@@ -399,17 +500,20 @@
       + 249_750 * n ** 2 - (100 / 3) * n;
   }
 
-  function tomeDropROI(d) {
+  function tomeDropRoiBreakdown(d) {
     const tomes = [
       { name: 'Nature', level: finite(d.natureTomeLevel), price: finite(d.natureTomePrice) },
       { name: 'Water', level: finite(d.waterTomeLevel), price: finite(d.waterTomePrice) },
       { name: 'Fire', level: finite(d.fireTomeLevel), price: finite(d.fireTomePrice) },
     ];
     const highest = tomes.reduce((a, b) => b.level > a.level ? b : a);
-    const upgradeCostDust = (tomeTotalCost(highest.level + 1) - tomeTotalCost(highest.level))
-      * finite(d.averageResourcePrice);
+    const upgradeResources = tomeTotalCost(highest.level + 1) - tomeTotalCost(highest.level);
+    const averageResourcePrice = finite(d.averageResourcePrice);
+    const upgradeCostDust = upgradeResources * averageResourcePrice;
 
-    const effectiveDropChance = 0.005 * ((finite(d.dropBoost) + 100) / 100);
+    const baseDropChance = 0.005;
+    const dropBoostPercent = finite(d.dropBoost);
+    const effectiveDropChance = baseDropChance * ((dropBoostPercent + 100) / 100);
     const enemyBoost = Math.floor((finite(d.highestEnemy) + 150) / 1000);
     const levelBoost = highest.level;
     const maxBoost = enemyBoost + levelBoost;
@@ -421,21 +525,66 @@
     const nextAvgDrop = ((minBoost + maxBoost + 2) / 2) + 1;
     const avgWithGuild = avgDrop * ((guildDropAmountBoost + 100) / 100);
     const nextAvgWithGuild = nextAvgDrop * ((guildDropAmountBoost + 100) / 100);
-    const perDay = successfulDropsPerHour * avgWithGuild * C.BATTLE_HOURS_PER_DAY;
-    const nextPerDay = successfulDropsPerHour * nextAvgWithGuild * C.BATTLE_HOURS_PER_DAY;
-    // The supplied sheet values the incremental drop with the Nature tome sale price (B133)
-    // even when another tome is the current highest level. Preserve that behavior for parity.
-    const extraValuePerDay = (nextPerDay - perDay) * finite(d.natureTomePrice);
-    return safeDiv(upgradeCostDust, extraValuePerDay);
+    const successfulDropsPerDay = successfulDropsPerHour * C.BATTLE_HOURS_PER_DAY;
+    const perDay = successfulDropsPerDay * avgWithGuild;
+    const nextPerDay = successfulDropsPerDay * nextAvgWithGuild;
+    const extraTomesPerDay = nextPerDay - perDay;
+    const extraValuePerDay = extraTomesPerDay * highest.price;
+    return {
+      tomeName: highest.name,
+      currentLevel: highest.level,
+      nextLevel: highest.level + 1,
+      upgradeResources,
+      averageResourcePrice,
+      upgradeCost: upgradeCostDust,
+      baseDropChance,
+      dropBoostPercent,
+      effectiveDropChance,
+      enemyBoost,
+      guildDropAmountBoost,
+      successfulDropsPerDay,
+      currentAverageDropAmount: avgWithGuild,
+      nextAverageDropAmount: nextAvgWithGuild,
+      currentTomesPerDay: perDay,
+      nextTomesPerDay: nextPerDay,
+      extraTomesPerDay,
+      tomeSellPrice: highest.price,
+      extraValuePerDay,
+      roi: safeDiv(upgradeCostDust, extraValuePerDay),
+    };
+  }
+
+  function tomeDropROI(d) {
+    return tomeDropRoiBreakdown(d).roi;
+  }
+
+  function dustCollectorRoiBreakdown(d) {
+    const currentLevel = finite(d.dustCollector);
+    const currentBoostPercent = currentLevel * 0.2;
+    const nextBoostPercent = currentBoostPercent + 0.2;
+    const cost = buildingCost(d.dustCollector, d.averageResourcePrice);
+    const currentDailyMd = dustDaily(d, true, 0);
+    const upgradedDailyMd = dustDaily(d, true, 0.2);
+    const extraDailyMd = upgradedDailyMd - currentDailyMd;
+
+    return {
+      currentLevel,
+      nextLevel: currentLevel + 1,
+      currentBoostPercent,
+      nextBoostPercent,
+      cost,
+      currentDailyMd,
+      upgradedDailyMd,
+      extraDailyMd,
+      roi: safeDiv(cost, extraDailyMd),
+    };
   }
 
   function dustCollectorROI(d) {
-    const cost = buildingCost(d.dustCollector, d.averageResourcePrice);
-    const valuePerDay = dustDaily(d, true, 0.2) - dustDaily(d, true, 0);
-    return safeDiv(cost, valuePerDay);
+    return dustCollectorRoiBreakdown(d).roi;
   }
 
-  function workshopDustCollectorROI(d) {
+  function workshopDustCollectorRoiBreakdown(d) {
     const workshop = finite(d.workshopLevel);
     const pet = finite(d.constructionPetLevel);
     const constructionBoost = d.constructionBoost == null
@@ -444,6 +593,8 @@
     const speed = finite(d.buildSpeed, 1) || 1;
     const petEffective = (((1 - 0.02 * pet) * 3) + ((pet * 0.02) * 6)) / 3;
     const buildSeconds = ((1 + constructionBoost / 100) * petEffective) * speed;
+    const nextConstructionMultiplier = ((1 + (constructionBoost + 1) / 100)
+      * petEffective) * speed;
     const buildsPerDay = (86400 / buildSeconds) * speed;
     const timeSavePerBuild = buildsPerDay
       * (1 - ((1 + constructionBoost / 100) / (1 + (constructionBoost + 1) / 100))
@@ -454,7 +605,29 @@
     const dailyCumulativeValue = valuePerFutureBuild * buildSeconds;
     const workshopCost = buildingCost(workshop, d.averageResourcePrice);
     const denominator = 0.5 * dailyCumulativeValue;
-    return denominator > 0 ? Math.sqrt((collectorDailyValue + workshopCost * speed) / denominator) : null;
+    const numerator = collectorDailyValue + workshopCost * speed;
+    return {
+      workshopCost,
+      constructionBoost,
+      constructionPetLevel: pet,
+      constructionPetMultiplier: petEffective,
+      buildSpeed: speed,
+      currentConstructionMultiplier: buildSeconds,
+      nextConstructionMultiplier,
+      buildsPerDay,
+      timeSavePerBuild,
+      collectorDailyValue,
+      dustTowerValuePerSecond,
+      valuePerFutureBuild,
+      dailyCumulativeValue,
+      paybackNumerator: numerator,
+      paybackDenominator: denominator,
+      roi: denominator > 0 ? Math.sqrt(numerator / denominator) : null,
+    };
+  }
+
+  function workshopDustCollectorROI(d) {
+    return workshopDustCollectorRoiBreakdown(d).roi;
   }
 
   function calculate(d) {
@@ -500,9 +673,7 @@
           potionBoost: potionBoostROI(d),
           baseRes: baseResourceROI(d),
           shards: shardROI(d),
-          // The newer Hohmono workbook confirms these two TSer cells use the same
-          // farm-upgrade formulas as the Battler rows (K29/K30 reference E119:E121
-          // and the hedge-combination calculation respectively).
+          // Both roles use the same farm-upgrade calculations.
           farmNoHedge: battlerFarmROI(d),
           farmHedge: battlerFarmHedgeROI(d),
           // TSer Tome Drop uses the same ROI as the Battler Tome Drop row (K31 = G148).
@@ -661,7 +832,9 @@
       buildingCost, herbsPerHour, harvestHerbsPerPot, resonanceHerbsPerPot,
       ambitiousResourceMultiplier, battlerAtPotion, tserAtPotion, optimizeTserPotion,
       maxSustainableBattlerPotion, maxSustainableTserPotion,
-      tomeTotalCost, farmUpgradeStats, labRoiBreakdown, mdIncomeBreakdown,
+      tomeTotalCost, tomeDropRoiBreakdown, farmUpgradeStats, labRoiBreakdown, mdIncomeBreakdown,
+      dustCollectorRoiBreakdown, workshopDustCollectorRoiBreakdown,
+      farmNoHedgeRoiBreakdown, farmHedgeRoiBreakdown,
     },
   };
 });

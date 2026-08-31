@@ -7,6 +7,7 @@ const { WORKBOOK_SNAPSHOTS } = require('./data.js');
 assert.equal(Calc.C.GATHER_ACTIONS_PER_DAY, 26880, 'Daily gathering actions');
 assert.equal(Calc.C.TS_UNPOTTED_ACTIONS, 26880, 'Daily unpotted TSer actions');
 assert.equal(Calc.C.TS_POTTED_ACTIONS, 26880, 'Daily potted TSer actions');
+approximately(Calc.C.HEDGE_ROI_DAYS, 41.666666666666664, 'Standalone Hedge Fund ROI');
 
 const result = Calc.calculate(WORKBOOK_SNAPSHOTS.hohmono);
 
@@ -38,9 +39,9 @@ const validatedOutputs = {
   'Potion boost ROI': [result.roi.tser.potionBoost, 233.98684992590225],
   'Base resources ROI': [result.roi.tser.baseRes, 154.07461517292992],
   'Shards ROI': [result.roi.tser.shards, 135.54217906353037],
-  'Farm no hedge ROI': [result.roi.tser.farmNoHedge, 116.84620105889866],
-  'Farm + hedge ROI': [result.roi.tser.farmHedge, 61.094962816571005],
-  'Tome drop ROI': [result.roi.tser.tomeDrop, 291.9240132824413],
+  'Farm no hedge ROI': [result.roi.tser.farmNoHedge, 116.84620105889435],
+  'Farm + hedge ROI': [result.roi.tser.farmHedge, 61.38489854586301],
+  'Tome drop ROI': [result.roi.tser.tomeDrop, 279.36393433409705],
 };
 
 assert.equal(result.tser.bestPotion, 125000, 'Highest-income potion');
@@ -110,6 +111,25 @@ assert.equal(
   'Battler and TSer Tome Drop ROI must remain identical',
 );
 
+const tomeDropBreakdown = Calc.helpers.tomeDropRoiBreakdown(WORKBOOK_SNAPSHOTS.hohmono);
+assert.equal(tomeDropBreakdown.tomeName, 'Water', 'Tome Drop selects the highest-level tome');
+assert.equal(tomeDropBreakdown.currentLevel, 425, 'Tome Drop reports the selected tome level');
+approximately(
+  tomeDropBreakdown.tomeSellPrice,
+  WORKBOOK_SNAPSHOTS.hohmono.waterTomePrice,
+  'Tome Drop values added drops with the selected tome sell price',
+);
+approximately(
+  tomeDropBreakdown.extraValuePerDay,
+  tomeDropBreakdown.extraTomesPerDay * tomeDropBreakdown.tomeSellPrice,
+  'Tome Drop daily value breakdown',
+);
+approximately(
+  tomeDropBreakdown.roi,
+  result.roi.tser.tomeDrop,
+  'Tome Drop information panel breakdown matches ROI',
+);
+
 const battlerLabBreakdown = Calc.helpers.labRoiBreakdown(WORKBOOK_SNAPSHOTS.hohmono, 'battler');
 const tserLabBreakdown = Calc.helpers.labRoiBreakdown(WORKBOOK_SNAPSHOTS.hohmono, 'tser');
 approximately(battlerLabBreakdown.roi, result.roi.battler.lab, 'Battler Lab ROI breakdown');
@@ -131,6 +151,122 @@ approximately(
   mdIncomeBreakdown.dailyTotal,
   result.battler.mdEarned,
   'MD information panel breakdown matches Battler daily MD',
+);
+
+const dustCollectorBreakdown = Calc.helpers.dustCollectorRoiBreakdown(
+  WORKBOOK_SNAPSHOTS.hohmono,
+);
+approximately(
+  dustCollectorBreakdown.roi,
+  result.roi.battler.dustCollector,
+  'Dust Collector information panel breakdown matches ROI',
+);
+approximately(
+  dustCollectorBreakdown.upgradedDailyMd - dustCollectorBreakdown.currentDailyMd,
+  dustCollectorBreakdown.extraDailyMd,
+  'Dust Collector daily benefit breakdown',
+);
+approximately(
+  dustCollectorBreakdown.nextBoostPercent - dustCollectorBreakdown.currentBoostPercent,
+  0.2,
+  'One Dust Collector level adds 0.2 percentage points',
+);
+
+const workshopDustCollectorBreakdown = Calc.helpers.workshopDustCollectorRoiBreakdown(
+  WORKBOOK_SNAPSHOTS.hohmono,
+);
+approximately(
+  workshopDustCollectorBreakdown.roi,
+  result.roi.battler.workshopDustCollector,
+  'Workshop to Dust Collector information panel breakdown matches ROI',
+);
+assert.equal(
+  workshopDustCollectorBreakdown.constructionBoost,
+  WORKBOOK_SNAPSHOTS.hohmono.workshopLevel + WORKBOOK_SNAPSHOTS.hohmono.constructionCodex,
+  'Workbook fallback combines Workshop and Construction Codex once',
+);
+assert.equal(
+  workshopDustCollectorBreakdown.constructionPetLevel,
+  WORKBOOK_SNAPSHOTS.hohmono.constructionPetLevel,
+  'Workshop breakdown uses the active Construction pet level',
+);
+approximately(
+  workshopDustCollectorBreakdown.collectorDailyValue,
+  dustCollectorBreakdown.extraDailyMd,
+  'Workshop payback uses the next Dust Collector level daily benefit',
+);
+approximately(
+  workshopDustCollectorBreakdown.roi,
+  Math.sqrt(
+    workshopDustCollectorBreakdown.paybackNumerator
+      / workshopDustCollectorBreakdown.paybackDenominator,
+  ),
+  'Workshop cumulative payback calculation',
+);
+
+const farmNoHedgeBreakdown = Calc.helpers.farmNoHedgeRoiBreakdown(
+  WORKBOOK_SNAPSHOTS.hohmono,
+);
+approximately(
+  farmNoHedgeBreakdown.roi,
+  result.roi.battler.farmNoHedge,
+  'Farm without Hedge Fund information panel matches Battler ROI',
+);
+approximately(
+  farmNoHedgeBreakdown.roi,
+  result.roi.tser.farmNoHedge,
+  'Farm without Hedge Fund information panel matches TSer ROI',
+);
+approximately(
+  farmNoHedgeBreakdown.grossHerbValuePerDay - farmNoHedgeBreakdown.farmTaxPerDay,
+  farmNoHedgeBreakdown.netDailyBenefit,
+  'Farm without Hedge Fund daily benefit includes the herb production tax',
+);
+approximately(
+  farmNoHedgeBreakdown.roi,
+  Math.min(...Calc.helpers.farmUpgradeStats(WORKBOOK_SNAPSHOTS.hohmono)
+    .map(row => row.taxedROI)
+    .filter(Number.isFinite)),
+  'Farm without Hedge Fund selects the lowest upgrade ROI rather than the average',
+);
+
+const farmHedgeBreakdown = Calc.helpers.farmHedgeRoiBreakdown(
+  WORKBOOK_SNAPSHOTS.hohmono,
+);
+approximately(
+  farmHedgeBreakdown.roi,
+  result.roi.battler.farmHedge,
+  'Farm with Hedge Fund information panel matches Battler ROI',
+);
+approximately(
+  farmHedgeBreakdown.roi,
+  result.roi.tser.farmHedge,
+  'Farm with Hedge Fund information panel matches TSer ROI',
+);
+assert.equal(
+  farmHedgeBreakdown.hedgeLevelsNeeded,
+  Math.ceil(farmHedgeBreakdown.addedFarmTaxPerHour / Calc.C.HEDGE_DISCOUNT_PER_HOUR),
+  'Farm with Hedge Fund buys enough whole increases to cover the added hourly tax',
+);
+approximately(
+  farmHedgeBreakdown.hedgeCost,
+  farmHedgeBreakdown.hedgeLevelsNeeded * Calc.C.HEDGE_COST_PER_LEVEL,
+  'Farm with Hedge Fund includes the full one-time Hedge Fund cost',
+);
+approximately(
+  farmHedgeBreakdown.combinedCost,
+  farmHedgeBreakdown.farmUpgradeCost + farmHedgeBreakdown.hedgeCost,
+  'Farm with Hedge Fund combines both one-time costs',
+);
+approximately(
+  farmHedgeBreakdown.roi,
+  farmHedgeBreakdown.combinedCost / farmHedgeBreakdown.combinedDailyBenefit,
+  'Farm with Hedge Fund uses the combined daily benefit for payback',
+);
+approximately(
+  farmHedgeBreakdown.combinedDailyBenefit,
+  farmHedgeBreakdown.grossHerbValuePerDay + farmHedgeBreakdown.farmTaxAvoidedPerDay,
+  'Farm with Hedge Fund includes both herb value and avoided farm tax',
 );
 
 for (const [label, [actual, expected]] of Object.entries(validatedOutputs)) {

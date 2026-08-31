@@ -67,6 +67,12 @@ function formatDebit(value) {
   return `−${formatCompact(Math.abs(value))}`;
 }
 
+function formatFull(value) {
+  return Number.isFinite(value)
+    ? value.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })
+    : 'N/A';
+}
+
 function infoTone(value) {
   if (!Number.isFinite(value) || value === 0) return '';
   return value > 0 ? 'positive' : 'negative';
@@ -137,6 +143,10 @@ function setInfoPanel(key, { title, description, rows, note }) {
 
   const rowGroup = createInfoElement('span', 'info-rows');
   rows.forEach((row) => {
+    if (row.section) {
+      rowGroup.append(createInfoElement('span', 'info-section-label', row.section));
+      return;
+    }
     const rowElement = createInfoElement(
       'span',
       `info-row${row.total ? ' info-row-total' : ''}${row.tone ? ` info-row-${row.tone}` : ''}`,
@@ -201,8 +211,8 @@ function netHerbsInfo(role, result) {
     title: 'Net herbs',
     description: `Combined herbs remaining after daily ${potionName} and Resonance potion use. Assumes Bloomwells and Sageroots can be traded 1:1.`,
     rows: [
-      { label: 'Leftover Bloomwells', value: formatSignedCompact(totals.leftoverBloom), tone: infoTone(totals.leftoverBloom) },
-      { label: 'Leftover Sageroots', value: formatSignedCompact(totals.leftoverSage), tone: infoTone(totals.leftoverSage) },
+      { label: 'Leftover Bloomwells', value: formatSignedCompact(totals.leftoverBloom) },
+      { label: 'Leftover Sageroots', value: formatSignedCompact(totals.leftoverSage) },
       { label: 'Net herbs', value: formatSignedCompact(totals.netHerbs), tone: infoTone(totals.netHerbs), total: true },
     ],
   };
@@ -227,10 +237,10 @@ function sustainablePotionInfo(role, data, result) {
   const nextRemaining = atNext ? atNext.leftoverBloom + atNext.leftoverSage : null;
   const rows = [
     { label: 'Daily herbs produced', value: formatCompact(atMax.herbDaily) },
-    { label: 'Resonance potion consumption', value: formatDebit(resonanceConsumption), tone: resonanceConsumption > 0 ? 'negative' : '' },
-    { label: `Available for ${potionName} potion`, value: formatCompact(availableForHarvest), tone: infoTone(availableForHarvest), total: true },
-    { label: `${formatters.integer(maxPotion)} ${potionName} potion use`, value: formatDebit(harvestConsumption), tone: harvestConsumption > 0 ? 'negative' : '' },
-    { label: 'Herbs remaining', value: formatSignedCompact(remaining), tone: infoTone(remaining), total: true },
+    { label: 'Resonance potion consumption', value: formatDebit(resonanceConsumption) },
+    { label: `Available for ${potionName} potion`, value: formatCompact(availableForHarvest), total: true },
+    { label: `${formatters.integer(maxPotion)} ${potionName} potion use`, value: formatDebit(harvestConsumption) },
+    { label: 'Herbs remaining', value: formatSignedCompact(remaining), total: true },
   ];
 
   if (atCeiling) {
@@ -239,7 +249,6 @@ function sustainablePotionInfo(role, data, result) {
     rows.push({
       label: `Next tier: ${formatters.integer(nextPotion)}`,
       value: formatSignedCompact(nextRemaining),
-      tone: infoTone(nextRemaining),
     });
   }
 
@@ -265,9 +274,9 @@ function leftoverHerbInfo(role, herb, result) {
   const rows = [{ label: `Daily ${herbName} produced`, value: formatCompact(produced) }];
 
   if (harvestUsesThisHerb) {
-    rows.push({ label: `${potionName} potion consumption`, value: formatDebit(harvestConsumption), tone: harvestConsumption > 0 ? 'negative' : '' });
+    rows.push({ label: `${potionName} potion consumption`, value: formatDebit(harvestConsumption) });
   }
-  rows.push({ label: `Resonance ${resonanceName} consumption`, value: formatDebit(resonanceConsumption), tone: resonanceConsumption > 0 ? 'negative' : '' });
+  rows.push({ label: `Resonance ${resonanceName} consumption`, value: formatDebit(resonanceConsumption) });
   rows.push({ label: `Leftover ${herbName}`, value: formatSignedCompact(leftover), tone: infoTone(leftover), total: true });
 
   let note;
@@ -295,12 +304,10 @@ function leftoverValueInfo(role, data, result) {
       {
         label: `Bloomwells: ${formatSignedCompact(totals.leftoverBloom)} × ${formatters.integer(data.bloomwellPrice)}`,
         value: formatSignedCompact(bloomValue),
-        tone: infoTone(bloomValue),
       },
       {
         label: `Sageroots: ${formatSignedCompact(totals.leftoverSage)} × ${formatters.integer(data.sagerootPrice)}`,
         value: formatSignedCompact(sageValue),
-        tone: infoTone(sageValue),
       },
       { label: 'Leftover herb value', value: formatSignedCompact(totals.leftoverSold), tone: infoTone(totals.leftoverSold), total: true },
     ],
@@ -315,9 +322,9 @@ function farmTaxInfo(role, data, result) {
     title: 'Farm tax taken',
     description: 'The farm charges 50,000 MD for every herb produced. Hedge Fund’s permanent Farm Discount offsets that charge when the player has it.',
     rows: [
-      { label: 'Leftover herb value', value: formatSignedCompact(totals.leftoverSold), tone: infoTone(totals.leftoverSold) },
-      { label: 'Herb production tax', value: formatDebit(productionTax), tone: productionTax > 0 ? 'negative' : '' },
-      { label: 'Hedge Fund Farm Discount', value: formatSignedCompact(hedgeDiscount), tone: infoTone(hedgeDiscount) },
+      { label: 'Leftover herb value', value: formatSignedCompact(totals.leftoverSold) },
+      { label: 'Herb production tax', value: formatDebit(productionTax) },
+      { label: 'Hedge Fund Farm Discount', value: formatSignedCompact(hedgeDiscount) },
       { label: 'Farm tax taken', value: formatSignedCompact(totals.farmTax), tone: infoTone(totals.farmTax), total: true },
     ],
   };
@@ -348,12 +355,144 @@ function labRoiInfo(role, data) {
     description: 'The next Laboratory level adds 1 Potion Duration. ROI compares its cost with the daily value of the herbs that extra duration saves.',
     rows: [
       { label: 'Next Laboratory level cost', value: formatCompact(breakdown.nextLevelCost) },
-      { label: `${potionName} savings value / day`, value: formatCompact(breakdown.harvestSavingsValuePerDay), tone: infoTone(breakdown.harvestSavingsValuePerDay) },
-      { label: 'Resonance savings value / day', value: formatCompact(breakdown.resonanceSavingsValuePerDay), tone: infoTone(breakdown.resonanceSavingsValuePerDay) },
-      { label: 'Total savings / day', value: formatCompact(breakdown.totalSavingsValuePerDay), tone: infoTone(breakdown.totalSavingsValuePerDay), total: true },
-      { label: 'ROI', value: `${formatters.days(breakdown.roi)} days`, total: true },
+      { label: `${potionName} savings value / day`, value: formatCompact(breakdown.harvestSavingsValuePerDay) },
+      { label: 'Resonance savings value / day', value: formatCompact(breakdown.resonanceSavingsValuePerDay) },
+      { label: 'Total savings / day', value: formatCompact(breakdown.totalSavingsValuePerDay), total: true },
+      { label: 'ROI', value: `${formatters.days(breakdown.roi)} days`, tone: infoTone(breakdown.roi), total: true },
     ],
     note: `${role === 'battler' ? 'Battler Wisdom' : 'TSer Harvest'} savings use the ${roleHerb} sell price. Resonance savings value both herb halves across the full 22.4-hour day.`,
+  };
+}
+
+function dustCollectorRoiInfo(data) {
+  const breakdown = Calc.helpers.dustCollectorRoiBreakdown(data);
+  return {
+    title: 'Dust Collector ROI',
+    description: 'The next Dust Collector level adds 0.2 percentage points to MD earned per battle.',
+    rows: [
+      { section: 'Upgrade' },
+      { label: 'Next-level cost', value: formatCompact(breakdown.cost) },
+      { section: 'Daily benefit' },
+      { label: 'Current Dust Collector boost', value: formatters.percent(breakdown.currentBoostPercent) },
+      { label: 'Boost after upgrading', value: formatters.percent(breakdown.nextBoostPercent) },
+      { label: 'Current MD earned daily', value: formatCompact(breakdown.currentDailyMd) },
+      { label: 'MD earned daily after upgrading', value: formatCompact(breakdown.upgradedDailyMd) },
+      { label: 'Extra MD earned daily', value: formatCompact(breakdown.extraDailyMd) },
+      { section: 'Payback' },
+      { label: 'Calculation', value: `${formatCompact(breakdown.cost)} ÷ ${formatCompact(breakdown.extraDailyMd)}` },
+      { label: 'Dust Collector ROI', value: `${formatters.days(breakdown.roi)} days`, tone: infoTone(breakdown.roi), total: true },
+    ],
+    note: 'Divides the next Dust Collector level’s building cost by its additional daily MD benefit to calculate ROI in days.',
+  };
+}
+
+function farmNoHedgeRoiInfo(data) {
+  const breakdown = Calc.helpers.farmNoHedgeRoiBreakdown(data);
+  const upgradeLabel = breakdown.bestUpgrade
+    ? `${breakdown.bestUpgrade} +${formatters.integer(breakdown.upgradeSize)}`
+    : 'Best upgrade unavailable';
+  return {
+    title: 'Farm — no hedge ROI',
+    description: 'Finds the lowest ROI among 1,000-level Golems, Fertilizer, and Plots upgrades. Hedge Fund’s discount is not included.',
+    rows: [
+      { section: `Best upgrade: ${upgradeLabel}` },
+      { label: 'Upgrade cost', value: formatCompact(breakdown.cost) },
+      { label: 'Additional herbs / day', value: formatCompact(breakdown.extraHerbsPerDay) },
+      { label: 'Average herb sell price', value: `${formatCompact(breakdown.averageHerbPrice)} MD` },
+      { label: 'Gross herb value / day', value: formatCompact(breakdown.grossHerbValuePerDay) },
+      { label: 'Farm tax (extra herbs × 50,000 MD)', value: formatDebit(breakdown.farmTaxPerDay) },
+      { label: 'Daily benefit after tax', value: formatCompact(breakdown.netDailyBenefit) },
+      { section: 'Payback' },
+      { label: 'Calculation', value: `${formatCompact(breakdown.cost)} ÷ ${formatCompact(breakdown.netDailyBenefit)}` },
+      { label: 'Farm — no hedge ROI', value: `${formatters.days(breakdown.roi)} days`, tone: infoTone(breakdown.roi), total: true },
+    ],
+    note: 'Divides the cost of the best-returning 1,000-level farm upgrade by the additional daily herb value remaining after the 50,000 MD tax per herb. Hedge Fund’s discount is not included.',
+  };
+}
+
+function farmHedgeRoiInfo(data) {
+  const breakdown = Calc.helpers.farmHedgeRoiBreakdown(data);
+  const upgradeLabel = breakdown.bestUpgrade
+    ? `${breakdown.bestUpgrade} +${formatters.integer(breakdown.upgradeSize)}`
+    : 'Best upgrade unavailable';
+  return {
+    title: 'Farm + hedge ROI',
+    description: 'Finds the lowest ROI after pairing each 1,000-level farm upgrade with enough permanent Hedge Fund increases to cover all of that upgrade’s added farm tax.',
+    rows: [
+      { section: `Best combination: ${upgradeLabel}` },
+      { label: 'Farm upgrade cost', value: formatCompact(breakdown.farmUpgradeCost) },
+      { label: 'Additional herbs / day', value: formatCompact(breakdown.extraHerbsPerDay) },
+      { label: 'Average herb sell price', value: `${formatCompact(breakdown.averageHerbPrice)} MD` },
+      { label: 'Full herb value / day', value: formatCompact(breakdown.grossHerbValuePerDay) },
+      { section: 'Hedge Fund coverage' },
+      { label: 'Added farm tax to cover / hour', value: formatCompact(breakdown.addedFarmTaxPerHour) },
+      { label: 'Hedge Fund increases needed', value: formatters.integer(breakdown.hedgeLevelsNeeded) },
+      { label: 'Permanent tax discount / hour', value: formatCompact(breakdown.hedgeDiscountPerHour) },
+      { label: 'Hedge Fund cost', value: formatCompact(breakdown.hedgeCost) },
+      { label: 'Standalone Hedge Fund rate', value: `${formatters.days(breakdown.hedgeStandaloneRoiDays)} days` },
+      { label: 'Farm tax avoided / day', value: formatCompact(breakdown.farmTaxAvoidedPerDay) },
+      { section: 'Payback' },
+      { label: 'Combined one-time cost', value: formatCompact(breakdown.combinedCost) },
+      { label: 'Combined daily benefit', value: formatCompact(breakdown.combinedDailyBenefit) },
+      { label: 'Calculation', value: `${formatCompact(breakdown.combinedCost)} ÷ ${formatCompact(breakdown.combinedDailyBenefit)}` },
+      { label: 'Farm + hedge ROI', value: `${formatters.days(breakdown.roi)} days`, tone: infoTone(breakdown.roi), total: true },
+    ],
+    note: 'Daily benefit includes both the full value of the added herbs and the farm tax the player permanently avoids. Each Hedge Fund increase costs 1T MD and removes 1B MD per hour of farm tax, a standalone payback rate of 41.67 days.',
+  };
+}
+
+function tomeDropRoiInfo(data) {
+  const breakdown = Calc.helpers.tomeDropRoiBreakdown(data);
+  return {
+    title: 'Tome Drop ROI',
+    description: 'Upgrades the player’s highest-level tome and values the additional daily drops using that tome’s current sell price.',
+    rows: [
+      { section: 'Upgrade' },
+      { label: 'Tome being upgraded', value: breakdown.tomeName },
+      { label: 'Current → next level', value: `${formatters.integer(breakdown.currentLevel)} → ${formatters.integer(breakdown.nextLevel)}` },
+      { label: 'Upgrade resources required', value: formatCompact(breakdown.upgradeResources) },
+      { label: 'Average resource price', value: `${formatCompact(breakdown.averageResourcePrice)} MD` },
+      { label: 'Upgrade cost', value: formatCompact(breakdown.upgradeCost) },
+      { section: 'Daily benefit' },
+      { label: 'Effective drop chance', value: formatters.percent(breakdown.effectiveDropChance * 100) },
+      { label: 'Successful drops / day', value: formatCompact(breakdown.successfulDropsPerDay) },
+      { label: 'Current tomes / day', value: formatFull(breakdown.currentTomesPerDay) },
+      { label: 'Tomes / day after upgrading', value: formatFull(breakdown.nextTomesPerDay) },
+      { label: 'Extra tomes / day', value: formatCompact(breakdown.extraTomesPerDay) },
+      { label: `${breakdown.tomeName} Tome sell price`, value: `${formatCompact(breakdown.tomeSellPrice)} MD` },
+      { label: 'Extra value / day', value: formatCompact(breakdown.extraValuePerDay) },
+      { section: 'Payback' },
+      { label: 'Calculation', value: `${formatCompact(breakdown.upgradeCost)} ÷ ${formatCompact(breakdown.extraValuePerDay)}` },
+      { label: 'Tome Drop ROI', value: `${formatters.days(breakdown.roi)} days`, tone: infoTone(breakdown.roi), total: true },
+    ],
+    note: 'Drop quantity includes the player’s highest enemy and guild drop-amount bonus. Battler and TSer use the same Tome Drop calculation.',
+  };
+}
+
+function workshopDustCollectorRoiInfo(data) {
+  const breakdown = Calc.helpers.workshopDustCollectorRoiBreakdown(data);
+  return {
+    title: 'Workshop → Dust Collector ROI',
+    description: 'Estimates the payback from the next Workshop level making future Dust Collector construction complete sooner.',
+    rows: [
+      { section: 'Workshop upgrade' },
+      { label: 'Workshop upgrade cost', value: formatCompact(breakdown.workshopCost) },
+      { section: 'Construction speed' },
+      { label: 'Total Construction Speed', value: formatters.percent(breakdown.constructionBoost) },
+      { label: 'Active Construction pet level', value: formatters.integer(breakdown.constructionPetLevel) },
+      { label: 'Construction pet multiplier', value: `${formatters.days(breakdown.constructionPetMultiplier)}×` },
+      { label: 'Current combined multiplier', value: `${formatters.days(breakdown.currentConstructionMultiplier)}×` },
+      { label: 'Multiplier after Workshop upgrade', value: `${formatters.days(breakdown.nextConstructionMultiplier)}×` },
+      { section: 'Dust Collector value' },
+      { label: 'Additional MD / day from Dust Collector', value: formatCompact(breakdown.collectorDailyValue) },
+      { label: 'Estimated construction time saved', value: `${formatFull(breakdown.timeSavePerBuild)} seconds` },
+      { label: 'Value gained / future build', value: formatCompact(breakdown.valuePerFutureBuild) },
+      { label: 'Cumulative daily value', value: formatCompact(breakdown.dailyCumulativeValue) },
+      { section: 'Payback' },
+      { label: 'Calculation', value: `√(${formatCompact(breakdown.paybackNumerator)} ÷ ${formatCompact(breakdown.paybackDenominator)})` },
+      { label: 'Workshop → Dust Collector ROI', value: `${formatters.days(breakdown.roi)} days`, tone: infoTone(breakdown.roi), total: true },
+    ],
+    note: 'Estimates how long the next Workshop level takes to repay its cost through the extra MD earned by completing future Dust Collector upgrades sooner. Total Construction Speed already includes Workshop and Codex boosts, so Workshop is not added twice.',
   };
 }
 
@@ -372,7 +511,15 @@ function renderInfoPanels(data, result) {
   setInfoPanel('tser-farm-tax', farmTaxInfo('tser', data, result));
   setInfoPanel('battler-md', mdIncomeInfo(data));
   setInfoPanel('battler-lab-roi', labRoiInfo('battler', data));
+  setInfoPanel('battler-dust-collector-roi', dustCollectorRoiInfo(data));
+  setInfoPanel('battler-farm-no-hedge-roi', farmNoHedgeRoiInfo(data));
+  setInfoPanel('battler-farm-hedge-roi', farmHedgeRoiInfo(data));
+  setInfoPanel('battler-tome-drop-roi', tomeDropRoiInfo(data));
+  setInfoPanel('battler-workshop-dust-collector-roi', workshopDustCollectorRoiInfo(data));
   setInfoPanel('tser-lab-roi', labRoiInfo('tser', data));
+  setInfoPanel('tser-farm-no-hedge-roi', farmNoHedgeRoiInfo(data));
+  setInfoPanel('tser-farm-hedge-roi', farmHedgeRoiInfo(data));
+  setInfoPanel('tser-tome-drop-roi', tomeDropRoiInfo(data));
 }
 
 function renderSummary(result) {

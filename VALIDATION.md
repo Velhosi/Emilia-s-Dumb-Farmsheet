@@ -43,22 +43,22 @@ Outputs that do not depend on the updated daily-action counts still reproduce th
 | Potion boost | 233.9868499 d | 233.9868499 d |
 | Base resources | 154.0746152 d | 154.0746152 d |
 | Shards | 135.5421791 d | 135.5421791 d |
-| Farm no hedge (latest XLSX formula) | 116.8462011 d | 116.8462011 d |
-| Farm + Hedge (latest XLSX formula) | 61.09496282 d | 61.09496282 d |
+| Farm no hedge (best 1,000-level upgrade) | 116.8462011 d | 116.8462011 d |
+| Farm + Hedge (permanent tax coverage) | 61.09496282 d | 61.38489855 d |
 
-The newer Hohmono XLSX contains formulas in K29 and K30, so those two TSer farm ROI rows are now implemented dynamically in the website.
+The newer Hohmono XLSX contains formulas in K29 and K30, so those two TSer farm ROI rows are implemented dynamically in the website. Farm — no hedge intentionally reports the lowest ROI among the next 1,000 Golems, Fertilizer, and Plots upgrades instead of averaging the three results. Farm + Hedge evaluates those same three choices, adds enough whole Hedge Fund increases to permanently cover the selected upgrade's additional farm tax, then divides the combined one-time cost by the full untaxed daily herb value plus the daily farm tax permanently avoided. Each Hedge Fund increase costs 1T MD and removes 1B MD per hour of farm tax, which gives a standalone payback rate of 41.6667 days. Battler and TSer use the same selected upgrade and ROI.
 
 The Laboratory ROI intentionally corrects two issues in the workbook formula. Harvest-potion savings are valued using the herb consumed by the selected role (Sageroots for Battlers and Bloomwells for TSers), and the full 22.4-hour daily duration is applied to both halves of the Resonance-potion savings. This produces separate Laboratory ROI values for the two roles; the Hohmono snapshot evaluates to **149.736297 days** for Battler and **140.336103 days** for TSer.
 
 ## Screenshot vs. latest XLSX discrepancy
 
-The Hohmono screenshot shows **79.99 d** for Farm no hedge and **52.07 d** for Farm + Hedge. However, the newer downloaded XLSX contains formulas in those cells and evaluates them to **116.85 d** and **61.09 d** for Hohmono. The earlier Emilia XLSX had 79.99 / 52.07 stored as literal values with no formulas.
+The Hohmono screenshot shows **79.99 d** for Farm no hedge and **52.07 d** for Farm + Hedge. The newer downloaded XLSX evaluates those cells to **116.85 d** and **61.09 d** for Hohmono. The earlier Emilia XLSX had 79.99 / 52.07 stored as literal values with no formulas.
 
-For now the website follows the formulas present in the newest XLSX rather than carrying forward the old literal values.
+The website does not carry forward the old literal values. Farm — no hedge applies the user-approved rule of displaying the best individual 1,000-level farm upgrade rather than the workbook’s three-upgrade average. Farm + Hedge intentionally uses the game's clarified permanent-discount mechanics and includes the avoided tax in its daily benefit; for Hohmono it selects Golems +1,000, requires 3,459 Hedge Fund increases, and evaluates to **61.384899 days**.
 
-## TSer Tome Drop resolved
+## Tome Drop sell-price correction
 
-TSer **Tome drop** should reference the Battler Tome Drop ROI directly (`K31 = G148`). The website now uses the same `tomeDropROI()` calculation for both roles. In the latest Hohmono workbook, `G148` evaluates to approximately **291.9240 days**, so the earlier screenshot value of `134.33` was a stale stored value rather than the intended dynamic result.
+TSer **Tome drop** references the Battler Tome Drop ROI directly (`K31 = G148`), so the website uses the same calculation for both roles. The workbook always valued the additional drops with the Nature Tome price, even when another tome was being upgraded. The website intentionally corrects that behavior by selecting the highest-level tome and using that tome’s own live sell price. Hohmono’s highest tome is Water at level 425, changing the result from the workbook’s **291.9240 days** to **279.363934 days**. The earlier screenshot value of `134.33` was a stale stored value.
 
 ## Emilia validation already completed
 
