@@ -140,6 +140,16 @@ approximately(
   battlerLabBreakdown.totalSavingsValuePerDay,
   'Battler Lab daily savings breakdown',
 );
+approximately(
+  battlerLabBreakdown.harvestHerbsSavedPerHour * battlerLabBreakdown.eventHours,
+  battlerLabBreakdown.harvestHerbsSavedPerDay,
+  'Battler Lab converts hourly Wisdom herb savings across the full event day',
+);
+approximately(
+  battlerLabBreakdown.resonanceHerbsSavedPerHour * battlerLabBreakdown.eventHours,
+  battlerLabBreakdown.resonanceHerbsSavedPerDay,
+  'Battler Lab converts hourly Resonance herb savings across the full event day',
+);
 assert.notEqual(
   battlerLabBreakdown.harvestSavingsValuePerDay,
   tserLabBreakdown.harvestSavingsValuePerDay,

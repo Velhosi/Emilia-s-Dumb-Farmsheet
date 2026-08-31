@@ -169,6 +169,34 @@ function closeInfoPanels(exceptKey = null) {
   }
 }
 
+function placeInfoPanel(entry) {
+  if (window.matchMedia('(max-width: 540px)').matches) {
+    entry.wrapper.dataset.placement = 'center';
+    entry.wrapper.dataset.horizontal = 'start';
+    entry.panel.style.maxHeight = '';
+    return;
+  }
+
+  entry.wrapper.dataset.placement = 'bottom';
+  entry.wrapper.dataset.horizontal = 'start';
+  entry.panel.style.maxHeight = '';
+
+  const buttonRect = entry.button.getBoundingClientRect();
+  const panelHeight = entry.panel.scrollHeight;
+  const panelWidth = entry.panel.offsetWidth;
+  const gap = 12;
+  const roomBelow = window.innerHeight - buttonRect.bottom - gap;
+  const roomAbove = buttonRect.top - gap;
+  const openUpward = panelHeight > roomBelow && roomAbove > roomBelow;
+  const availableHeight = openUpward ? roomAbove : roomBelow;
+
+  entry.wrapper.dataset.placement = openUpward ? 'top' : 'bottom';
+  entry.wrapper.dataset.horizontal = buttonRect.left - 8 + panelWidth > window.innerWidth - gap
+    ? 'end'
+    : 'start';
+  entry.panel.style.maxHeight = `${Math.max(80, Math.floor(availableHeight))}px`;
+}
+
 function setupInfoPanels() {
   document.querySelectorAll('.info-button[data-info]').forEach((button) => {
     const key = button.dataset.info;
@@ -182,10 +210,15 @@ function setupInfoPanels() {
     button.setAttribute('aria-controls', panel.id);
     button.setAttribute('aria-describedby', panel.id);
     button.setAttribute('aria-expanded', 'false');
-    infoPanels.set(key, { button, panel, wrapper });
+    const entry = { button, panel, wrapper };
+    infoPanels.set(key, entry);
+
+    wrapper.addEventListener('mouseenter', () => placeInfoPanel(entry));
+    wrapper.addEventListener('focusin', () => placeInfoPanel(entry));
 
     button.addEventListener('click', (event) => {
       event.stopPropagation();
+      placeInfoPanel(entry);
       const shouldOpen = wrapper.dataset.open !== 'true';
       closeInfoPanels(shouldOpen ? key : null);
       wrapper.dataset.open = String(shouldOpen);
@@ -201,6 +234,9 @@ function setupInfoPanels() {
       closeInfoPanels();
       document.activeElement?.closest?.('.info-popover')?.querySelector('.info-button')?.focus();
     }
+  });
+  window.addEventListener('resize', () => {
+    for (const entry of infoPanels.values()) placeInfoPanel(entry);
   });
 }
 
@@ -350,17 +386,31 @@ function labRoiInfo(role, data) {
   const breakdown = Calc.helpers.labRoiBreakdown(data, role);
   const roleHerb = role === 'battler' ? 'Sageroot' : 'Bloomwell';
   const potionName = role === 'battler' ? 'Wisdom' : 'Harvest';
+  const eventHours = formatters.days(breakdown.eventHours);
   return {
     title: 'Laboratory ROI',
     description: 'The next Laboratory level adds 1 Potion Duration. ROI compares its cost with the daily value of the herbs that extra duration saves.',
     rows: [
-      { label: 'Next Laboratory level cost', value: formatCompact(breakdown.nextLevelCost) },
-      { label: `${potionName} savings value / day`, value: formatCompact(breakdown.harvestSavingsValuePerDay) },
-      { label: 'Resonance savings value / day', value: formatCompact(breakdown.resonanceSavingsValuePerDay) },
+      { section: 'Laboratory cost' },
+      { label: 'Total Laboratory cost', value: formatCompact(breakdown.nextLevelCost) },
+      { section: `${potionName} potion — ${roleHerb}s` },
+      { label: 'Current herb use / hour', value: formatFull(breakdown.harvestHerbsPerHour) },
+      { label: 'Use / hour with +1 duration', value: formatFull(breakdown.nextHarvestHerbsPerHour) },
+      { label: 'Herbs saved / hour', value: formatFull(breakdown.harvestHerbsSavedPerHour) },
+      { label: `Daily herbs saved (${formatCompact(breakdown.harvestHerbsSavedPerHour)} × ${eventHours}h)`, value: formatCompact(breakdown.harvestHerbsSavedPerDay) },
+      { label: `Daily value (${formatCompact(breakdown.harvestHerbsSavedPerDay)} × ${formatCompact(breakdown.harvestHerbPrice)})`, value: formatCompact(breakdown.harvestSavingsValuePerDay) },
+      { section: 'Resonance potion — combined herbs' },
+      { label: 'Current herb use / hour', value: formatFull(breakdown.resonanceHerbsPerHour) },
+      { label: 'Use / hour with +1 duration', value: formatFull(breakdown.nextResonanceHerbsPerHour) },
+      { label: 'Herbs saved / hour', value: formatFull(breakdown.resonanceHerbsSavedPerHour) },
+      { label: `Daily herbs saved (${formatCompact(breakdown.resonanceHerbsSavedPerHour)} × ${eventHours}h)`, value: formatCompact(breakdown.resonanceHerbsSavedPerDay) },
+      { label: `Daily value (${formatCompact(breakdown.resonanceHerbsSavedPerDay)} × ${formatCompact(breakdown.averageHerbPrice)})`, value: formatCompact(breakdown.resonanceSavingsValuePerDay) },
+      { section: 'Payback' },
       { label: 'Total savings / day', value: formatCompact(breakdown.totalSavingsValuePerDay), total: true },
+      { label: 'Calculation', value: `${formatCompact(breakdown.nextLevelCost)} ÷ ${formatCompact(breakdown.totalSavingsValuePerDay)}` },
       { label: 'ROI', value: `${formatters.days(breakdown.roi)} days`, tone: infoTone(breakdown.roi), total: true },
     ],
-    note: `${role === 'battler' ? 'Battler Wisdom' : 'TSer Harvest'} savings use the ${roleHerb} sell price. Resonance savings value both herb halves across the full 22.4-hour day.`,
+    note: `${role === 'battler' ? 'Battler Wisdom' : 'TSer Harvest'} savings use the ${roleHerb} sell price. Resonance uses the average sell price of both herb halves across the full ${eventHours}-hour event day.`,
   };
 }
 

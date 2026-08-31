@@ -639,6 +639,7 @@ summary:focus-visible {
   line-height: 1.45;
   text-transform: none;
   letter-spacing: normal;
+  overflow-y: auto;
   pointer-events: none;
   transform: translateY(-4px);
   transition: opacity .14s ease, transform .14s ease, visibility .14s ease;
@@ -647,6 +648,18 @@ summary:focus-visible {
 .info-align-end .info-panel {
   right: -8px;
   left: auto;
+}
+
+.info-popover[data-horizontal="end"] .info-panel {
+  right: -8px;
+  left: auto;
+}
+
+.info-popover[data-placement="top"] .info-panel {
+  top: auto;
+  bottom: calc(100% + 8px);
+  overflow-y: auto;
+  transform: translateY(4px);
 }
 
 .info-popover:hover .info-panel,

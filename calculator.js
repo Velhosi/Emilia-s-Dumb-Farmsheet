@@ -246,8 +246,17 @@
 
     return {
       nextLevelCost,
+      eventHours: C.BATTLE_HOURS_PER_DAY,
+      harvestHerbsPerHour: f.harvestHr,
+      nextHarvestHerbsPerHour: nextHarvestHr,
+      harvestHerbsSavedPerHour: f.harvestHr - nextHarvestHr,
       harvestHerbsSavedPerDay,
+      harvestHerbPrice: finite(harvestHerbPrice),
+      resonanceHerbsPerHour: f.resHr,
+      nextResonanceHerbsPerHour: nextResHr,
+      resonanceHerbsSavedPerHour: f.resHr - nextResHr,
       resonanceHerbsSavedPerDay,
+      averageHerbPrice: (finite(d.bloomwellPrice) + finite(d.sagerootPrice)) / 2,
       harvestSavingsValuePerDay,
       resonanceSavingsValuePerDay,
       totalSavingsValuePerDay,
