@@ -710,8 +710,17 @@ summary:focus-visible {
 
 .info-row-total .info-row-label,
 .info-row-total .info-row-value {
-  color: var(--green);
   font-weight: 800;
+}
+
+.info-row-positive .info-row-value,
+.info-row-total.info-row-positive .info-row-label {
+  color: var(--green);
+}
+
+.info-row-negative .info-row-value,
+.info-row-total.info-row-negative .info-row-label {
+  color: var(--red);
 }
 
 .info-note {

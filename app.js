@@ -67,6 +67,11 @@ function formatDebit(value) {
   return `−${formatCompact(Math.abs(value))}`;
 }
 
+function infoTone(value) {
+  if (!Number.isFinite(value) || value === 0) return '';
+  return value > 0 ? 'positive' : 'negative';
+}
+
 const formatters = Object.freeze({
   compact: formatCompact,
   days: (value) => Number.isFinite(value)
@@ -134,7 +139,7 @@ function setInfoPanel(key, { title, description, rows, note }) {
   rows.forEach((row) => {
     const rowElement = createInfoElement(
       'span',
-      `info-row${row.total ? ' info-row-total' : ''}`,
+      `info-row${row.total ? ' info-row-total' : ''}${row.tone ? ` info-row-${row.tone}` : ''}`,
     );
     rowElement.append(createInfoElement('span', 'info-row-label', row.label));
     rowElement.append(createInfoElement('strong', 'info-row-value', row.value));
@@ -191,19 +196,21 @@ function setupInfoPanels() {
 
 function netHerbsInfo(role, result) {
   const totals = result[role];
+  const potionName = role === 'battler' ? 'Wisdom' : 'Harvest';
   return {
     title: 'Net herbs',
-    description: 'Combined herbs remaining after daily Harvest and Resonance potion use. Assumes Bloomwells and Sageroots can be traded 1:1.',
+    description: `Combined herbs remaining after daily ${potionName} and Resonance potion use. Assumes Bloomwells and Sageroots can be traded 1:1.`,
     rows: [
-      { label: 'Leftover Bloomwells', value: formatSignedCompact(totals.leftoverBloom) },
-      { label: 'Leftover Sageroots', value: formatSignedCompact(totals.leftoverSage) },
-      { label: 'Net herbs', value: formatSignedCompact(totals.netHerbs), total: true },
+      { label: 'Leftover Bloomwells', value: formatSignedCompact(totals.leftoverBloom), tone: infoTone(totals.leftoverBloom) },
+      { label: 'Leftover Sageroots', value: formatSignedCompact(totals.leftoverSage), tone: infoTone(totals.leftoverSage) },
+      { label: 'Net herbs', value: formatSignedCompact(totals.netHerbs), tone: infoTone(totals.netHerbs), total: true },
     ],
   };
 }
 
 function sustainablePotionInfo(role, data, result) {
   const totals = result[role];
+  const potionName = role === 'battler' ? 'Wisdom' : 'Harvest';
   const maxPotion = totals.maxSustainablePotion;
   const atMax = role === 'tser'
     ? Calc.helpers.tserAtPotion(data, maxPotion)
@@ -220,10 +227,10 @@ function sustainablePotionInfo(role, data, result) {
   const nextRemaining = atNext ? atNext.leftoverBloom + atNext.leftoverSage : null;
   const rows = [
     { label: 'Daily herbs produced', value: formatCompact(atMax.herbDaily) },
-    { label: 'Resonance potion consumption', value: formatDebit(resonanceConsumption) },
-    { label: 'Available for Harvest potion', value: formatCompact(availableForHarvest), total: true },
-    { label: `${formatters.integer(maxPotion)} Harvest potion use`, value: formatDebit(harvestConsumption) },
-    { label: 'Herbs remaining', value: formatSignedCompact(remaining), total: true },
+    { label: 'Resonance potion consumption', value: formatDebit(resonanceConsumption), tone: resonanceConsumption > 0 ? 'negative' : '' },
+    { label: `Available for ${potionName} potion`, value: formatCompact(availableForHarvest), tone: infoTone(availableForHarvest), total: true },
+    { label: `${formatters.integer(maxPotion)} ${potionName} potion use`, value: formatDebit(harvestConsumption), tone: harvestConsumption > 0 ? 'negative' : '' },
+    { label: 'Herbs remaining', value: formatSignedCompact(remaining), tone: infoTone(remaining), total: true },
   ];
 
   if (atCeiling) {
@@ -232,6 +239,7 @@ function sustainablePotionInfo(role, data, result) {
     rows.push({
       label: `Next tier: ${formatters.integer(nextPotion)}`,
       value: formatSignedCompact(nextRemaining),
+      tone: infoTone(nextRemaining),
     });
   }
 
@@ -253,23 +261,24 @@ function leftoverHerbInfo(role, herb, result) {
   const resonanceConsumption = totals.resHr * Calc.C.BATTLE_HOURS_PER_DAY / 2;
   const harvestConsumption = totals.harvestHr * Calc.C.BATTLE_HOURS_PER_DAY;
   const leftover = isBloom ? totals.leftoverBloom : totals.leftoverSage;
+  const potionName = role === 'battler' ? 'Wisdom' : 'Harvest';
   const rows = [{ label: `Daily ${herbName} produced`, value: formatCompact(produced) }];
 
   if (harvestUsesThisHerb) {
-    rows.push({ label: 'Harvest potion consumption', value: formatDebit(harvestConsumption) });
+    rows.push({ label: `${potionName} potion consumption`, value: formatDebit(harvestConsumption), tone: harvestConsumption > 0 ? 'negative' : '' });
   }
-  rows.push({ label: `Resonance ${resonanceName} consumption`, value: formatDebit(resonanceConsumption) });
-  rows.push({ label: `Leftover ${herbName}`, value: formatSignedCompact(leftover), total: true });
+  rows.push({ label: `Resonance ${resonanceName} consumption`, value: formatDebit(resonanceConsumption), tone: resonanceConsumption > 0 ? 'negative' : '' });
+  rows.push({ label: `Leftover ${herbName}`, value: formatSignedCompact(leftover), tone: infoTone(leftover), total: true });
 
   let note;
   if (role === 'battler') {
     note = isBloom
-      ? 'Battlers use Sageroots for their Harvest potion, so only the Bloomwell half of the Resonance potion is deducted here.'
-      : 'Battlers use Sageroots for their Harvest potion. The Resonance potion is split evenly between both herbs.';
+      ? 'Battlers use Sageroots for their Wisdom potion, so only the Bloomwell half of the Resonance potion is deducted here.'
+      : 'Battlers use Sageroots for their Wisdom potion. The Resonance potion is split evenly between both herbs.';
   } else {
     note = isBloom
-      ? 'TSers use Bloomwells for their Wisdom potion. The Resonance potion is split evenly between both herbs.'
-      : 'TSers use Bloomwells for their Wisdom potion, so only the Sageroot half of the Resonance potion is deducted here.';
+      ? 'TSers use Bloomwells for their Harvest potion. The Resonance potion is split evenly between both herbs.'
+      : 'TSers use Bloomwells for their Harvest potion, so only the Sageroot half of the Resonance potion is deducted here.';
   }
 
   return { title: `Leftover ${herbName}`, rows, note };
@@ -286,12 +295,14 @@ function leftoverValueInfo(role, data, result) {
       {
         label: `Bloomwells: ${formatSignedCompact(totals.leftoverBloom)} × ${formatters.integer(data.bloomwellPrice)}`,
         value: formatSignedCompact(bloomValue),
+        tone: infoTone(bloomValue),
       },
       {
         label: `Sageroots: ${formatSignedCompact(totals.leftoverSage)} × ${formatters.integer(data.sagerootPrice)}`,
         value: formatSignedCompact(sageValue),
+        tone: infoTone(sageValue),
       },
-      { label: 'Leftover herb value', value: formatSignedCompact(totals.leftoverSold), total: true },
+      { label: 'Leftover herb value', value: formatSignedCompact(totals.leftoverSold), tone: infoTone(totals.leftoverSold), total: true },
     ],
   };
 }
@@ -304,10 +315,10 @@ function farmTaxInfo(role, data, result) {
     title: 'Farm tax taken',
     description: 'The farm charges 50,000 MD for every herb produced. Hedge Fund’s permanent Farm Discount offsets that charge when the player has it.',
     rows: [
-      { label: 'Leftover herb value', value: formatSignedCompact(totals.leftoverSold) },
-      { label: 'Herb production tax', value: formatDebit(productionTax) },
-      { label: 'Hedge Fund Farm Discount', value: formatSignedCompact(hedgeDiscount) },
-      { label: 'Farm tax taken', value: formatSignedCompact(totals.farmTax), total: true },
+      { label: 'Leftover herb value', value: formatSignedCompact(totals.leftoverSold), tone: infoTone(totals.leftoverSold) },
+      { label: 'Herb production tax', value: formatDebit(productionTax), tone: productionTax > 0 ? 'negative' : '' },
+      { label: 'Hedge Fund Farm Discount', value: formatSignedCompact(hedgeDiscount), tone: infoTone(hedgeDiscount) },
+      { label: 'Farm tax taken', value: formatSignedCompact(totals.farmTax), tone: infoTone(totals.farmTax), total: true },
     ],
   };
 }
@@ -323,7 +334,7 @@ function mdIncomeInfo(data) {
       { label: 'After Base Mana Dust and equipment boosts', value: formatCompact(breakdown.afterBaseAndEquipment) },
       { label: 'After Resource / MD tax', value: formatCompact(breakdown.afterTax) },
       { label: 'Daily battle actions', value: `× ${formatters.integer(breakdown.dailyActions)}` },
-      { label: 'MD earned daily', value: formatCompact(breakdown.dailyTotal), total: true },
+      { label: 'MD earned daily', value: formatCompact(breakdown.dailyTotal), tone: infoTone(breakdown.dailyTotal), total: true },
     ],
   };
 }
@@ -331,18 +342,18 @@ function mdIncomeInfo(data) {
 function labRoiInfo(role, data) {
   const breakdown = Calc.helpers.labRoiBreakdown(data, role);
   const roleHerb = role === 'battler' ? 'Sageroot' : 'Bloomwell';
-  const potionName = role === 'battler' ? 'Harvest' : 'Wisdom';
+  const potionName = role === 'battler' ? 'Wisdom' : 'Harvest';
   return {
     title: 'Laboratory ROI',
     description: 'The next Laboratory level adds 1 Potion Duration. ROI compares its cost with the daily value of the herbs that extra duration saves.',
     rows: [
       { label: 'Next Laboratory level cost', value: formatCompact(breakdown.nextLevelCost) },
-      { label: `${potionName} savings value / day`, value: formatCompact(breakdown.harvestSavingsValuePerDay) },
-      { label: 'Resonance savings value / day', value: formatCompact(breakdown.resonanceSavingsValuePerDay) },
-      { label: 'Total savings / day', value: formatCompact(breakdown.totalSavingsValuePerDay), total: true },
+      { label: `${potionName} savings value / day`, value: formatCompact(breakdown.harvestSavingsValuePerDay), tone: infoTone(breakdown.harvestSavingsValuePerDay) },
+      { label: 'Resonance savings value / day', value: formatCompact(breakdown.resonanceSavingsValuePerDay), tone: infoTone(breakdown.resonanceSavingsValuePerDay) },
+      { label: 'Total savings / day', value: formatCompact(breakdown.totalSavingsValuePerDay), tone: infoTone(breakdown.totalSavingsValuePerDay), total: true },
       { label: 'ROI', value: `${formatters.days(breakdown.roi)} days`, total: true },
     ],
-    note: `${role === 'battler' ? 'Battler Harvest' : 'TSer Wisdom'} savings use the ${roleHerb} sell price. Resonance savings value both herb halves across the full 22.4-hour day.`,
+    note: `${role === 'battler' ? 'Battler Wisdom' : 'TSer Harvest'} savings use the ${roleHerb} sell price. Resonance savings value both herb halves across the full 22.4-hour day.`,
   };
 }
 
