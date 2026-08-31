@@ -8,8 +8,8 @@
   const C = Object.freeze({
     BATTLE_HOURS_PER_DAY: 22.4,
     BATTLE_ACTIONS_PER_HOUR: 1200,
-    GATHER_ACTIONS_PER_DAY: 28800,
-    TS_UNPOTTED_ACTIONS: 27429,
+    GATHER_ACTIONS_PER_DAY: 26880,
+    TS_UNPOTTED_ACTIONS: 26880,
     TS_POTTED_ACTIONS: 26880,
     FARM_DUST_PER_HERB: 50000,
     TS_EVENT_RESEARCH_BONUS: 604.42,
@@ -18,7 +18,9 @@
     SHARD_UPGRADE_SIZE: 1000,
     HEDGE_ROI_DAYS: 41,
     MAX_TSER_POTION: 1_000_000,
+    POTION_SEARCH_STEP: 1_000,
     MAX_AMBITIOUS_PREFIXES: 8,
+    DISTILLATION_SIGIL_BOOST_ID: 110,
   });
 
   const finite = (v, fallback = 0) => Number.isFinite(Number(v)) ? Number(v) : fallback;
@@ -165,7 +167,7 @@
     };
   }
 
-  function optimizeTserPotion(d, { min = 0, max = C.MAX_TSER_POTION, step = 1000 } = {}) {
+  function optimizeTserPotion(d, { min = 0, max = C.MAX_TSER_POTION, step = C.POTION_SEARCH_STEP } = {}) {
     let bestPotion = min;
     let bestIncome = -Infinity;
     for (let potion = min; potion <= max; potion += step) {
@@ -183,6 +185,34 @@
       }
     }
     return { bestPotion, bestIncome };
+  }
+
+  function maxSustainableTserPotion(d, { step = C.POTION_SEARCH_STEP } = {}) {
+    const increment = Math.max(1, Math.trunc(finite(step, C.POTION_SEARCH_STEP)));
+    const canSustain = (potion) => {
+      const totals = tserAtPotion(d, potion);
+      return totals.leftoverBloom >= 0 && totals.leftoverSage >= 0;
+    };
+
+    if (!canSustain(0)) return 0;
+
+    let sustainableUnits = 0;
+    let unsustainableUnits = 1;
+    while (canSustain(unsustainableUnits * increment)) {
+      sustainableUnits = unsustainableUnits;
+      if (unsustainableUnits > Number.MAX_SAFE_INTEGER / 2 / increment) {
+        return sustainableUnits * increment;
+      }
+      unsustainableUnits *= 2;
+    }
+
+    while (sustainableUnits + 1 < unsustainableUnits) {
+      const midpoint = Math.floor((sustainableUnits + unsustainableUnits) / 2);
+      if (canSustain(midpoint * increment)) sustainableUnits = midpoint;
+      else unsustainableUnits = midpoint;
+    }
+
+    return sustainableUnits * increment;
   }
 
   function labROI(d) {
@@ -385,6 +415,8 @@
     const loss = opt.bestIncome - tserTotals.farmPlusPotIncome;
     const lossPct = safeDiv(loss, opt.bestIncome);
     const ambitiousPenaltyPercent = (1 - ambitiousResourceMultiplier(d)) * 100;
+    const netHerbs = tserTotals.leftoverBloom + tserTotals.leftoverSage;
+    const maxSustainablePotion = maxSustainableTserPotion(d);
 
     const sharedLabROI = labROI(d);
     const result = {
@@ -396,6 +428,8 @@
         lossFromCurrentPotion: loss,
         percentLoss: lossPct == null ? null : lossPct * 100,
         ambitiousPenaltyPercent,
+        netHerbs,
+        maxSustainablePotion,
       },
       roi: {
         battler: {
@@ -498,6 +532,7 @@
     const averageRes = Math.round((getNum(sell, '8') + getNum(sell, '7') + getNum(sell, '9')) / 3);
     const averageMarketPrice = (id) => Math.round((getNum(buy, String(id)) + getNum(sell, String(id))) / 2);
     const research = Math.max(getNum(totalBoosts, '30'), getNum(totalBoosts, '31'), getNum(totalBoosts, '32')) * 100;
+    const sigilBoost = finite(playerData?.SigilBoost);
 
     return {
       username: userInputs.username,
@@ -521,6 +556,8 @@
       equipmentBaseRes,
       equipmentResearch,
       ambitiousCount,
+      sigilBoost,
+      hasNonDistillationSigil: sigilBoost > 0 && sigilBoost !== C.DISTILLATION_SIGIL_BOOST_ID,
       powerOrbPrice: averageMarketPrice(35),
       perfectOrbPrice: averageMarketPrice(50),
       divineEssencePrice: averageMarketPrice(47),
@@ -557,7 +594,7 @@
     normalizeFromApis,
     helpers: {
       buildingCost, herbsPerHour, harvestHerbsPerPot, resonanceHerbsPerPot,
-      ambitiousResourceMultiplier, tserAtPotion, optimizeTserPotion,
+      ambitiousResourceMultiplier, tserAtPotion, optimizeTserPotion, maxSustainableTserPotion,
       tomeTotalCost, farmUpgradeStats,
     },
   };

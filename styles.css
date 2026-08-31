@@ -408,7 +408,11 @@ summary:focus-visible {
   --card-accent: var(--gold);
 }
 
-.summary-card.ambitious-card {
+.summary-card.role-tser::before {
+  display: none;
+}
+
+.summary-card.net-herbs-card {
   --card-accent: var(--blue);
 }
 
@@ -444,6 +448,12 @@ summary:focus-visible {
 
 .section-heading {
   margin-bottom: 15px;
+}
+
+.section-heading > .sigil-warning {
+  max-width: 520px;
+  color: var(--warn);
+  font-weight: 650;
 }
 
 .result-grid {

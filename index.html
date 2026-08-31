@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07101d">
   <meta name="description" content="Compare Battler and TSer daily farm income and upgrade ROI in Manarion.">
   <title>Emilia's Dumb Farm Sheet</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260830-net-herbs-sigil">
 </head>
 <body>
   <a class="skip-link" href="#results">Skip to results</a>
@@ -99,10 +99,10 @@
         <p class="summary-caption">using this player’s current stats</p>
       </article>
 
-      <article class="summary-card ambitious-card tser-only" id="summary-ambitious-card">
-        <p class="summary-label"><span class="summary-index" aria-hidden="true">04</span> Ambitious penalty</p>
-        <p class="summary-value" id="summary-ambitious">—</p>
-        <p class="summary-caption" id="summary-ambitious-caption">equipped Ambitious items</p>
+      <article class="summary-card net-herbs-card tser-only" id="summary-net-herbs-card">
+        <p class="summary-label"><span class="summary-index" aria-hidden="true">04</span> Net herbs</p>
+        <p class="summary-value" id="summary-net-herbs">—</p>
+        <p class="summary-caption">Bloomwells + Sageroots daily</p>
       </article>
     </section>
 
@@ -112,7 +112,7 @@
           <p class="section-kicker">Daily model</p>
           <h2 id="results-title">TSer breakdown</h2>
         </div>
-        <p>Negative herb totals mean the role consumes more than the farm produces.</p>
+        <p class="sigil-warning" id="sigil-warning" hidden>Warning: Non distillation sigil detected, numbers maybe inaccurate till after event</p>
       </div>
 
       <div class="result-grid" id="result-grid" data-role="tser">
@@ -178,6 +178,7 @@
             <div class="metric"><span class="label">Total income from it</span><span id="t-best-income" class="value">—</span></div>
             <div class="metric"><span class="label">Loss from current potion</span><span id="t-loss" class="value">—</span></div>
             <div class="metric"><span class="label">Percent loss</span><span id="t-loss-pct" class="value">—</span></div>
+            <div class="metric"><span class="label">Maximum sustainable potion</span><span id="t-max-sustainable-pot" class="value">—</span></div>
           </div>
         </article>
 
@@ -207,7 +208,7 @@
   </main>
 
   <noscript>This calculator needs JavaScript enabled to load live data and run its formulas.</noscript>
-  <script src="calculator.js?v=20260830"></script>
-  <script src="app.js?v=20260830-roi-labels"></script>
+  <script src="calculator.js?v=20260830-net-herbs-sigil"></script>
+  <script src="app.js?v=20260830-net-herbs-sigil"></script>
 </body>
 </html>

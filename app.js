@@ -13,6 +13,7 @@ const elements = Object.freeze({
   results: $('results'),
   resultGrid: $('result-grid'),
   resultsTitle: $('results-title'),
+  sigilWarning: $('sigil-warning'),
   battlerPanel: $('battler-panel'),
   tserPanels: [...document.querySelectorAll('.tser-result-panel')],
   battlerSummary: $('summary-battler-card'),
@@ -51,6 +52,12 @@ function formatCompact(value) {
     minimumFractionDigits: 2,
   });
   return `${formatted}${suffix}`;
+}
+
+function formatSignedCompact(value) {
+  if (!Number.isFinite(value)) return 'N/A';
+  if (value === 0) return '0';
+  return `${value > 0 ? '+' : '−'}${formatCompact(Math.abs(value))}`;
 }
 
 const formatters = Object.freeze({
@@ -101,7 +108,7 @@ function setStatus(message, state) {
   elements.status.dataset.state = state;
 }
 
-function renderSummary(data, result) {
+function renderSummary(result) {
   setText('summary-battler', formatCompact(result.battler.fullIncome));
   setText('summary-tser', formatCompact(result.tser.fullIncome));
   setText('summary-potion', formatters.integer(result.tser.bestPotion));
@@ -110,17 +117,7 @@ function renderSummary(data, result) {
     'summary-loss-label',
     `Loss compared to highest-income potion: ${formatters.integer(result.tser.bestPotion)}`,
   );
-
-  const ambitiousCount = Math.min(Math.max(Math.trunc(num(data.ambitiousCount)), 0), 8);
-  const ambitiousPenalty = Math.round(result.tser.ambitiousPenaltyPercent * 1000) / 1000;
-  setText(
-    'summary-ambitious',
-    ambitiousPenalty > 0 ? `−${ambitiousPenalty.toLocaleString()}% res` : '0% res',
-  );
-  setText(
-    'summary-ambitious-caption',
-    `${ambitiousCount.toLocaleString()} equipped Ambitious ${ambitiousCount === 1 ? 'item' : 'items'}`,
-  );
+  setMetric('summary-net-herbs', result.tser.netHerbs, formatSignedCompact, true);
 }
 
 function applyRoleView(role) {
@@ -164,14 +161,16 @@ function renderDetails(result) {
   setMetric('t-best-income', result.tser.bestIncome, formatters.compact, true);
   setMetric('t-loss', result.tser.lossFromCurrentPotion, formatters.compact, true);
   setMetric('t-loss-pct', result.tser.percentLoss, formatters.percent, true);
+  setMetric('t-max-sustainable-pot', result.tser.maxSustainablePotion, formatters.integer);
 
   setRoi('b-roi', result.roi.battler);
   setRoi('t-roi', result.roi.tser);
 }
 
 function render(data, result) {
-  renderSummary(data, result);
+  renderSummary(result);
   renderDetails(result);
+  elements.sigilWarning.hidden = !data.hasNonDistillationSigil;
   hasRenderedResults = true;
   applyRoleView(elements.role.value);
 }
@@ -182,6 +181,7 @@ function clearResults() {
   elements.results.hidden = true;
   elements.overview.querySelectorAll('.summary-value').forEach((element) => {
     element.textContent = '—';
+    element.classList.remove('positive', 'negative');
   });
   elements.resultGrid.querySelectorAll('.value, .days').forEach((element) => {
     element.textContent = '—';
@@ -189,7 +189,7 @@ function clearResults() {
     element.closest('.roi-row')?.classList.remove('best');
   });
   setText('summary-loss-label', 'Loss compared to highest-income potion');
-  setText('summary-ambitious-caption', 'equipped Ambitious items');
+  elements.sigilWarning.hidden = true;
 }
 
 async function requestJson(url, headers = {}) {

@@ -1,6 +1,6 @@
 # Validation against supplied XLSX workbooks
 
-The JavaScript conversion has now been checked against both the Emilia workbook and the newer Hohmono/TSer workbook.
+The JavaScript conversion was checked against both the Emilia workbook and the newer Hohmono/TSer workbook. The live calculator now intentionally uses 26,880 daily actions for gathering and for both potted and unpotted TSer calculations, superseding the older workbook action counts.
 
 ## Hohmono TSer validation
 
@@ -11,7 +11,7 @@ Inputs from the supplied Hohmono workbook:
 - Harvest/Wisdom potion: 171,000
 - Potion of Resonance: 57,000
 
-The JavaScript engine reproduces the current workbook's calculated TSer outputs (differences below the displayed precision are floating-point/formatting only):
+Outputs that do not depend on the updated daily-action counts still reproduce the workbook. Action-dependent rows show the current 26,880-action calculator result:
 
 | Output | Workbook / screenshot | JavaScript |
 | --- | ---: | ---: |
@@ -19,20 +19,26 @@ The JavaScript engine reproduces the current workbook's calculated TSer outputs 
 | Leftover Sageroots | 565,889,552,794 | 565,889,552,794.089 |
 | Leftover herb sale value | 11,375.27 T | 11,375.2687 T |
 | Farm tax value | 11,375.29 T | 11,375.2878 T |
-| Extra resource value | 202,318.7 T | 202,318.7287 T |
-| Farm + potion income | 213,694.02 T | 213,694.0165 T |
+| Extra resource value | 202,318.7 T | 204,100.2440 T |
+| Farm + potion income | 213,694.02 T | 215,475.5319 T |
 | Full income | 302,701.64 T | 302,701.6395 T |
 | Highest-income potion | 125,000 | 125,000 |
-| Income at best potion | 236,499.9 T | 236,499.9202 T |
+| Income at best potion | 236,499.9 T | 238,281.4356 T |
 | Loss from current potion | 22,805.9 T | 22,805.9037 T |
-| Percent loss | 9.643091518% | 9.643091518% |
+| Percent loss | 9.643091518% | 9.570994774% |
+
+### Derived herb and potion values
+
+- Net herbs combine the current-potion Bloomwell and Sageroot leftovers. For the Hohmono snapshot this is **127,428,845,084.422** herbs.
+- Maximum sustainable potion is the highest 1,000-level Harvest/Wisdom potion that leaves both herb totals at or above zero. The calculation keeps the entered Resonance potion active and uses the API's total Potion Duration boost, which includes Laboratory duration. For the Hohmono snapshot this is **141,000**.
+- A nonzero `SigilBoost` other than the Distillation/Potion Duration identifier (`110`) activates the event-accuracy warning. Missing or zero values do not.
 
 ### Hohmono TSer ROI validation
 
 | ROI | Workbook | JavaScript |
 | --- | ---: | ---: |
 | Lab | 145.261399 d | 145.261399 d |
-| Spire | 135.2979062 d | 135.2979062 d |
+| Spire | 135.2979062 d | 144.9620423 d |
 | Potion boost | 233.9868499 d | 233.9868499 d |
 | Base resources | 154.0746152 d | 154.0746152 d |
 | Shards | 135.5421791 d | 135.5421791 d |
@@ -57,6 +63,6 @@ The earlier workbook also matched the JavaScript engine for the core Battler out
 
 ## Automated regression check
 
-`validation.test.js` runs the Hohmono snapshot through the same `calculator.js` engine used in the browser. It asserts the documented TSer outputs and ROI values, the 125,000 best-potion result, and the shared Battler/TSer Tome Drop ROI. Run it with `node validation.test.js`; it requires no installed packages and does not alter any workbook-derived formulas.
+`validation.test.js` runs the Hohmono snapshot through the same `calculator.js` engine used in the browser. It asserts the three 26,880 daily-action constants, the documented current TSer outputs and ROI values, the 125,000 best-potion result, and the shared Battler/TSer Tome Drop ROI. Run it with `node validation.test.js`; it requires no installed packages.
 
-The regression check also covers the post-workbook Ambitious rule. It verifies that each detected equipped Ambitious prefix reduces potted and unpotted TSer resources by 1%, adjusts resource-derived ROI, leaves Battler and non-resource ROI unchanged, and caps the penalty at eight items. It also verifies that a player running a lower potion can receive a higher upgrade recommendation from the 0-1,000,000 search and that the full one-million ceiling is evaluated. Both workbook snapshots have an Ambitious count of zero, preserving every previously validated value.
+The regression check also covers the post-workbook Ambitious rule. It verifies that each detected equipped Ambitious prefix reduces potted and unpotted TSer resources by 1%, adjusts resource-derived ROI, leaves Battler and non-resource ROI unchanged, and caps the penalty at eight items. It also verifies that a player running a lower potion can receive a higher upgrade recommendation from the 0-1,000,000 search, that the full one-million ceiling is evaluated, that sustainable-potion analysis responds to Resonance usage and total Potion Duration, and that the sigil warning distinguishes Distillation from another active sigil. Both workbook snapshots have an Ambitious count of zero, preserving every previously validated value.
