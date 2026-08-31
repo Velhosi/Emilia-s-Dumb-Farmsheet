@@ -3,6 +3,7 @@
 const Calc = window.ManarionCalculator;
 const INPUT_STORAGE_KEY = 'emilia-farm-sheet-inputs-v1';
 let hasRenderedResults = false;
+const infoPanels = new Map();
 
 const $ = (id) => document.getElementById(id);
 const elements = Object.freeze({
@@ -60,6 +61,12 @@ function formatSignedCompact(value) {
   return `${value > 0 ? '+' : '−'}${formatCompact(Math.abs(value))}`;
 }
 
+function formatDebit(value) {
+  if (!Number.isFinite(value)) return 'N/A';
+  if (value === 0) return '0';
+  return `−${formatCompact(Math.abs(value))}`;
+}
+
 const formatters = Object.freeze({
   compact: formatCompact,
   days: (value) => Number.isFinite(value)
@@ -108,6 +115,255 @@ function setStatus(message, state) {
   elements.status.dataset.state = state;
 }
 
+function createInfoElement(tag, className, text) {
+  const element = document.createElement(tag);
+  element.className = className;
+  if (text != null) element.textContent = text;
+  return element;
+}
+
+function setInfoPanel(key, { title, description, rows, note }) {
+  const entry = infoPanels.get(key);
+  if (!entry) return;
+
+  const content = document.createDocumentFragment();
+  content.append(createInfoElement('span', 'info-title', title));
+  if (description) content.append(createInfoElement('span', 'info-copy', description));
+
+  const rowGroup = createInfoElement('span', 'info-rows');
+  rows.forEach((row) => {
+    const rowElement = createInfoElement(
+      'span',
+      `info-row${row.total ? ' info-row-total' : ''}`,
+    );
+    rowElement.append(createInfoElement('span', 'info-row-label', row.label));
+    rowElement.append(createInfoElement('strong', 'info-row-value', row.value));
+    rowGroup.append(rowElement);
+  });
+  content.append(rowGroup);
+
+  if (note) content.append(createInfoElement('span', 'info-note', note));
+  entry.panel.replaceChildren(content);
+}
+
+function closeInfoPanels(exceptKey = null) {
+  for (const [key, entry] of infoPanels) {
+    if (key === exceptKey) continue;
+    entry.wrapper.dataset.open = 'false';
+    entry.button.setAttribute('aria-expanded', 'false');
+  }
+}
+
+function setupInfoPanels() {
+  document.querySelectorAll('.info-button[data-info]').forEach((button) => {
+    const key = button.dataset.info;
+    const wrapper = button.closest('.info-popover');
+    const panel = createInfoElement('span', 'info-panel');
+    panel.id = `info-${key}`;
+    panel.setAttribute('role', 'tooltip');
+    panel.textContent = 'Calculation details appear after the player is updated.';
+    wrapper.append(panel);
+    wrapper.dataset.open = 'false';
+    button.setAttribute('aria-controls', panel.id);
+    button.setAttribute('aria-describedby', panel.id);
+    button.setAttribute('aria-expanded', 'false');
+    infoPanels.set(key, { button, panel, wrapper });
+
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const shouldOpen = wrapper.dataset.open !== 'true';
+      closeInfoPanels(shouldOpen ? key : null);
+      wrapper.dataset.open = String(shouldOpen);
+      button.setAttribute('aria-expanded', String(shouldOpen));
+    });
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.info-popover')) closeInfoPanels();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeInfoPanels();
+      document.activeElement?.closest?.('.info-popover')?.querySelector('.info-button')?.focus();
+    }
+  });
+}
+
+function netHerbsInfo(role, result) {
+  const totals = result[role];
+  return {
+    title: 'Net herbs',
+    description: 'Combined herbs remaining after daily Harvest and Resonance potion use. Assumes Bloomwells and Sageroots can be traded 1:1.',
+    rows: [
+      { label: 'Leftover Bloomwells', value: formatSignedCompact(totals.leftoverBloom) },
+      { label: 'Leftover Sageroots', value: formatSignedCompact(totals.leftoverSage) },
+      { label: 'Net herbs', value: formatSignedCompact(totals.netHerbs), total: true },
+    ],
+  };
+}
+
+function sustainablePotionInfo(role, data, result) {
+  const totals = result[role];
+  const maxPotion = totals.maxSustainablePotion;
+  const atMax = role === 'tser'
+    ? Calc.helpers.tserAtPotion(data, maxPotion)
+    : Calc.helpers.battlerAtPotion(data, maxPotion);
+  const nextPotion = maxPotion + Calc.C.POTION_SEARCH_STEP;
+  const atCeiling = maxPotion >= Calc.C.MAX_TSER_POTION;
+  const atNext = atCeiling ? null : role === 'tser'
+    ? Calc.helpers.tserAtPotion(data, nextPotion)
+    : Calc.helpers.battlerAtPotion(data, nextPotion);
+  const resonanceConsumption = atMax.resHr * Calc.C.BATTLE_HOURS_PER_DAY;
+  const availableForHarvest = atMax.herbDaily - resonanceConsumption;
+  const harvestConsumption = atMax.harvestHr * Calc.C.BATTLE_HOURS_PER_DAY;
+  const remaining = atMax.leftoverBloom + atMax.leftoverSage;
+  const nextRemaining = atNext ? atNext.leftoverBloom + atNext.leftoverSage : null;
+  const rows = [
+    { label: 'Daily herbs produced', value: formatCompact(atMax.herbDaily) },
+    { label: 'Resonance potion consumption', value: formatDebit(resonanceConsumption) },
+    { label: 'Available for Harvest potion', value: formatCompact(availableForHarvest), total: true },
+    { label: `${formatters.integer(maxPotion)} Harvest potion use`, value: formatDebit(harvestConsumption) },
+    { label: 'Herbs remaining', value: formatSignedCompact(remaining), total: true },
+  ];
+
+  if (atCeiling) {
+    rows.push({ label: 'Search ceiling reached', value: formatters.integer(maxPotion) });
+  } else {
+    rows.push({
+      label: `Next tier: ${formatters.integer(nextPotion)}`,
+      value: formatSignedCompact(nextRemaining),
+    });
+  }
+
+  return {
+    title: 'Maximum sustainable potion',
+    description: 'The highest 1,000-level potion that keeps combined herbs at or above zero. Bloomwells and Sageroots are treated as tradable 1:1.',
+    rows,
+    note: 'Uses the entered Resonance potion and the player’s total Potion Duration, including Laboratory.',
+  };
+}
+
+function leftoverHerbInfo(role, herb, result) {
+  const totals = result[role];
+  const isBloom = herb === 'bloom';
+  const harvestUsesThisHerb = (role === 'battler' && !isBloom) || (role === 'tser' && isBloom);
+  const herbName = isBloom ? 'Bloomwells' : 'Sageroots';
+  const resonanceName = isBloom ? 'Bloomwell' : 'Sageroot';
+  const produced = isBloom ? totals.bloomDaily : totals.sageDaily;
+  const resonanceConsumption = totals.resHr * Calc.C.BATTLE_HOURS_PER_DAY / 2;
+  const harvestConsumption = totals.harvestHr * Calc.C.BATTLE_HOURS_PER_DAY;
+  const leftover = isBloom ? totals.leftoverBloom : totals.leftoverSage;
+  const rows = [{ label: `Daily ${herbName} produced`, value: formatCompact(produced) }];
+
+  if (harvestUsesThisHerb) {
+    rows.push({ label: 'Harvest potion consumption', value: formatDebit(harvestConsumption) });
+  }
+  rows.push({ label: `Resonance ${resonanceName} consumption`, value: formatDebit(resonanceConsumption) });
+  rows.push({ label: `Leftover ${herbName}`, value: formatSignedCompact(leftover), total: true });
+
+  let note;
+  if (role === 'battler') {
+    note = isBloom
+      ? 'Battlers use Sageroots for their Harvest potion, so only the Bloomwell half of the Resonance potion is deducted here.'
+      : 'Battlers use Sageroots for their Harvest potion. The Resonance potion is split evenly between both herbs.';
+  } else {
+    note = isBloom
+      ? 'TSers use Bloomwells for their Wisdom potion. The Resonance potion is split evenly between both herbs.'
+      : 'TSers use Bloomwells for their Wisdom potion, so only the Sageroot half of the Resonance potion is deducted here.';
+  }
+
+  return { title: `Leftover ${herbName}`, rows, note };
+}
+
+function leftoverValueInfo(role, data, result) {
+  const totals = result[role];
+  const bloomValue = totals.leftoverBloom * data.bloomwellPrice;
+  const sageValue = totals.leftoverSage * data.sagerootPrice;
+  return {
+    title: 'Leftover herb value',
+    description: 'Each leftover herb balance is multiplied by its current Manarion sell price.',
+    rows: [
+      {
+        label: `Bloomwells: ${formatSignedCompact(totals.leftoverBloom)} × ${formatters.integer(data.bloomwellPrice)}`,
+        value: formatSignedCompact(bloomValue),
+      },
+      {
+        label: `Sageroots: ${formatSignedCompact(totals.leftoverSage)} × ${formatters.integer(data.sagerootPrice)}`,
+        value: formatSignedCompact(sageValue),
+      },
+      { label: 'Leftover herb value', value: formatSignedCompact(totals.leftoverSold), total: true },
+    ],
+  };
+}
+
+function farmTaxInfo(role, data, result) {
+  const totals = result[role];
+  const productionTax = totals.herbDaily * Calc.C.FARM_DUST_PER_HERB;
+  const hedgeDiscount = data.farmDiscount * 1_000_000_000 * 24;
+  return {
+    title: 'Farm tax taken',
+    description: 'The farm charges 50,000 MD for every herb produced. Hedge Fund’s permanent Farm Discount offsets that charge when the player has it.',
+    rows: [
+      { label: 'Leftover herb value', value: formatSignedCompact(totals.leftoverSold) },
+      { label: 'Herb production tax', value: formatDebit(productionTax) },
+      { label: 'Hedge Fund Farm Discount', value: formatSignedCompact(hedgeDiscount) },
+      { label: 'Farm tax taken', value: formatSignedCompact(totals.farmTax), total: true },
+    ],
+  };
+}
+
+function mdIncomeInfo(data) {
+  const breakdown = Calc.helpers.mdIncomeBreakdown(data);
+  return {
+    title: 'MD earned daily',
+    description: 'Base MD scales with the player’s current enemy, including the extra scaling above enemy 150,000. Boosts are applied before tax.',
+    rows: [
+      { label: 'Base MD per battle from current enemy', value: formatCompact(breakdown.basePerBattle) },
+      { label: 'After Dust Collector boost', value: formatCompact(breakdown.afterDustCollector) },
+      { label: 'After Base Mana Dust and equipment boosts', value: formatCompact(breakdown.afterBaseAndEquipment) },
+      { label: 'After Resource / MD tax', value: formatCompact(breakdown.afterTax) },
+      { label: 'Daily battle actions', value: `× ${formatters.integer(breakdown.dailyActions)}` },
+      { label: 'MD earned daily', value: formatCompact(breakdown.dailyTotal), total: true },
+    ],
+  };
+}
+
+function labRoiInfo(role, data) {
+  const breakdown = Calc.helpers.labRoiBreakdown(data, role);
+  const roleHerb = role === 'battler' ? 'Sageroot' : 'Bloomwell';
+  const potionName = role === 'battler' ? 'Harvest' : 'Wisdom';
+  return {
+    title: 'Laboratory ROI',
+    description: 'The next Laboratory level adds 1 Potion Duration. ROI compares its cost with the daily value of the herbs that extra duration saves.',
+    rows: [
+      { label: 'Next Laboratory level cost', value: formatCompact(breakdown.nextLevelCost) },
+      { label: `${potionName} savings value / day`, value: formatCompact(breakdown.harvestSavingsValuePerDay) },
+      { label: 'Resonance savings value / day', value: formatCompact(breakdown.resonanceSavingsValuePerDay) },
+      { label: 'Total savings / day', value: formatCompact(breakdown.totalSavingsValuePerDay), total: true },
+      { label: 'ROI', value: `${formatters.days(breakdown.roi)} days`, total: true },
+    ],
+    note: `${role === 'battler' ? 'Battler Harvest' : 'TSer Wisdom'} savings use the ${roleHerb} sell price. Resonance savings value both herb halves across the full 22.4-hour day.`,
+  };
+}
+
+function renderInfoPanels(data, result) {
+  setInfoPanel('battler-net-herbs', netHerbsInfo('battler', result));
+  setInfoPanel('tser-net-herbs', netHerbsInfo('tser', result));
+  setInfoPanel('battler-max-potion', sustainablePotionInfo('battler', data, result));
+  setInfoPanel('tser-max-potion', sustainablePotionInfo('tser', data, result));
+  setInfoPanel('battler-left-bloom', leftoverHerbInfo('battler', 'bloom', result));
+  setInfoPanel('battler-left-sage', leftoverHerbInfo('battler', 'sage', result));
+  setInfoPanel('tser-left-bloom', leftoverHerbInfo('tser', 'bloom', result));
+  setInfoPanel('tser-left-sage', leftoverHerbInfo('tser', 'sage', result));
+  setInfoPanel('battler-leftover-value', leftoverValueInfo('battler', data, result));
+  setInfoPanel('tser-leftover-value', leftoverValueInfo('tser', data, result));
+  setInfoPanel('battler-farm-tax', farmTaxInfo('battler', data, result));
+  setInfoPanel('tser-farm-tax', farmTaxInfo('tser', data, result));
+  setInfoPanel('battler-md', mdIncomeInfo(data));
+  setInfoPanel('battler-lab-roi', labRoiInfo('battler', data));
+  setInfoPanel('tser-lab-roi', labRoiInfo('tser', data));
+}
+
 function renderSummary(result) {
   setText('summary-battler', formatCompact(result.battler.fullIncome));
   setMetric('summary-battler-net-herbs', result.battler.netHerbs, formatSignedCompact, true);
@@ -142,6 +398,7 @@ function applyRoleView(role) {
       ? 'Current TSer calculation summary'
       : isBattler ? 'Current Battler calculation summary' : 'Calculation summary',
   );
+  closeInfoPanels();
 }
 
 function renderDetails(result) {
@@ -172,6 +429,7 @@ function renderDetails(result) {
 function render(data, result) {
   renderSummary(result);
   renderDetails(result);
+  renderInfoPanels(data, result);
   elements.sigilWarning.hidden = !data.hasNonDistillationSigil;
   hasRenderedResults = true;
   applyRoleView(elements.role.value);
@@ -322,5 +580,6 @@ $('reset-btn').addEventListener('click', resetInputs);
 elements.role.addEventListener('change', () => applyRoleView(elements.role.value));
 
 clearResults();
+setupInfoPanels();
 restoreInputs();
 setStatus('', '');

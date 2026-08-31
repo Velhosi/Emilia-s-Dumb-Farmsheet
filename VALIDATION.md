@@ -38,7 +38,7 @@ Outputs that do not depend on the updated daily-action counts still reproduce th
 
 | ROI | Workbook | JavaScript |
 | --- | ---: | ---: |
-| Lab | 145.261399 d | 145.261399 d |
+| Lab | 145.261399 d | 140.336103 d |
 | Spire | 135.2979062 d | 144.9620423 d |
 | Potion boost | 233.9868499 d | 233.9868499 d |
 | Base resources | 154.0746152 d | 154.0746152 d |
@@ -47,6 +47,8 @@ Outputs that do not depend on the updated daily-action counts still reproduce th
 | Farm + Hedge (latest XLSX formula) | 61.09496282 d | 61.09496282 d |
 
 The newer Hohmono XLSX contains formulas in K29 and K30, so those two TSer farm ROI rows are now implemented dynamically in the website.
+
+The Laboratory ROI intentionally corrects two issues in the workbook formula. Harvest-potion savings are valued using the herb consumed by the selected role (Sageroots for Battlers and Bloomwells for TSers), and the full 22.4-hour daily duration is applied to both halves of the Resonance-potion savings. This produces separate Laboratory ROI values for the two roles; the Hohmono snapshot evaluates to **149.736297 days** for Battler and **140.336103 days** for TSer.
 
 ## Screenshot vs. latest XLSX discrepancy
 

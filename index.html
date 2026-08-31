@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07101d">
   <meta name="description" content="Compare Battler and TSer daily farm income and upgrade ROI in Manarion.">
   <title>Emilia's Dumb Farm Sheet</title>
-  <link rel="stylesheet" href="styles.css?v=20260830.3">
+  <link rel="stylesheet" href="styles.css?v=20260830.5">
 </head>
 <body>
   <a class="skip-link" href="#results">Skip to results</a>
@@ -82,13 +82,13 @@
       </article>
 
       <article class="summary-card net-herbs-card battler-only" id="summary-battler-net-herbs-card" hidden>
-        <p class="summary-label"><span class="summary-index" aria-hidden="true">02</span> Net herbs</p>
+        <p class="summary-label"><span class="summary-index" aria-hidden="true">02</span> Net herbs <span class="info-popover"><button class="info-button" type="button" data-info="battler-net-herbs" aria-label="Show the Battler net herbs calculation">i</button></span></p>
         <p class="summary-value" id="summary-battler-net-herbs">—</p>
         <p class="summary-caption">Bloomwells + Sageroots daily</p>
       </article>
 
       <article class="summary-card sustainable-card battler-only" id="summary-battler-max-potion-card" hidden>
-        <p class="summary-label"><span class="summary-index" aria-hidden="true">03</span> Maximum sustainable potion</p>
+        <p class="summary-label"><span class="summary-index" aria-hidden="true">03</span> Maximum sustainable potion <span class="info-popover info-align-end"><button class="info-button" type="button" data-info="battler-max-potion" aria-label="Show the Battler maximum sustainable potion calculation">i</button></span></p>
         <p class="summary-value" id="summary-battler-max-potion">—</p>
         <p class="summary-caption">after trading herbs as needed</p>
       </article>
@@ -112,7 +112,7 @@
       </article>
 
       <article class="summary-card net-herbs-card tser-only" id="summary-net-herbs-card">
-        <p class="summary-label"><span class="summary-index" aria-hidden="true">04</span> Net herbs</p>
+        <p class="summary-label"><span class="summary-index" aria-hidden="true">04</span> Net herbs <span class="info-popover info-align-end"><button class="info-button" type="button" data-info="tser-net-herbs" aria-label="Show the TSer net herbs calculation">i</button></span></p>
         <p class="summary-value" id="summary-net-herbs">—</p>
         <p class="summary-caption">Bloomwells + Sageroots daily</p>
       </article>
@@ -138,17 +138,17 @@
           </header>
 
           <div class="metrics" aria-label="Battler daily values">
-            <div class="metric"><span class="label">Leftover Bloomwells daily</span><span id="b-left-bloom" class="value">—</span></div>
-            <div class="metric"><span class="label">Leftover Sageroots daily</span><span id="b-left-sage" class="value">—</span></div>
-            <div class="metric"><span class="label">Dust daily, leftovers sold</span><span id="b-dust" class="value">—</span></div>
-            <div class="metric"><span class="label">Farm tax taken</span><span id="b-tax" class="value">—</span></div>
-            <div class="metric"><span class="label">MD earned daily</span><span id="b-md" class="value">—</span></div>
+            <div class="metric"><span class="label-with-info"><span class="label">Leftover Bloomwells daily</span><span class="info-popover"><button class="info-button" type="button" data-info="battler-left-bloom" aria-label="Show the Battler leftover Bloomwells calculation">i</button></span></span><span id="b-left-bloom" class="value">—</span></div>
+            <div class="metric"><span class="label-with-info"><span class="label">Leftover Sageroots daily</span><span class="info-popover"><button class="info-button" type="button" data-info="battler-left-sage" aria-label="Show the Battler leftover Sageroots calculation">i</button></span></span><span id="b-left-sage" class="value">—</span></div>
+            <div class="metric"><span class="label-with-info"><span class="label">Leftover herb value</span><span class="info-popover"><button class="info-button" type="button" data-info="battler-leftover-value" aria-label="Show the Battler leftover herb value calculation">i</button></span></span><span id="b-dust" class="value">—</span></div>
+            <div class="metric"><span class="label-with-info"><span class="label">Farm tax taken</span><span class="info-popover"><button class="info-button" type="button" data-info="battler-farm-tax" aria-label="Show the Battler farm tax calculation">i</button></span></span><span id="b-tax" class="value">—</span></div>
+            <div class="metric"><span class="label-with-info"><span class="label">MD earned daily</span><span class="info-popover"><button class="info-button" type="button" data-info="battler-md" aria-label="Show the Battler daily MD calculation">i</button></span></span><span id="b-md" class="value">—</span></div>
             <div class="metric total"><span class="label">Full income with herbs + MD</span><span id="b-total" class="value">—</span></div>
           </div>
 
           <div class="roi">
             <div class="roi-title"><span>ROI (in days)</span><span>lower is faster</span></div>
-            <div class="roi-row"><span class="name">Lab 1×</span><span id="b-roi-lab" class="days">—</span></div>
+            <div class="roi-row"><span class="name-with-info"><span class="name">Lab 1×</span><span class="info-popover"><button class="info-button" type="button" data-info="battler-lab-roi" aria-label="Show the Battler Laboratory ROI calculation">i</button></span></span><span id="b-roi-lab" class="days">—</span></div>
             <div class="roi-row"><span class="name">Dust Collector 1×</span><span id="b-roi-dustCollector" class="days">—</span></div>
             <div class="roi-row"><span class="name">Farm — no hedge</span><span id="b-roi-farmNoHedge" class="days">—</span></div>
             <div class="roi-row"><span class="name">Farm + hedge</span><span id="b-roi-farmHedge" class="days">—</span></div>
@@ -167,10 +167,10 @@
           </header>
 
           <div class="metrics" aria-label="TSer daily values">
-            <div class="metric"><span class="label">Leftover Bloomwells daily</span><span id="t-left-bloom" class="value">—</span></div>
-            <div class="metric"><span class="label">Leftover Sageroots daily</span><span id="t-left-sage" class="value">—</span></div>
-            <div class="metric"><span class="label">Dust daily, leftovers sold</span><span id="t-dust" class="value">—</span></div>
-            <div class="metric"><span class="label">Farm tax taken</span><span id="t-tax" class="value">—</span></div>
+            <div class="metric"><span class="label-with-info"><span class="label">Leftover Bloomwells daily</span><span class="info-popover"><button class="info-button" type="button" data-info="tser-left-bloom" aria-label="Show the TSer leftover Bloomwells calculation">i</button></span></span><span id="t-left-bloom" class="value">—</span></div>
+            <div class="metric"><span class="label-with-info"><span class="label">Leftover Sageroots daily</span><span class="info-popover"><button class="info-button" type="button" data-info="tser-left-sage" aria-label="Show the TSer leftover Sageroots calculation">i</button></span></span><span id="t-left-sage" class="value">—</span></div>
+            <div class="metric"><span class="label-with-info"><span class="label">Leftover herb value</span><span class="info-popover"><button class="info-button" type="button" data-info="tser-leftover-value" aria-label="Show the TSer leftover herb value calculation">i</button></span></span><span id="t-dust" class="value">—</span></div>
+            <div class="metric"><span class="label-with-info"><span class="label">Farm tax taken</span><span class="info-popover"><button class="info-button" type="button" data-info="tser-farm-tax" aria-label="Show the TSer farm tax calculation">i</button></span></span><span id="t-tax" class="value">—</span></div>
             <div class="metric"><span class="label">Extra resource value (incl. tax)</span><span id="t-extra" class="value">—</span></div>
             <div class="metric"><span class="label">Full farm + potion resource income</span><span id="t-farm-pot" class="value">—</span></div>
             <div class="metric total"><span class="label">Full income + unpotted resources</span><span id="t-total" class="value">—</span></div>
@@ -190,7 +190,7 @@
             <div class="metric"><span class="label">Total income from it</span><span id="t-best-income" class="value">—</span></div>
             <div class="metric"><span class="label">Loss from current potion</span><span id="t-loss" class="value">—</span></div>
             <div class="metric"><span class="label">Percent loss</span><span id="t-loss-pct" class="value">—</span></div>
-            <div class="metric"><span class="label">Maximum sustainable potion</span><span id="t-max-sustainable-pot" class="value">—</span></div>
+            <div class="metric"><span class="label-with-info"><span class="label">Maximum sustainable potion</span><span class="info-popover"><button class="info-button" type="button" data-info="tser-max-potion" aria-label="Show the TSer maximum sustainable potion calculation">i</button></span></span><span id="t-max-sustainable-pot" class="value">—</span></div>
           </div>
         </article>
 
@@ -204,7 +204,7 @@
           </header>
 
           <div class="roi roi-standalone">
-            <div class="roi-row"><span class="name">Lab 1×</span><span id="t-roi-lab" class="days">—</span></div>
+            <div class="roi-row"><span class="name-with-info"><span class="name">Lab 1×</span><span class="info-popover"><button class="info-button" type="button" data-info="tser-lab-roi" aria-label="Show the TSer Laboratory ROI calculation">i</button></span></span><span id="t-roi-lab" class="days">—</span></div>
             <div class="roi-row"><span class="name">Spire 1×</span><span id="t-roi-spire" class="days">—</span></div>
             <div class="roi-row"><span class="name">Potion boost</span><span id="t-roi-potionBoost" class="days">—</span></div>
             <div class="roi-row"><span class="name">Base resources</span><span id="t-roi-baseRes" class="days">—</span></div>
@@ -220,7 +220,7 @@
   </main>
 
   <noscript>This calculator needs JavaScript enabled to load live data and run its formulas.</noscript>
-  <script src="calculator.js?v=20260830.3"></script>
-  <script src="app.js?v=20260830.3"></script>
+  <script src="calculator.js?v=20260830.5"></script>
+  <script src="app.js?v=20260830.5"></script>
 </body>
 </html>

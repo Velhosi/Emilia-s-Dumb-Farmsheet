@@ -32,7 +32,8 @@ const validatedOutputs = {
   'TSer best-potion income': [result.tser.bestIncome, 238281435612079680],
   'TSer current-potion loss': [result.tser.lossFromCurrentPotion, 22805903749174400],
   'TSer percent loss': [result.tser.percentLoss, 9.570994773718853],
-  'Lab ROI': [result.roi.tser.lab, 145.26139896059456],
+  'Battler Lab ROI': [result.roi.battler.lab, 149.73629689267887],
+  'TSer Lab ROI': [result.roi.tser.lab, 140.3361029296493],
   'Spire ROI': [result.roi.tser.spire, 144.96204233977448],
   'Potion boost ROI': [result.roi.tser.potionBoost, 233.98684992590225],
   'Base resources ROI': [result.roi.tser.baseRes, 154.07461517292992],
@@ -107,6 +108,29 @@ assert.equal(
   result.roi.tser.tomeDrop,
   result.roi.battler.tomeDrop,
   'Battler and TSer Tome Drop ROI must remain identical',
+);
+
+const battlerLabBreakdown = Calc.helpers.labRoiBreakdown(WORKBOOK_SNAPSHOTS.hohmono, 'battler');
+const tserLabBreakdown = Calc.helpers.labRoiBreakdown(WORKBOOK_SNAPSHOTS.hohmono, 'tser');
+approximately(battlerLabBreakdown.roi, result.roi.battler.lab, 'Battler Lab ROI breakdown');
+approximately(tserLabBreakdown.roi, result.roi.tser.lab, 'TSer Lab ROI breakdown');
+approximately(
+  battlerLabBreakdown.harvestSavingsValuePerDay
+    + battlerLabBreakdown.resonanceSavingsValuePerDay,
+  battlerLabBreakdown.totalSavingsValuePerDay,
+  'Battler Lab daily savings breakdown',
+);
+assert.notEqual(
+  battlerLabBreakdown.harvestSavingsValuePerDay,
+  tserLabBreakdown.harvestSavingsValuePerDay,
+  'Role-specific Lab ROI values Harvest savings with the herb consumed by that role',
+);
+
+const mdIncomeBreakdown = Calc.helpers.mdIncomeBreakdown(WORKBOOK_SNAPSHOTS.hohmono);
+approximately(
+  mdIncomeBreakdown.dailyTotal,
+  result.battler.mdEarned,
+  'MD information panel breakdown matches Battler daily MD',
 );
 
 for (const [label, [actual, expected]] of Object.entries(validatedOutputs)) {

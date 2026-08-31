@@ -227,18 +227,53 @@
     return maxSustainablePotion(d, battlerAtPotion, options);
   }
 
-  function labROI(d) {
+  function labRoiBreakdown(d, role) {
     const f = farmTotals(d, d.harvestPotion);
     const nextHarvestHr = herbsPerHourFromPotion(f.harvestPerPot, finite(d.potDuration) + 1);
     const nextResHr = herbsPerHourFromPotion(f.resPerPot, finite(d.potDuration) + 1);
-    const harvestDiff = f.harvestHr - nextHarvestHr;
-    const resonanceDiff = f.resHr - nextResHr;
-    const harvestValue = harvestDiff * finite(d.bloomwellPrice) * C.BATTLE_HOURS_PER_DAY;
-    // This mirrors the spreadsheet's exact operator precedence in C81.
-    const resonanceValue = ((resonanceDiff / 2) * finite(d.bloomwellPrice))
-      + ((resonanceDiff / 2) * finite(d.sagerootPrice) * C.BATTLE_HOURS_PER_DAY);
-    const benefitPerDay = Math.abs(harvestValue + resonanceValue);
-    return safeDiv(buildingCost(d.labLevel, d.averageResourcePrice), benefitPerDay);
+    const harvestHerbsSavedPerDay = (f.harvestHr - nextHarvestHr) * C.BATTLE_HOURS_PER_DAY;
+    const resonanceHerbsSavedPerDay = (f.resHr - nextResHr) * C.BATTLE_HOURS_PER_DAY;
+    const harvestHerbPrice = role === 'tser' ? d.bloomwellPrice : d.sagerootPrice;
+    const harvestSavingsValuePerDay = harvestHerbsSavedPerDay * finite(harvestHerbPrice);
+    const resonanceSavingsValuePerDay = resonanceHerbsSavedPerDay
+      * ((finite(d.bloomwellPrice) + finite(d.sagerootPrice)) / 2);
+    const totalSavingsValuePerDay = Math.abs(
+      harvestSavingsValuePerDay + resonanceSavingsValuePerDay,
+    );
+    const nextLevelCost = buildingCost(d.labLevel, d.averageResourcePrice);
+
+    return {
+      nextLevelCost,
+      harvestHerbsSavedPerDay,
+      resonanceHerbsSavedPerDay,
+      harvestSavingsValuePerDay,
+      resonanceSavingsValuePerDay,
+      totalSavingsValuePerDay,
+      roi: safeDiv(nextLevelCost, totalSavingsValuePerDay),
+    };
+  }
+
+  function labROI(d, role) {
+    return labRoiBreakdown(d, role).roi;
+  }
+
+  function mdIncomeBreakdown(d) {
+    const basePerBattle = dustPerBattleBase(d.currentEnemy);
+    const afterDustCollector = basePerBattle
+      * (1 + (finite(d.dustCollector) * 0.2) / 100);
+    const afterBaseAndEquipment = afterDustCollector
+      * (1 + finite(d.dustCodex) / 100)
+      * (1 + finite(d.dustEquipment) / 100);
+    const afterTax = afterBaseAndEquipment * pctAfterTax(d.tax);
+
+    return {
+      basePerBattle,
+      afterDustCollector,
+      afterBaseAndEquipment,
+      afterTax,
+      dailyActions: C.TS_POTTED_ACTIONS,
+      dailyTotal: afterTax * C.TS_POTTED_ACTIONS,
+    };
   }
 
   function spireROI(d) {
@@ -434,7 +469,6 @@
     const battlerNetHerbs = battlerTotals.leftoverBloom + battlerTotals.leftoverSage;
     const battlerMaxSustainablePotion = maxSustainableBattlerPotion(d);
 
-    const sharedLabROI = labROI(d);
     const result = {
       battler: {
         ...battlerTotals,
@@ -453,7 +487,7 @@
       },
       roi: {
         battler: {
-          lab: sharedLabROI,
+          lab: labROI(d, 'battler'),
           dustCollector: dustCollectorROI(d),
           farmNoHedge: battlerFarmROI(d),
           farmHedge: battlerFarmHedgeROI(d),
@@ -461,7 +495,7 @@
           workshopDustCollector: workshopDustCollectorROI(d),
         },
         tser: {
-          lab: sharedLabROI,
+          lab: labROI(d, 'tser'),
           spire: spireROI(d),
           potionBoost: potionBoostROI(d),
           baseRes: baseResourceROI(d),
@@ -627,7 +661,7 @@
       buildingCost, herbsPerHour, harvestHerbsPerPot, resonanceHerbsPerPot,
       ambitiousResourceMultiplier, battlerAtPotion, tserAtPotion, optimizeTserPotion,
       maxSustainableBattlerPotion, maxSustainableTserPotion,
-      tomeTotalCost, farmUpgradeStats,
+      tomeTotalCost, farmUpgradeStats, labRoiBreakdown, mdIncomeBreakdown,
     },
   };
 });
