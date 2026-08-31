@@ -15,7 +15,7 @@ const elements = Object.freeze({
   resultGrid: $('result-grid'),
   resultsTitle: $('results-title'),
   sigilWarning: $('sigil-warning'),
-  battlerPanel: $('battler-panel'),
+  battlerPanels: [...document.querySelectorAll('.battler-result-panel')],
   tserPanels: [...document.querySelectorAll('.tser-result-panel')],
   battlerSummaries: [...document.querySelectorAll('.battler-only')],
   tserSummaries: [...document.querySelectorAll('.tser-only')],
@@ -595,7 +595,7 @@ function applyRoleView(role) {
   elements.results.hidden = !showResults;
   elements.battlerSummaries.forEach((element) => { element.hidden = !isBattler; });
   elements.tserSummaries.forEach((element) => { element.hidden = !isTser; });
-  elements.battlerPanel.hidden = !isBattler;
+  elements.battlerPanels.forEach((element) => { element.hidden = !isBattler; });
   elements.tserPanels.forEach((element) => { element.hidden = !isTser; });
   elements.overview.dataset.role = role;
   elements.resultGrid.dataset.role = role;

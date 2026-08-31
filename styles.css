@@ -471,6 +471,10 @@ summary:focus-visible {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.result-grid[data-role="battler"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .tser-income-panel {
   grid-column: 1 / -1;
 }
@@ -523,6 +527,15 @@ summary:focus-visible {
 
 .panel-head-compact {
   min-height: 76px;
+}
+
+.roi-panel-head h3 {
+  font-size: 28px;
+  letter-spacing: -.025em;
+}
+
+.roi-panel-head .role-number {
+  font-size: 11px;
 }
 
 .role-tag {
@@ -929,6 +942,10 @@ noscript {
   }
 
   .result-grid[data-role="tser"] {
+    grid-template-columns: 1fr;
+  }
+
+  .result-grid[data-role="battler"] {
     grid-template-columns: 1fr;
   }
 

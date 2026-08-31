@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07101d">
   <meta name="description" content="Compare Battler and TSer daily farm income and upgrade ROI in Manarion.">
   <title>Emilia's Dumb Farm Sheet</title>
-  <link rel="stylesheet" href="styles.css?v=20260831.11">
+  <link rel="stylesheet" href="styles.css?v=20260831.12">
 </head>
 <body>
   <a class="skip-link" href="#results">Skip to results</a>
@@ -128,11 +128,11 @@
       </div>
 
       <div class="result-grid" id="result-grid" data-role="tser">
-        <article class="panel role-battler" id="battler-panel" hidden>
+        <article class="panel role-battler battler-result-panel" id="battler-panel" hidden>
           <header class="panel-head">
             <div>
               <p class="role-number">Role 01</p>
-              <h3>Battler</h3>
+              <h3>Battler daily income</h3>
             </div>
             <span class="role-tag">Using event actions</span>
           </header>
@@ -146,8 +146,18 @@
             <div class="metric total"><span class="label">Full income with herbs + MD</span><span id="b-total" class="value">—</span></div>
           </div>
 
-          <div class="roi">
-            <div class="roi-title"><span>ROI (in days)</span><span>lower is faster</span></div>
+        </article>
+
+        <article class="panel role-battler battler-result-panel" id="battler-roi-panel" hidden>
+          <header class="panel-head panel-head-compact roi-panel-head">
+            <div>
+              <p class="role-number">Upgrade efficiency</p>
+              <h3>ROI (in days)</h3>
+            </div>
+            <span class="role-tag">lower is faster</span>
+          </header>
+
+          <div class="roi roi-standalone">
             <div class="roi-row"><span class="name-with-info"><span class="name">Lab 1×</span><span class="info-popover"><button class="info-button" type="button" data-info="battler-lab-roi" aria-label="Show the Battler Laboratory ROI calculation">i</button></span></span><span id="b-roi-lab" class="days">—</span></div>
             <div class="roi-row"><span class="name-with-info"><span class="name">Dust Collector 1×</span><span class="info-popover"><button class="info-button" type="button" data-info="battler-dust-collector-roi" aria-label="Show the Dust Collector ROI calculation">i</button></span></span><span id="b-roi-dustCollector" class="days">—</span></div>
             <div class="roi-row"><span class="name-with-info"><span class="name">Farm — no hedge</span><span class="info-popover"><button class="info-button" type="button" data-info="battler-farm-no-hedge-roi" aria-label="Show the Farm without Hedge Fund ROI calculation">i</button></span></span><span id="b-roi-farmNoHedge" class="days">—</span></div>
@@ -195,7 +205,7 @@
         </article>
 
         <article class="panel role-tser tser-result-panel" id="tser-roi-panel">
-          <header class="panel-head panel-head-compact">
+          <header class="panel-head panel-head-compact roi-panel-head">
             <div>
               <p class="role-number">Upgrade efficiency</p>
               <h3>ROI (in days)</h3>
@@ -220,7 +230,7 @@
   </main>
 
   <noscript>This calculator needs JavaScript enabled to load live data and run its formulas.</noscript>
-  <script src="calculator.js?v=20260831.11"></script>
-  <script src="app.js?v=20260831.11"></script>
+  <script src="calculator.js?v=20260831.12"></script>
+  <script src="app.js?v=20260831.12"></script>
 </body>
 </html>
