@@ -25,13 +25,15 @@ Static browser calculator converted from the supplied Google Sheet and Apps Scri
 - Dust Collector ROI
 - Workshop -> Dust Collector ROI using live Workshop, Construction boost, and active Construction pet data
 - Fresh live API requests only after the player submits the setup form; runtime responses are not cached
-- Automatic browser-CORS relay fallback when a direct Manarion request is rejected
+- Dedicated Cloudflare Worker relay for browser-safe live Manarion requests, with direct API fallback
 - Submitted setup values are remembered only in that browser; restoring them never triggers an automatic API request
 - Unified asset-version query strings are bumped on deployment so browsers fetch current CSS and JavaScript without clearing saved inputs
 
 ## Hosting
 
-Serve the repository root directly with GitHub Pages. The calculator has no server, package dependencies, or build step. At runtime it requests the current player, market, and guild data from Manarion. It tries the API directly first and uses Jina Reader's direct-fetch relay with caching disabled when the browser rejects the direct cross-origin request. The site does not load workbook snapshots or substitute stored results when a request fails.
+Serve the repository root directly with GitHub Pages. The calculator has no package dependencies or build step. At runtime it requests current player, market, and guild data through the dedicated Cloudflare Worker, with the direct Manarion API as a fallback. Neither route caches responses, and the site does not load workbook snapshots or substitute stored results when a request fails.
+
+The Worker source and deployment configuration live in `cloudflare-worker/`. It is deployed separately from GitHub Pages at `https://emilia-manarion-api.emilia-manarion-api.workers.dev`; see `cloudflare-worker/README.md` for deployment commands. Its browser CORS allowlist includes the GitHub Pages origin and local previews.
 
 ## Validation
 
@@ -62,3 +64,4 @@ See `VALIDATION.md` for exact comparison values and the discrepancy between the 
 - `app.js` - live API fetching and UI rendering
 - `validation.test.js` - dependency-free formula regression checks
 - `VALIDATION.md` - workbook-vs-JavaScript validation notes
+- `cloudflare-worker/` - restricted live API relay and its tests/deployment configuration

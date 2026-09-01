@@ -668,33 +668,37 @@ async function requestJson(url, headers = {}) {
   return response.json();
 }
 
-async function fetchJson(url) {
-  try {
-    return await requestJson(url);
-  } catch (directError) {
-    const readerUrl = `https://r.jina.ai/${url}`;
+const MANARION_API_SOURCES = [
+  {
+    label: 'Cloudflare API relay',
+    baseUrl: 'https://emilia-manarion-api.emilia-manarion-api.workers.dev',
+  },
+  {
+    label: 'direct Manarion API',
+    baseUrl: 'https://api.manarion.com',
+  },
+];
+
+async function fetchJson(path) {
+  const errors = [];
+
+  for (const source of MANARION_API_SOURCES) {
     try {
-      const envelope = await requestJson(readerUrl, {
-        'X-Engine': 'direct',
-        'X-No-Cache': 'true',
-      });
-      const content = envelope?.data?.content;
-      if (typeof content !== 'string') throw new Error('response did not contain API data');
-      return JSON.parse(content);
-    } catch (readerError) {
-      throw new Error(
-        `direct request failed (${directError.message}); live relay failed (${readerError.message})`,
-      );
+      return await requestJson(`${source.baseUrl}${path}`);
+    } catch (error) {
+      errors.push(`${source.label} failed (${error.message})`);
     }
   }
+
+  throw new Error(errors.join('; '));
 }
 
 async function getLiveData(inputs) {
   const name = encodeURIComponent(inputs.username.trim());
   const [playerData, marketData, guilds] = await Promise.all([
-    fetchJson(`https://api.manarion.com/players/${name}`),
-    fetchJson('https://api.manarion.com/market'),
-    fetchJson('https://api.manarion.com/guilds'),
+    fetchJson(`/players/${name}`),
+    fetchJson('/market'),
+    fetchJson('/guilds'),
   ]);
 
   return Calc.normalizeFromApis(playerData, marketData, guilds, inputs);
