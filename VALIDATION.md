@@ -44,9 +44,9 @@ Outputs that do not depend on the updated daily-action counts still reproduce th
 | Base resources | 154.0746152 d | 154.0746152 d |
 | Shards | 135.5421791 d | 135.5421791 d |
 | Farm no hedge (best 1,000-level upgrade) | 116.8462011 d | 116.8462011 d |
-| Farm + Hedge (permanent tax coverage) | 61.09496282 d | 61.38489855 d |
+| Farm + Hedge (permanent tax coverage) | 61.09496282 d | 86.31631968 d |
 
-The newer Hohmono XLSX contains formulas in K29 and K30, so those two TSer farm ROI rows are implemented dynamically in the website. Farm — no hedge intentionally reports the lowest ROI among the next 1,000 Golems, Fertilizer, and Plots upgrades instead of averaging the three results. Farm + Hedge evaluates those same three choices, adds enough whole Hedge Fund increases to permanently cover the selected upgrade's additional farm tax, then divides the combined one-time cost by the full untaxed daily herb value plus the daily farm tax permanently avoided. Each Hedge Fund increase costs 1T MD and removes 1B MD per hour of farm tax, which gives a standalone payback rate of 41.6667 days. Battler and TSer use the same selected upgrade and ROI.
+The newer Hohmono XLSX contains formulas in K29 and K30, so those two TSer farm ROI rows are implemented dynamically in the website. Farm — no hedge intentionally reports the lowest ROI among the next 1,000 Golems, Fertilizer, and Plots upgrades instead of averaging the three results. Farm + Hedge evaluates those same three choices, adds enough whole Hedge Fund increases to permanently cover the selected upgrade's additional farm tax, then divides the combined one-time cost by the full untaxed daily herb value. The avoided tax is not added again as a separate benefit. Each Hedge Fund increase costs 1T MD and removes 1B MD per hour of farm tax, which gives a standalone payback rate of 41.6667 days. Battler and TSer use the same selected upgrade and ROI.
 
 The Laboratory ROI intentionally corrects two issues in the workbook formula. Harvest-potion savings are valued using the herb consumed by the selected role (Sageroots for Battlers and Bloomwells for TSers), and the full 22.4-hour daily duration is applied to both halves of the Resonance-potion savings. This produces separate Laboratory ROI values for the two roles; the Hohmono snapshot evaluates to **149.736297 days** for Battler and **140.336103 days** for TSer.
 
@@ -54,7 +54,7 @@ The Laboratory ROI intentionally corrects two issues in the workbook formula. Ha
 
 The Hohmono screenshot shows **79.99 d** for Farm no hedge and **52.07 d** for Farm + Hedge. The newer downloaded XLSX evaluates those cells to **116.85 d** and **61.09 d** for Hohmono. The earlier Emilia XLSX had 79.99 / 52.07 stored as literal values with no formulas.
 
-The website does not carry forward the old literal values. Farm — no hedge applies the user-approved rule of displaying the best individual 1,000-level farm upgrade rather than the workbook’s three-upgrade average. Farm + Hedge intentionally uses the game's clarified permanent-discount mechanics and includes the avoided tax in its daily benefit; for Hohmono it selects Golems +1,000, requires 3,459 Hedge Fund increases, and evaluates to **61.384899 days**.
+The website does not carry forward the old literal values. Farm — no hedge applies the user-approved rule of displaying the best individual 1,000-level farm upgrade rather than the workbook’s three-upgrade average. Farm + Hedge intentionally uses the game's clarified permanent-discount mechanics without double-counting the avoided tax; for Hohmono it selects Golems +1,000, requires 3,459 Hedge Fund increases, and evaluates to **86.316320 days**.
 
 ## Tome Drop sell-price correction
 

@@ -480,14 +480,13 @@ function farmHedgeRoiInfo(data) {
       { label: 'Permanent tax discount / hour', value: formatCompact(breakdown.hedgeDiscountPerHour) },
       { label: 'Hedge Fund cost', value: formatCompact(breakdown.hedgeCost) },
       { label: 'Standalone Hedge Fund rate', value: `${formatters.days(breakdown.hedgeStandaloneRoiDays)} days` },
-      { label: 'Farm tax avoided / day', value: formatCompact(breakdown.farmTaxAvoidedPerDay) },
       { section: 'Payback' },
       { label: 'Combined one-time cost', value: formatCompact(breakdown.combinedCost) },
-      { label: 'Combined daily benefit', value: formatCompact(breakdown.combinedDailyBenefit) },
-      { label: 'Calculation', value: `${formatCompact(breakdown.combinedCost)} ÷ ${formatCompact(breakdown.combinedDailyBenefit)}` },
+      { label: 'Daily benefit after Hedge Fund', value: formatCompact(breakdown.grossHerbValuePerDay) },
+      { label: 'Calculation', value: `${formatCompact(breakdown.combinedCost)} ÷ ${formatCompact(breakdown.grossHerbValuePerDay)}` },
       { label: 'Farm + hedge ROI', value: `${formatters.days(breakdown.roi)} days`, tone: infoTone(breakdown.roi), total: true },
     ],
-    note: 'Daily benefit includes both the full value of the added herbs and the farm tax the player permanently avoids. Each Hedge Fund increase costs 1T MD and removes 1B MD per hour of farm tax, a standalone payback rate of 41.67 days.',
+    note: 'Once the Hedge Fund increases cover the added farm tax, the daily benefit is the full gross value of the added herbs. The tax reduction is not added again as a separate benefit. Each Hedge Fund increase costs 1T MD and removes 1B MD per hour of farm tax.',
   };
 }
 

@@ -435,25 +435,21 @@
       const extraHerbsPerDay = row.extraHerbsHr * 24;
       const grossHerbValuePerDay = extraHerbsPerDay * averageHerbPrice;
       const addedFarmTaxPerHour = row.extraHerbsHr * C.FARM_DUST_PER_HERB;
-      const farmTaxAvoidedPerDay = addedFarmTaxPerHour * 24;
       const hedgeLevelsNeeded = Math.ceil(Math.max(addedFarmTaxPerHour, 0)
         / C.HEDGE_DISCOUNT_PER_HOUR);
       const hedgeCost = hedgeLevelsNeeded * C.HEDGE_COST_PER_LEVEL;
       const hedgeDiscountPerHour = hedgeLevelsNeeded * C.HEDGE_DISCOUNT_PER_HOUR;
       const combinedCost = row.cost + hedgeCost;
-      const combinedDailyBenefit = grossHerbValuePerDay + farmTaxAvoidedPerDay;
       return {
         ...row,
         extraHerbsPerDay,
         grossHerbValuePerDay,
         addedFarmTaxPerHour,
-        farmTaxAvoidedPerDay,
         hedgeLevelsNeeded,
         hedgeCost,
         hedgeDiscountPerHour,
         combinedCost,
-        combinedDailyBenefit,
-        roi: safeDiv(combinedCost, combinedDailyBenefit),
+        roi: safeDiv(combinedCost, grossHerbValuePerDay),
       };
     });
     const valid = combinations.filter(row => Number.isFinite(row.roi));
@@ -465,14 +461,12 @@
         extraHerbsPerDay: null,
         grossHerbValuePerDay: null,
         addedFarmTaxPerHour: null,
-        farmTaxAvoidedPerDay: null,
         hedgeLevelsNeeded: null,
         hedgeCost: null,
         hedgeDiscountPerHour: null,
         hedgeStandaloneRoiDays: C.HEDGE_ROI_DAYS,
         farmUpgradeCost: null,
         combinedCost: null,
-        combinedDailyBenefit: null,
         roi: null,
       };
     }
@@ -487,14 +481,12 @@
       extraHerbsPerDay: best.extraHerbsPerDay,
       grossHerbValuePerDay: best.grossHerbValuePerDay,
       addedFarmTaxPerHour: best.addedFarmTaxPerHour,
-      farmTaxAvoidedPerDay: best.farmTaxAvoidedPerDay,
       hedgeLevelsNeeded: best.hedgeLevelsNeeded,
       hedgeCost: best.hedgeCost,
       hedgeDiscountPerHour: best.hedgeDiscountPerHour,
       hedgeStandaloneRoiDays: C.HEDGE_ROI_DAYS,
       farmUpgradeCost: best.cost,
       combinedCost: best.combinedCost,
-      combinedDailyBenefit: best.combinedDailyBenefit,
       roi: best.roi,
     };
   }

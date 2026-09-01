@@ -47,7 +47,7 @@ The check locks the Hohmono values documented in `VALIDATION.md`, including the 
 
 TSer Tome Drop ROI uses the same calculation as the Battler row (`K31 = G148`), so it is calculated dynamically for every player. The highest-level tome is upgraded and its own live sell price values the additional drops.
 
-Farm — no hedge selects the best next 1,000-level Golems, Fertilizer, or Plots upgrade after the 50,000 MD tax per added herb. Farm + Hedge selects the best paired upgrade after adding enough whole Hedge Fund increases to permanently cover that added tax; its daily benefit includes both the full value of the added herbs and the tax no longer paid. A Hedge Fund increase costs 1T MD and removes 1B MD per hour of farm tax, equivalent to a standalone 41.67-day payback.
+Farm — no hedge selects the best next 1,000-level Golems, Fertilizer, or Plots upgrade after the 50,000 MD tax per added herb. Farm + Hedge selects the best paired upgrade after adding enough whole Hedge Fund increases to permanently cover that added tax; its daily benefit is the full gross value of the added herbs, without adding the avoided tax a second time. A Hedge Fund increase costs 1T MD and removes 1B MD per hour of farm tax, equivalent to a standalone 41.67-day payback.
 
 The post-workbook Ambitious rule is applied as a final multiplier to TSer resources: `1 - (Ambitious item count / 100)`. The count comes from equipped API items whose name or explicit prefix starts with `Ambitious`, and is capped at eight. The original validated workbook snapshots use a count of zero, so their documented outputs remain unchanged.
 

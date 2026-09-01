@@ -40,7 +40,7 @@ const validatedOutputs = {
   'Base resources ROI': [result.roi.tser.baseRes, 154.07461517292992],
   'Shards ROI': [result.roi.tser.shards, 135.54217906353037],
   'Farm no hedge ROI': [result.roi.tser.farmNoHedge, 116.84620105889435],
-  'Farm + hedge ROI': [result.roi.tser.farmHedge, 61.38489854586301],
+  'Farm + hedge ROI': [result.roi.tser.farmHedge, 86.3163196801818],
   'Tome drop ROI': [result.roi.tser.tomeDrop, 279.36393433409705],
 };
 
@@ -270,13 +270,8 @@ approximately(
 );
 approximately(
   farmHedgeBreakdown.roi,
-  farmHedgeBreakdown.combinedCost / farmHedgeBreakdown.combinedDailyBenefit,
-  'Farm with Hedge Fund uses the combined daily benefit for payback',
-);
-approximately(
-  farmHedgeBreakdown.combinedDailyBenefit,
-  farmHedgeBreakdown.grossHerbValuePerDay + farmHedgeBreakdown.farmTaxAvoidedPerDay,
-  'Farm with Hedge Fund includes both herb value and avoided farm tax',
+  farmHedgeBreakdown.combinedCost / farmHedgeBreakdown.grossHerbValuePerDay,
+  'Farm with Hedge Fund uses gross herb value without double-counting avoided tax',
 );
 
 for (const [label, [actual, expected]] of Object.entries(validatedOutputs)) {
