@@ -4,9 +4,9 @@ const assert = require('node:assert/strict');
 const Calc = require('./calculator.js');
 const { WORKBOOK_SNAPSHOTS } = require('./data.js');
 
-assert.equal(Calc.C.GATHER_ACTIONS_PER_DAY, 26880, 'Daily gathering actions');
-assert.equal(Calc.C.TS_UNPOTTED_ACTIONS, 26880, 'Daily unpotted TSer actions');
-assert.equal(Calc.C.TS_POTTED_ACTIONS, 26880, 'Daily potted TSer actions');
+assert.equal(Calc.C.GATHER_ACTIONS_PER_DAY, 27400, 'Daily gathering actions');
+assert.equal(Calc.C.TS_UNPOTTED_ACTIONS, 27400, 'Daily unpotted TSer actions');
+assert.equal(Calc.C.TS_POTTED_ACTIONS, 27400, 'Daily potted TSer actions');
 approximately(Calc.C.HEDGE_ROI_DAYS, 41.666666666666664, 'Standalone Hedge Fund ROI');
 
 const result = Calc.calculate(WORKBOOK_SNAPSHOTS.hohmono);
@@ -27,24 +27,24 @@ const validatedOutputs = {
   'TSer net herbs': [result.tser.netHerbs, 127428845084.422],
   'TSer leftover herb sale value': [result.tser.leftoverSold, 11375268702757600],
   'TSer farm tax value': [result.tser.farmTax, 11375287843145432],
-  'TSer extra resource value': [result.tser.extraResValue, 204100244019759840],
-  'TSer farm + potion income': [result.tser.farmPlusPotIncome, 215475531862905280],
-  'TSer full income': [result.tser.fullIncome, 302701639499193100],
-  'TSer best-potion income': [result.tser.bestIncome, 238281435612079680],
-  'TSer current-potion loss': [result.tser.lossFromCurrentPotion, 22805903749174400],
-  'TSer percent loss': [result.tser.percentLoss, 9.570994773718853],
+  'TSer extra resource value': [result.tser.extraResValue, 208048611835618300],
+  'TSer farm + potion income': [result.tser.farmPlusPotIncome, 219423899678763740],
+  'TSer full income': [result.tser.fullIncome, 308337417135396350],
+  'TSer best-potion income': [result.tser.bestIncome, 241176772375517300],
+  'TSer current-potion loss': [result.tser.lossFromCurrentPotion, 21752872696753570],
+  'TSer percent loss': [result.tser.percentLoss, 9.019472514908644],
   'Battler Lab ROI': [result.roi.battler.lab, 149.73629689267887],
   'TSer Lab ROI': [result.roi.tser.lab, 140.3361029296493],
-  'Spire ROI': [result.roi.tser.spire, 144.96204233977448],
-  'Potion boost ROI': [result.roi.tser.potionBoost, 233.98684992590225],
-  'Base resources ROI': [result.roi.tser.baseRes, 154.07461517292992],
-  'Shards ROI': [result.roi.tser.shards, 135.54217906353037],
+  'Spire ROI': [result.roi.tser.spire, 142.21093788669074],
+  'Potion boost ROI': [result.roi.tser.potionBoost, 229.5462235769435],
+  'Base resources ROI': [result.roi.tser.baseRes, 151.15057138133992],
+  'Shards ROI': [result.roi.tser.shards, 132.9698457382057],
   'Farm no hedge ROI': [result.roi.tser.farmNoHedge, 116.84620105889435],
   'Farm + hedge ROI': [result.roi.tser.farmHedge, 86.3163196801818],
   'Tome drop ROI': [result.roi.tser.tomeDrop, 279.36393433409705],
 };
 
-assert.equal(result.tser.bestPotion, 125000, 'Highest-income potion');
+assert.equal(result.tser.bestPotion, 126000, 'Highest-income potion');
 assert.equal(result.battler.maxSustainablePotion, 177000, 'Battler maximum sustainable potion');
 assert.equal(result.tser.maxSustainablePotion, 177000, 'Maximum sustainable potion');
 assert.equal(
@@ -326,7 +326,7 @@ const upgradeRecommendationResult = Calc.calculate({
 });
 assert.equal(
   upgradeRecommendationResult.tser.bestPotion,
-  125000,
+  126000,
   'A player running a lower potion still receives the higher-income upgrade recommendation',
 );
 
