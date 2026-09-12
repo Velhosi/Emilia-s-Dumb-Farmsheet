@@ -47,6 +47,8 @@ The check locks the Hohmono values documented in `VALIDATION.md`, including the 
 
 ## Formula notes
 
+All daily action totals share a 27,400-action event day. At 1,200 actions per hour, potion consumption, Laboratory savings, and Tome Drop calculations use the derived duration of 22.833333… hours (22 hours 50 minutes), with full precision retained in calculations.
+
 TSer Tome Drop ROI uses the same calculation as the Battler row (`K31 = G148`), so it is calculated dynamically for every player. The highest-level tome is upgraded and its own live sell price values the additional drops.
 
 Farm — no hedge selects the best next 1,000-level Golems, Fertilizer, or Plots upgrade after the 50,000 MD tax per added herb. Farm + Hedge selects the best paired upgrade after adding enough whole Hedge Fund increases to permanently cover that added tax; its daily benefit is the full gross value of the added herbs, without adding the avoided tax a second time. A Hedge Fund increase costs 1T MD and removes 1B MD per hour of farm tax, equivalent to a standalone 41.67-day payback.

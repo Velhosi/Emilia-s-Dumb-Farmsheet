@@ -7,6 +7,12 @@ const { WORKBOOK_SNAPSHOTS } = require('./data.js');
 assert.equal(Calc.C.GATHER_ACTIONS_PER_DAY, 27400, 'Daily gathering actions');
 assert.equal(Calc.C.TS_UNPOTTED_ACTIONS, 27400, 'Daily unpotted TSer actions');
 assert.equal(Calc.C.TS_POTTED_ACTIONS, 27400, 'Daily potted TSer actions');
+approximately(Calc.C.BATTLE_HOURS_PER_DAY, 22 + 50 / 60, 'Event day is 22 hours 50 minutes');
+approximately(
+  Calc.C.BATTLE_HOURS_PER_DAY * Calc.C.BATTLE_ACTIONS_PER_HOUR,
+  Calc.C.TS_POTTED_ACTIONS,
+  'Hourly event calculations cover the same actions as daily income',
+);
 approximately(Calc.C.HEDGE_ROI_DAYS, 41.666666666666664, 'Standalone Hedge Fund ROI');
 
 const result = Calc.calculate(WORKBOOK_SNAPSHOTS.hohmono);
@@ -21,32 +27,32 @@ function approximately(actual, expected, label) {
 }
 
 const validatedOutputs = {
-  'Battler net herbs': [result.battler.netHerbs, 127428845084.422],
-  'TSer leftover Bloomwells': [result.tser.leftoverBloom, -438460707709.667],
-  'TSer leftover Sageroots': [result.tser.leftoverSage, 565889552794.089],
-  'TSer net herbs': [result.tser.netHerbs, 127428845084.422],
-  'TSer leftover herb sale value': [result.tser.leftoverSold, 11375268702757600],
-  'TSer farm tax value': [result.tser.farmTax, 11375287843145432],
+  'Battler net herbs': [result.battler.netHerbs, 106518758838.28857],
+  'TSer leftover Bloomwells': [result.tser.leftoverBloom, -458630448292.9635],
+  'TSer leftover Sageroots': [result.tser.leftoverSage, 565149207131.2521],
+  'TSer net herbs': [result.tser.netHerbs, 106518758838.28857],
+  'TSer leftover herb sale value': [result.tser.leftoverSold, 8717660153120744],
+  'TSer farm tax value': [result.tser.farmTax, 8717679293508576],
   'TSer extra resource value': [result.tser.extraResValue, 208048611835618300],
-  'TSer farm + potion income': [result.tser.farmPlusPotIncome, 219423899678763740],
-  'TSer full income': [result.tser.fullIncome, 308337417135396350],
-  'TSer best-potion income': [result.tser.bestIncome, 241176772375517300],
-  'TSer current-potion loss': [result.tser.lossFromCurrentPotion, 21752872696753570],
-  'TSer percent loss': [result.tser.percentLoss, 9.019472514908644],
-  'Battler Lab ROI': [result.roi.battler.lab, 149.73629689267887],
-  'TSer Lab ROI': [result.roi.tser.lab, 140.3361029296493],
+  'TSer farm + potion income': [result.tser.farmPlusPotIncome, 216766291129126880],
+  'TSer full income': [result.tser.fullIncome, 305679808585759500],
+  'TSer best-potion income': [result.tser.bestIncome, 240013380516306200],
+  'TSer current-potion loss': [result.tser.lossFromCurrentPotion, 23247089387179330],
+  'TSer percent loss': [result.tser.percentLoss, 9.68574724341252],
+  'Battler Lab ROI': [result.roi.battler.lab, 146.89458614873018],
+  'TSer Lab ROI': [result.roi.tser.lab, 137.67279002733477],
   'Spire ROI': [result.roi.tser.spire, 142.21093788669074],
   'Potion boost ROI': [result.roi.tser.potionBoost, 229.5462235769435],
   'Base resources ROI': [result.roi.tser.baseRes, 151.15057138133992],
   'Shards ROI': [result.roi.tser.shards, 132.9698457382057],
   'Farm no hedge ROI': [result.roi.tser.farmNoHedge, 116.84620105889435],
   'Farm + hedge ROI': [result.roi.tser.farmHedge, 86.3163196801818],
-  'Tome drop ROI': [result.roi.tser.tomeDrop, 279.36393433409705],
+  'Tome drop ROI': [result.roi.tser.tomeDrop, 274.0621370401716],
 };
 
-assert.equal(result.tser.bestPotion, 126000, 'Highest-income potion');
-assert.equal(result.battler.maxSustainablePotion, 177000, 'Battler maximum sustainable potion');
-assert.equal(result.tser.maxSustainablePotion, 177000, 'Maximum sustainable potion');
+assert.equal(result.tser.bestPotion, 125000, 'Highest-income potion');
+assert.equal(result.battler.maxSustainablePotion, 176000, 'Battler maximum sustainable potion');
+assert.equal(result.tser.maxSustainablePotion, 176000, 'Maximum sustainable potion');
 assert.equal(
   result.battler.maxSustainablePotion,
   result.tser.maxSustainablePotion,
@@ -112,6 +118,11 @@ assert.equal(
 );
 
 const tomeDropBreakdown = Calc.helpers.tomeDropRoiBreakdown(WORKBOOK_SNAPSHOTS.hohmono);
+approximately(
+  tomeDropBreakdown.successfulDropsPerDay,
+  27400 * tomeDropBreakdown.effectiveDropChance,
+  'Tome drops cover all 27,400 event actions',
+);
 assert.equal(tomeDropBreakdown.tomeName, 'Water', 'Tome Drop selects the highest-level tome');
 assert.equal(tomeDropBreakdown.currentLevel, 425, 'Tome Drop reports the selected tome level');
 approximately(
@@ -155,6 +166,22 @@ assert.notEqual(
   tserLabBreakdown.harvestSavingsValuePerDay,
   'Role-specific Lab ROI values Harvest savings with the herb consumed by that role',
 );
+for (const role of ['battler', 'tser']) {
+  const inputs = WORKBOOK_SNAPSHOTS.hohmono;
+  const breakdown = Calc.helpers.labRoiBreakdown(inputs, role);
+  approximately(breakdown.eventHours, 22 + 50 / 60, `${role} Lab uses the full event duration`);
+  const upgraded = Calc.helpers[`${role}AtPotion`](
+    { ...inputs, potDuration: inputs.potDuration + 1 },
+    inputs.harvestPotion,
+  );
+  const extraHerbIncome = upgraded.leftoverSold - result[role].leftoverSold;
+  // Subtracting large herb-sale totals introduces more rounding than the savings breakdown.
+  assert.ok(
+    Math.abs(extraHerbIncome - breakdown.totalSavingsValuePerDay)
+      <= breakdown.totalSavingsValuePerDay * 1e-12,
+    `${role} Lab savings match the actual daily herb income gained from +1 Potion Duration`,
+  );
+}
 
 const mdIncomeBreakdown = Calc.helpers.mdIncomeBreakdown(WORKBOOK_SNAPSHOTS.hohmono);
 approximately(
@@ -326,7 +353,7 @@ const upgradeRecommendationResult = Calc.calculate({
 });
 assert.equal(
   upgradeRecommendationResult.tser.bestPotion,
-  126000,
+  125000,
   'A player running a lower potion still receives the higher-income upgrade recommendation',
 );
 

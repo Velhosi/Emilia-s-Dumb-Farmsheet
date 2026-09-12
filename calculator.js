@@ -5,12 +5,16 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
+  const EVENT_ACTIONS_PER_DAY = 27400;
+  const BATTLE_ACTIONS_PER_HOUR = 1200;
+
   const C = Object.freeze({
-    BATTLE_HOURS_PER_DAY: 22.4,
-    BATTLE_ACTIONS_PER_HOUR: 1200,
-    GATHER_ACTIONS_PER_DAY: 27400,
-    TS_UNPOTTED_ACTIONS: 27400,
-    TS_POTTED_ACTIONS: 27400,
+    // Potion use and hourly rewards must cover the same event actions as daily income.
+    BATTLE_HOURS_PER_DAY: EVENT_ACTIONS_PER_DAY / BATTLE_ACTIONS_PER_HOUR,
+    BATTLE_ACTIONS_PER_HOUR,
+    GATHER_ACTIONS_PER_DAY: EVENT_ACTIONS_PER_DAY,
+    TS_UNPOTTED_ACTIONS: EVENT_ACTIONS_PER_DAY,
+    TS_POTTED_ACTIONS: EVENT_ACTIONS_PER_DAY,
     FARM_DUST_PER_HERB: 50000,
     TS_EVENT_RESEARCH_BONUS: 604.42,
     FARM_UPGRADE_SIZE: 1000,
