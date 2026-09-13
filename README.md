@@ -11,6 +11,7 @@ Static browser calculator converted from the supplied Google Sheet and Apps Scri
 - Live Manarion player, market, and guild API normalization
 - Battler daily totals
 - Battler Net herbs and maximum sustainable potion summaries
+- Battle potion analysis comparing one Potion Boost upgrade with a stronger sustainable Wisdom potion funded by balanced farm upgrades and Hedge Fund coverage
 - TSer daily totals
 - TSer best-potion optimizer (0-1,000,000 in 1,000 steps)
 - Ambitious equipment-prefix detection and -1% total TSer resources per equipped item (maximum 8%)
@@ -41,6 +42,7 @@ Run the dependency-free regression check with Node:
 
 ```sh
 node validation.test.js
+node battler-potion.test.js
 ```
 
 The check locks the Hohmono values documented in `VALIDATION.md`, including the best-potion search, all validated TSer ROI rows, and the shared Battler/TSer Tome Drop ROI.
@@ -48,6 +50,8 @@ The check locks the Hohmono values documented in `VALIDATION.md`, including the 
 ## Formula notes
 
 All daily action totals share a 27,400-action event day. At 1,200 actions per hour, potion consumption, Laboratory savings, and Tome Drop calculations use the derived duration of 22.833333… hours (22 hours 50 minutes), with full precision retained in calculations.
+
+Battle potion analysis starts at the highest sustainable whole-level Wisdom tier (up to 999,999), using the entered Resonance potion and the existing 1:1 herb-trading assumption. At total Potion Boost `B`, the matching Wisdom tier is `ceil(currentTier × (101 + B) / (100 + B))`. The cost of Potion Boost uses its purchased base level, while its effect uses the total boost. The farm plan catches up the lowest farm stat, then distributes whole levels evenly across tied stats until the matching potion is sustainable. Resources are summed from each level's squared resource cost and valued at the average resource price; Hedge Fund increases cover the added farm tax. The recommendation compares MD cost per percentage-point gain in Wisdom's potion effect, excluding other XP bonuses and Potion Boost's additional Resonance benefit. TSer's existing potion analysis remains in 1,000-level steps.
 
 TSer Tome Drop ROI uses the same calculation as the Battler row (`K31 = G148`), so it is calculated dynamically for every player. The highest-level tome is upgraded and its own live sell price values the additional drops.
 
@@ -65,5 +69,6 @@ See `VALIDATION.md` for exact comparison values and the discrepancy between the 
 - `data.js` - validated Emilia and Hohmono fixtures used only by the regression test
 - `app.js` - live API fetching and UI rendering
 - `validation.test.js` - dependency-free formula regression checks
+- `battler-potion.test.js` - sustainable Wisdom equivalence, balanced farm allocation, and upgrade cost checks
 - `VALIDATION.md` - workbook-vs-JavaScript validation notes
 - `cloudflare-worker/` - restricted live API relay and its tests/deployment configuration

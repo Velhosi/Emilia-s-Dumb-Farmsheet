@@ -32,7 +32,7 @@ Outputs that do not depend on the updated daily-action counts still reproduce th
 ### Derived herb and potion values
 
 - Net herbs combine the current-potion Bloomwell and Sageroot leftovers. For the Hohmono snapshot this is **106,518,758,838.289** herbs for either role once herb trading is allowed.
-- Maximum sustainable potion is the highest 1,000-level Harvest/Wisdom potion whose combined Bloomwell and Sageroot total stays at or above zero, allowing either herb to be traded into the other as needed. The calculation keeps the entered Resonance potion active and uses the API's total Potion Duration boost, which includes Laboratory duration. For the Hohmono snapshot this is **176,000** for both Battler and TSer.
+- Maximum sustainable potion keeps the combined Bloomwell and Sageroot total at or above zero, allowing either herb to be traded into the other 1:1. The calculation keeps the entered Resonance potion active and uses the API's total Potion Duration boost, which includes Laboratory duration. Battler now searches whole Wisdom levels for the potion analysis (up to 999,999); TSer retains 1,000-level Harvest steps. For the Hohmono snapshot this is **176,763** for Battler and **176,000** for TSer.
 - A nonzero `SigilBoost` other than the Distillation/Potion Duration identifier (`110`) activates the event-accuracy warning. Missing or zero values do not.
 - Workshop → Dust Collector ROI reads Workshop level from `BaseBoosts[150]`, total Construction boost from `TotalBoosts[104]`, and the active Construction pet's level from `Pets[24]`. Stored workbook fixtures retain their original manual values through the calculator's compatibility fallback.
 
@@ -67,6 +67,8 @@ TSer **Tome drop** references the Battler Tome Drop ROI directly (`K31 = G148`),
 The earlier workbook also matched the JavaScript engine for the core Battler outputs and dynamic ROIs, including Lab, Dust Collector, farm upgrades, Battler tome drop, Workshop -> Dust Collector, Potion Boost, and Base Resources. The Hohmono workbook additionally validates Spire and Shard ROI with finite values.
 
 ## Automated regression check
+
+`battler-potion.test.js` checks the new Battle potion analysis independently. The Emilia comparison fixture uses 540,000 Golems, 540,000 Fertilizer, 530,000 Plots, 631% Potion Duration, 235% purchased and total Potion Boost, 40,000 Resonance, and a 33 MD average resource price. Its exact sustainable Wisdom ceiling is 98,952. Potion Boost +1 costs 53.368010Q MD and is matched by a 99,248 Wisdom potion. The balanced farm plan adds 4,614 Plots, requires 1.307391Q resources and 11,510 Hedge Fund increases, and costs 54.653902Q MD. Tests verify the next unsupported potion, the minimum supporting farm upgrade, exact resource sums, sufficient Hedge Fund coverage, low-stat catch-up, even growth, both recommendation outcomes, and base-versus-total Potion Boost pricing. Run it with `node battler-potion.test.js`.
 
 `validation.test.js` runs the Hohmono snapshot through the same `calculator.js` engine used in the browser. It asserts the three 27,400 daily-action constants, the matching 22-hour-50-minute duration, the documented current TSer outputs and ROI values, the 125,000 best-potion result, and the shared Battler/TSer Tome Drop ROI. It also checks that Laboratory savings match the actual additional daily herb income from +1 Potion Duration for both roles, and that Tome drops cover all 27,400 event actions. Run it with `node validation.test.js`; it requires no installed packages.
 

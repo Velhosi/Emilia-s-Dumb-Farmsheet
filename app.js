@@ -28,7 +28,7 @@ function num(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function formatCompact(value) {
+function formatCompact(value, digits = 2) {
   if (!Number.isFinite(value)) return 'N/A';
 
   const tiers = [
@@ -49,8 +49,8 @@ function formatCompact(value) {
 
   const [divisor, suffix] = tier;
   const formatted = (value / divisor).toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
+    maximumFractionDigits: digits,
+    minimumFractionDigits: digits,
   });
   return `${formatted}${suffix}`;
 }
@@ -261,8 +261,8 @@ function sustainablePotionInfo(role, data, result) {
   const atMax = role === 'tser'
     ? Calc.helpers.tserAtPotion(data, maxPotion)
     : Calc.helpers.battlerAtPotion(data, maxPotion);
-  const nextPotion = maxPotion + Calc.C.POTION_SEARCH_STEP;
-  const atCeiling = maxPotion >= Calc.C.MAX_TSER_POTION;
+  const nextPotion = maxPotion + (role === 'battler' ? 1 : Calc.C.POTION_SEARCH_STEP);
+  const atCeiling = role === 'battler' && maxPotion >= Calc.C.MAX_WISDOM_POTION;
   const atNext = atCeiling ? null : role === 'tser'
     ? Calc.helpers.tserAtPotion(data, nextPotion)
     : Calc.helpers.battlerAtPotion(data, nextPotion);
@@ -290,7 +290,7 @@ function sustainablePotionInfo(role, data, result) {
 
   return {
     title: 'Maximum sustainable potion',
-    description: 'The highest 1,000-level potion that keeps combined herbs at or above zero. Bloomwells and Sageroots are treated as tradable 1:1.',
+    description: `The highest ${role === 'battler' ? 'whole-level' : '1,000-level'} potion that keeps combined herbs at or above zero. Bloomwells and Sageroots are treated as tradable 1:1.`,
     rows,
     note: 'Uses the entered Resonance potion and the player’s total Potion Duration, including Laboratory.',
   };
@@ -571,6 +571,79 @@ function renderInfoPanels(data, result) {
   setInfoPanel('tser-tome-drop-roi', tomeDropRoiInfo(data));
 }
 
+function battlerPotionInfo(data, analysis) {
+  const rows = [
+    { label: 'Maximum sustainable Wisdom', value: formatters.integer(analysis.maximumSustainablePotion) },
+    { label: 'Resonance potion', value: formatters.integer(data.resonancePotion) },
+    { label: 'Potion Duration', value: formatters.percent(data.potDuration) },
+    { label: 'Event hours / day', value: formatters.days(Calc.C.BATTLE_HOURS_PER_DAY) },
+    { label: 'Potion Boost cost', value: formatCompact(analysis.potionBoostCost) },
+  ];
+  if (analysis.farm) {
+    rows.push({ section: 'Farm + Hedge' });
+    for (const upgrade of analysis.farm.upgrades.filter(upgrade => upgrade.addedLevels > 0)) {
+      rows.push({ label: `${upgrade.label}: ${formatters.integer(upgrade.currentLevel)} → ${formatters.integer(upgrade.nextLevel)}`,
+        value: `${formatCompact(upgrade.resources)} ${upgrade.resource}` });
+    }
+    rows.push(
+      { label: 'Total resources needed', value: formatCompact(analysis.farm.resourcesNeeded) },
+      { label: 'Average resource price', value: `${formatFull(data.averageResourcePrice)} MD` },
+      { label: 'Resources valued in MD', value: formatCompact(analysis.farm.farmCost) },
+      { label: 'Hedge Fund increases', value: formatters.integer(analysis.farm.hedgeLevelsNeeded) },
+      { label: 'Hedge Fund cost', value: formatCompact(analysis.farm.hedgeCost) },
+      { label: 'MD cost calculation', value: `${formatCompact(analysis.farm.resourcesNeeded)} × ${formatFull(data.averageResourcePrice)} + ${formatCompact(analysis.farm.hedgeCost)}` },
+      { label: 'Farm + Hedge MD cost', value: formatCompact(analysis.farm.cost), total: true },
+    );
+  }
+  return {
+    title: 'Potion boost vs farm xp comparison',
+    description: 'Starts at the highest sustainable whole-level Wisdom potion, with the entered Resonance potion and 1:1 herb trading. The stronger potion is rounded up to match the Wisdom effect of +1 Potion Boost.',
+    rows,
+    note: 'Farm upgrades catch up the lowest stat first, then raise tied stats together using whole levels. Resources use the average market price; new Hedge Fund increases cover all added farm tax. The recommendation compares MD cost per percentage-point increase in Wisdom’s potion effect. Other XP bonuses and Potion Boost’s additional Resonance benefit are not included in that comparison.',
+  };
+}
+
+function formatWisdomGain(value) {
+  return Number.isFinite(value)
+    ? `+${value.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}%`
+    : 'N/A';
+}
+
+function renderBattlerPotionAnalysis(analysis) {
+  setText('b-potion-max', formatters.integer(analysis.maximumSustainablePotion));
+  setText('b-potion-boost-range', `${formatters.percent(analysis.potionBoost)} → ${formatters.percent(analysis.nextPotionBoost)}`);
+  setText('b-potion-boost-cost', formatCompact(analysis.potionBoostCost));
+  setText('b-potion-boost-gain', analysis.maximumSustainablePotion > 0 ? formatWisdomGain(analysis.potionBoostGainPercent) : 'N/A');
+  setText('b-potion-farm-target', formatters.integer(analysis.matchingWisdomPotion));
+  setText('b-potion-farm-herbs', analysis.extraHerbsConsumedPerDay == null ? 'N/A' : `${formatCompact(analysis.extraHerbsConsumedPerDay, 3)} / day`);
+  const upgrades = analysis.farm?.upgrades.filter(upgrade => upgrade.addedLevels > 0);
+  let farmUpgradesText = upgrades
+    ? upgrades.map(upgrade => `${upgrade.label} +${formatters.integer(upgrade.addedLevels)}`).join('\n') || 'None'
+    : 'N/A';
+  if (upgrades?.length === 3) {
+    const maximum = Math.max(...upgrades.map(upgrade => upgrade.addedLevels));
+    farmUpgradesText = `All farm sections +${formatters.integer(maximum)}`;
+  }
+  setText('b-potion-farm-upgrades', farmUpgradesText);
+  setText('b-potion-farm-resources', formatCompact(analysis.farm?.resourcesNeeded));
+  setText('b-potion-farm-cost', formatCompact(analysis.farm?.cost));
+  let recommendation = 'A comparison is unavailable for these stats.';
+  if (analysis.status === 'no-sustainable-potion') {
+    recommendation = 'Your farm cannot currently sustain a Wisdom potion alongside this Resonance potion.';
+  } else if (analysis.status === 'potion-limit') {
+    recommendation = 'A matching Wisdom potion would exceed the 999,999 tier limit. Potion Boost can still increase its effect.';
+  } else if (analysis.preferredOption === 'equal') {
+    recommendation = 'Both options have the same MD cost per % Wisdom effect gained.';
+  } else if (analysis.preferredOption) {
+    const boostWins = analysis.preferredOption === 'potionBoost';
+    const label = boostWins ? 'Potion Boost' : 'Farm + Hedge';
+    const gain = boostWins ? analysis.potionBoostGainPercent : analysis.farmGainPercent;
+    const cost = boostWins ? analysis.potionBoostCost : analysis.farm.cost;
+    recommendation = `${label} is more cost-effective: ${formatWisdomGain(gain)} Wisdom effect for ${formatCompact(cost)} MD.`;
+  }
+  setText('b-potion-recommendation', recommendation);
+}
+
 function renderSummary(result) {
   setText('summary-battler', formatCompact(result.battler.fullIncome));
   setMetric('summary-battler-net-herbs', result.battler.netHerbs, formatSignedCompact, true);
@@ -609,6 +682,7 @@ function applyRoleView(role) {
 }
 
 function renderDetails(result) {
+  renderBattlerPotionAnalysis(result.battler.potionAnalysis);
   setMetric('b-left-bloom', result.battler.leftoverBloom, formatters.compact, true);
   setMetric('b-left-sage', result.battler.leftoverSage, formatters.compact, true);
   setMetric('b-dust', result.battler.leftoverSold, formatters.compact, true);
@@ -637,6 +711,7 @@ function render(data, result) {
   renderSummary(result);
   renderDetails(result);
   renderInfoPanels(data, result);
+  setInfoPanel('battler-potion-analysis', battlerPotionInfo(data, result.battler.potionAnalysis));
   elements.sigilWarning.hidden = !data.hasNonDistillationSigil;
   hasRenderedResults = true;
   applyRoleView(elements.role.value);

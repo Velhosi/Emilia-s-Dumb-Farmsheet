@@ -51,12 +51,12 @@ const validatedOutputs = {
 };
 
 assert.equal(result.tser.bestPotion, 125000, 'Highest-income potion');
-assert.equal(result.battler.maxSustainablePotion, 176000, 'Battler maximum sustainable potion');
+assert.equal(result.battler.maxSustainablePotion, 176763, 'Battler maximum sustainable whole-level potion');
 assert.equal(result.tser.maxSustainablePotion, 176000, 'Maximum sustainable potion');
 assert.equal(
-  result.battler.maxSustainablePotion,
+  Math.floor(result.battler.maxSustainablePotion / 1000) * 1000,
   result.tser.maxSustainablePotion,
-  'Herb trading gives Battler and TSer the same maximum sustainable potion',
+  'Battler exact ceiling and TSer 1,000-level ceiling use the same herb budget',
 );
 assert.equal(
   result.battler.netHerbs,
@@ -77,7 +77,7 @@ const sustainableBattlerTotals = Calc.helpers.battlerAtPotion(
 );
 const nextBattlerPotionTotals = Calc.helpers.battlerAtPotion(
   WORKBOOK_SNAPSHOTS.hohmono,
-  result.battler.maxSustainablePotion + Calc.C.POTION_SEARCH_STEP,
+  result.battler.maxSustainablePotion + 1,
 );
 const nextPotionTotals = Calc.helpers.tserAtPotion(
   WORKBOOK_SNAPSHOTS.hohmono,

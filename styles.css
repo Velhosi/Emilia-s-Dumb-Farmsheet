@@ -437,7 +437,8 @@ summary:focus-visible {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.tser-income-panel {
+.tser-income-panel,
+.battler-income-panel {
   grid-column: 1 / -1;
 }
 
@@ -513,6 +514,55 @@ summary:focus-visible {
 
 .metrics {
   padding: 9px 20px 20px;
+}
+
+.battle-potion-metrics {
+  padding-top: 20px;
+}
+
+.potion-analysis-section {
+  border-top: 1px solid var(--line);
+  margin-top: 0;
+  padding-top: 20px;
+}
+
+.potion-analysis-section h4 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  margin: 0 0 6px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.potion-analysis-section h4 .value {
+  font-variant-numeric: tabular-nums;
+}
+
+.battle-potion-metrics > .potion-analysis-section:first-child {
+  border-top: 0;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.metric.potion-upgrade-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+}
+
+.potion-upgrade-row .value {
+  white-space: pre-line;
+  line-height: 1.5;
+}
+
+.potion-recommendation {
+  border-top: 1px solid var(--line);
+  margin: 0;
+  padding-top: 20px;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.6;
 }
 
 .metric,

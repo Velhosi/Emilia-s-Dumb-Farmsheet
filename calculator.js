@@ -24,6 +24,7 @@
     HEDGE_DISCOUNT_PER_HOUR: 1_000_000_000,
     HEDGE_ROI_DAYS: 1_000_000_000_000 / (1_000_000_000 * 24),
     MAX_TSER_POTION: 1_000_000,
+    MAX_WISDOM_POTION: 999_999,
     POTION_SEARCH_STEP: 1_000,
     MAX_AMBITIOUS_PREFIXES: 8,
     DISTILLATION_SIGIL_BOOST_ID: 110,
@@ -230,7 +231,113 @@
   }
 
   function maxSustainableBattlerPotion(d, options) {
-    return maxSustainablePotion(d, battlerAtPotion, options);
+    return Math.min(
+      C.MAX_WISDOM_POTION,
+      maxSustainablePotion(d, battlerAtPotion, { step: 1, ...options }),
+    );
+  }
+
+  function farmUpgradeResources(level, upgrades) {
+    const n = Math.max(0, Math.trunc(upgrades));
+    // Sum the resource cost (level + 1)^2 through (level + n)^2.
+    return n * level ** 2 + level * n * (n + 1) + n * (n + 1) * (2 * n + 1) / 6;
+  }
+
+  function balancedFarmLevels(d, upgrades) {
+    const levels = ['golems', 'fertilizer', 'plots']
+      .map(key => ({ key, level: Math.max(0, Math.trunc(finite(d[key]))) }))
+      .sort((a, b) => a.level - b.level);
+    let remaining = upgrades;
+    // Catch up the lowest stats, then distribute further levels evenly.
+    for (let count = 1; count <= levels.length; count += 1) {
+      const nextLevel = levels[count]?.level ?? Infinity;
+      const catchUp = (nextLevel - levels[0].level) * count;
+      if (remaining >= catchUp) {
+        for (let i = 0; i < count; i += 1) levels[i].level = nextLevel;
+        remaining -= catchUp;
+      } else {
+        const each = Math.floor(remaining / count);
+        const remainder = remaining % count;
+        for (let i = 0; i < count; i += 1) levels[i].level += each + (i < remainder ? 1 : 0);
+        break;
+      }
+    }
+    return Object.fromEntries(levels.map(({ key, level }) => [key, level]));
+  }
+
+  function farmForDailyHerbs(d, requiredHerbsPerDay) {
+    if (!Number.isFinite(requiredHerbsPerDay)) return null;
+    const dailyHerbsAt = upgrades => herbsPerHour({ ...d, ...balancedFarmLevels(d, upgrades) }) * 24;
+    let low = 0;
+    let high = 0;
+    if (dailyHerbsAt(0) < requiredHerbsPerDay) {
+      high = 1;
+      while (dailyHerbsAt(high) < requiredHerbsPerDay) {
+        if (high > Number.MAX_SAFE_INTEGER / 2) return null;
+        high *= 2;
+      }
+      while (low < high) {
+        const middle = low + Math.floor((high - low) / 2);
+        if (dailyHerbsAt(middle) >= requiredHerbsPerDay) high = middle;
+        else low = middle + 1;
+      }
+    }
+    const levels = balancedFarmLevels(d, high);
+    const upgrades = [
+      ['Golems', 'golems', 'Iron'],
+      ['Fertilizer', 'fertilizer', 'Fish'],
+      ['Plots', 'plots', 'Wood'],
+    ].map(([label, key, resource]) => {
+      const currentLevel = Math.max(0, Math.trunc(finite(d[key])));
+      const addedLevels = levels[key] - currentLevel;
+      return { label, key, resource, currentLevel, nextLevel: levels[key], addedLevels,
+        resources: farmUpgradeResources(currentLevel, addedLevels) };
+    });
+    const extraHerbsPerDay = (herbsPerHour({ ...d, ...levels }) - herbsPerHour(d)) * 24;
+    const addedFarmTaxPerHour = extraHerbsPerDay / 24 * C.FARM_DUST_PER_HERB;
+    const hedgeLevelsNeeded = Math.ceil(Math.max(0, addedFarmTaxPerHour) / C.HEDGE_DISCOUNT_PER_HOUR);
+    const resourcesNeeded = upgrades.reduce((sum, upgrade) => sum + upgrade.resources, 0);
+    const farmCost = resourcesNeeded * finite(d.averageResourcePrice);
+    const hedgeCost = hedgeLevelsNeeded * C.HEDGE_COST_PER_LEVEL;
+    return { upgrades, totalAddedLevels: high, extraHerbsPerDay, resourcesNeeded, farmCost,
+      hedgeLevelsNeeded, hedgeCost, addedFarmTaxPerHour, cost: farmCost + hedgeCost };
+  }
+
+  function battlerPotionAnalysis(d, maximumSustainablePotion = maxSustainableBattlerPotion(d)) {
+    const potionBoost = Math.max(0, finite(d.potionBoost));
+    const potionBoostLevel = Math.max(0, finite(d.potionBoostLevel, potionBoost));
+    const potionBoostCost = Math.floor(10_000_000 * 1.1 ** potionBoostLevel);
+    const potionBoostGainPercent = 100 / (100 + potionBoost);
+    const comparison = {
+      maximumSustainablePotion, potionBoost, nextPotionBoost: potionBoost + 1,
+      potionBoostCost: Number.isFinite(potionBoostCost) ? potionBoostCost : null,
+      potionBoostGainPercent, matchingWisdomPotion: null, extraHerbsConsumedPerDay: null,
+      farmGainPercent: null, farm: null, preferredOption: null,
+      status: 'no-sustainable-potion',
+    };
+    if (maximumSustainablePotion <= 0) return comparison;
+    const matchingWisdomPotion = Math.ceil(
+      maximumSustainablePotion * (101 + potionBoost) / (100 + potionBoost),
+    );
+    if (matchingWisdomPotion > C.MAX_WISDOM_POTION) {
+      return { ...comparison, status: 'potion-limit',
+        preferredOption: comparison.potionBoostCost == null ? null : 'potionBoost' };
+    }
+    const current = farmTotals(d, maximumSustainablePotion);
+    const target = farmTotals(d, matchingWisdomPotion);
+    const extraHerbsConsumedPerDay = (target.harvestHr - current.harvestHr) * C.BATTLE_HOURS_PER_DAY;
+    const requiredHerbsPerDay = (target.harvestHr + target.resHr) * C.BATTLE_HOURS_PER_DAY;
+    const farm = farmForDailyHerbs(d, requiredHerbsPerDay);
+    const farmGainPercent = (matchingWisdomPotion / maximumSustainablePotion - 1) * 100;
+    const boostCostPerPercent = safeDiv(comparison.potionBoostCost, potionBoostGainPercent);
+    const farmCostPerPercent = safeDiv(farm?.cost, farmGainPercent);
+    let preferredOption = null;
+    if (boostCostPerPercent != null && farmCostPerPercent != null) {
+      preferredOption = boostCostPerPercent === farmCostPerPercent ? 'equal'
+        : boostCostPerPercent < farmCostPerPercent ? 'potionBoost' : 'farm';
+    }
+    return { ...comparison, matchingWisdomPotion, extraHerbsConsumedPerDay, farmGainPercent,
+      farm, preferredOption, status: farm ? 'ready' : 'unavailable' };
   }
 
   function labRoiBreakdown(d, role) {
@@ -652,6 +759,7 @@
         ...battlerTotals,
         netHerbs: battlerNetHerbs,
         maxSustainablePotion: battlerMaxSustainablePotion,
+        potionAnalysis: battlerPotionAnalysis(d, battlerMaxSustainablePotion),
       },
       tser: {
         ...tserTotals,
@@ -788,6 +896,7 @@
       plots: getNum(totalBoosts, '132'),
       level: Math.max(mining, fishing, woodcutting),
       potionBoost: getNum(totalBoosts, '108'),
+      potionBoostLevel: getNum(baseBoosts, '108', getNum(totalBoosts, '108')),
       baseRes: getNum(totalBoosts, '124') / 100,
       baseResResearch: getNum(totalBoosts, '106'),
       research,
@@ -837,6 +946,7 @@
       buildingCost, herbsPerHour, harvestHerbsPerPot, resonanceHerbsPerPot,
       ambitiousResourceMultiplier, battlerAtPotion, tserAtPotion, optimizeTserPotion,
       maxSustainableBattlerPotion, maxSustainableTserPotion,
+      farmUpgradeResources, balancedFarmLevels, farmForDailyHerbs, battlerPotionAnalysis,
       tomeTotalCost, tomeDropRoiBreakdown, farmUpgradeStats, labRoiBreakdown, mdIncomeBreakdown,
       dustCollectorRoiBreakdown, workshopDustCollectorRoiBreakdown,
       farmNoHedgeRoiBreakdown, farmHedgeRoiBreakdown,
