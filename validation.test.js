@@ -190,6 +190,42 @@ approximately(
   'MD information panel breakdown matches Battler daily MD',
 );
 
+// September 14 Emilia API snapshot: Elnaeth reported 283.47Qa/day and 12.41Qa/hour.
+const emiliaMdSnapshot = {
+  ...WORKBOOK_SNAPSHOTS.emilia,
+  currentEnemy: 617692,
+  dustCollector: 930,
+  dustCodex: 205,
+  dustEquipment: 289563,
+  tax: 25,
+  harvestPotion: 105000,
+  resonancePotion: 40000,
+};
+const emiliaMd = Calc.helpers.mdIncomeBreakdown(emiliaMdSnapshot);
+approximately(emiliaMd.dailyTotal, 283468393041235970, 'Emilia corrected daily MD');
+assert.equal((emiliaMd.dailyTotal / 1e15).toFixed(2), '283.47', 'Emilia matches tracker daily MD');
+assert.equal(
+  (emiliaMd.afterTax * Calc.C.BATTLE_ACTIONS_PER_HOUR / 1e15).toFixed(2),
+  '12.41',
+  'Emilia matches tracker hourly MD',
+);
+approximately(
+  Calc.calculate(emiliaMdSnapshot).battler.mdEarned,
+  emiliaMd.dailyTotal,
+  'Emilia daily income uses the corrected breakdown',
+);
+for (const [currentEnemy, expectedBase] of [
+  [149849, 5376654.6432439685],
+  [149850, 5376707.656796547],
+  [149851, 5376787.420906818],
+]) {
+  approximately(
+    Calc.helpers.mdIncomeBreakdown({ currentEnemy }).basePerBattle,
+    expectedBase,
+    `MD scaling boundary at effective enemy level ${currentEnemy + 150}`,
+  );
+}
+
 const dustCollectorBreakdown = Calc.helpers.dustCollectorRoiBreakdown(
   WORKBOOK_SNAPSHOTS.hohmono,
 );

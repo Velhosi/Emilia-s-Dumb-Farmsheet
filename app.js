@@ -370,7 +370,7 @@ function mdIncomeInfo(data) {
   const breakdown = Calc.helpers.mdIncomeBreakdown(data);
   return {
     title: 'MD earned daily',
-    description: 'Base MD scales with the player’s current enemy, including the extra scaling above enemy 150,000. Boosts are applied before tax.',
+    description: 'The 150 starter enemies are included in both the base reward and the extra scaling above enemy level 150,000. Boosts are applied before tax.',
     rows: [
       { label: 'Base MD per battle from current enemy', value: formatCompact(breakdown.basePerBattle) },
       { label: 'After Dust Collector boost', value: formatCompact(breakdown.afterDustCollector) },
@@ -609,11 +609,36 @@ function formatWisdomGain(value) {
     : 'N/A';
 }
 
+function resonanceValueInfo(resonance) {
+  if (!resonance) return {
+    title: 'Resonance value per 10% tax free',
+    description: 'The player levels or shard market price needed for this estimate are unavailable.',
+    rows: [],
+  };
+  return {
+    title: 'Resonance value per 10% tax free',
+    description: 'Value given as 10% as an easy base rate, adjust to your own guild value.',
+    rows: [
+      { label: 'Weighted levels: 3 x Battling + gathering', value: formatters.integer(resonance.weightedLevel) },
+      { label: 'Resonance shard bonus', value: `${formatters.percent(resonance.currentResonanceBonus)} → ${formatters.percent(resonance.nextResonanceBonus)}` },
+      { label: 'Minimum shard drop', value: formatFull(resonance.minimumBaseDrop) },
+      { label: 'Average base drop', value: formatFull(resonance.averageBaseDrop) },
+      { label: 'Average drop including boost', value: `${formatCompact(resonance.currentAverageDrop, 3)} → ${formatCompact(resonance.nextAverageDrop, 3)}` },
+      { label: 'Extra shards / day before tax', value: formatCompact(resonance.extraShardsPerDay) },
+      { label: 'Extra shards retained with 90% tax', value: formatCompact(resonance.retainedExtraShardsPerDay) },
+      { label: 'Shard market sell price', value: `${formatFull(resonance.shardSellPrice)} MD` },
+      { label: 'Total extra MD value', value: formatCompact(resonance.valuePerDay), total: true },
+    ],
+  };
+}
+
 function renderBattlerPotionAnalysis(analysis) {
   setText('b-potion-max', formatters.integer(analysis.maximumSustainablePotion));
   setText('b-potion-boost-range', `${formatters.percent(analysis.potionBoost)} → ${formatters.percent(analysis.nextPotionBoost)}`);
   setText('b-potion-boost-cost', formatCompact(analysis.potionBoostCost));
   setText('b-potion-boost-gain', analysis.maximumSustainablePotion > 0 ? formatWisdomGain(analysis.potionBoostGainPercent) : 'N/A');
+  setText('b-potion-resonance-value', analysis.resonanceValue
+    ? `${formatCompact(analysis.resonanceValue.valuePerDay)} MD / day` : 'N/A');
   setText('b-potion-farm-target', formatters.integer(analysis.matchingWisdomPotion));
   setText('b-potion-farm-herbs', analysis.extraHerbsConsumedPerDay == null ? 'N/A' : `${formatCompact(analysis.extraHerbsConsumedPerDay, 3)} / day`);
   const upgrades = analysis.farm?.upgrades.filter(upgrade => upgrade.addedLevels > 0);
@@ -712,6 +737,7 @@ function render(data, result) {
   renderDetails(result);
   renderInfoPanels(data, result);
   setInfoPanel('battler-potion-analysis', battlerPotionInfo(data, result.battler.potionAnalysis));
+  setInfoPanel('battler-resonance-value', resonanceValueInfo(result.battler.potionAnalysis.resonanceValue));
   elements.sigilWarning.hidden = !data.hasNonDistillationSigil;
   hasRenderedResults = true;
   applyRoleView(elements.role.value);

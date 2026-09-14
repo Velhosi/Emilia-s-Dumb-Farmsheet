@@ -12,6 +12,9 @@
     // Potion use and hourly rewards must cover the same event actions as daily income.
     BATTLE_HOURS_PER_DAY: EVENT_ACTIONS_PER_DAY / BATTLE_ACTIONS_PER_HOUR,
     BATTLE_ACTIONS_PER_HOUR,
+    NON_EVENT_BATTLES_PER_DAY: EVENT_ACTIONS_PER_DAY,
+    BASE_SHARD_DROP_CHANCE: 1 / 80,
+    SHARD_RETAINED_FRACTION: 0.1,
     GATHER_ACTIONS_PER_DAY: EVENT_ACTIONS_PER_DAY,
     TS_UNPOTTED_ACTIONS: EVENT_ACTIONS_PER_DAY,
     TS_POTTED_ACTIONS: EVENT_ACTIONS_PER_DAY,
@@ -89,8 +92,9 @@
 
   function dustPerBattleBase(enemy) {
     const e = finite(enemy) + 150;
+    // The API excludes 150 starter enemies; both reward terms include them.
     return (0.0001 * e ** 2 + e ** 1.2 + 10 * e)
-      * (finite(enemy) > 150000 ? 1.01 ** ((finite(enemy) - 150000) / 2000) : 1);
+      * (e > 150000 ? 1.01 ** ((e - 150000) / 2000) : 1);
   }
 
   function dustPerBattle(d, collectorDeltaPct = 0, taxed = false) {
@@ -303,6 +307,39 @@
       hedgeLevelsNeeded, hedgeCost, addedFarmTaxPerHour, cost: farmCost + hedgeCost };
   }
 
+  function resonanceUpgradeValue(d) {
+    const required = [d.battleLevel, d.miningLevel, d.fishingLevel, d.woodcuttingLevel,
+      d.dropBoost, d.resonancePotion, d.potionBoost, d.shardSellPrice];
+    if (!required.every(value => Number.isFinite(value) && value >= 0)) return null;
+
+    const weightedLevel = 3 * d.battleLevel + d.miningLevel + d.fishingLevel + d.woodcuttingLevel;
+    const minimumBaseDrop = 100 * (1 + weightedLevel / 10)
+      ** (1 - 0.3 * weightedLevel / (weightedLevel + 20000));
+    const averageBaseDrop = minimumBaseDrop * 1.5;
+    const effectiveDropChance = Math.min(1, C.BASE_SHARD_DROP_CHANCE * (1 + d.dropBoost / 100));
+    const dropsPerDay = C.NON_EVENT_BATTLES_PER_DAY * effectiveDropChance;
+    const equipmentShardBonus = Math.max(0, finite(d.equipmentShardBonus));
+    const currentResonanceBonus = 5 * d.resonancePotion * (1 + d.potionBoost / 100);
+    // Equipment and Resonance add to the same shard-amount bonus. Only the potion changes.
+    const extraResonanceBonus = 5 * d.resonancePotion / 100;
+    const nextResonanceBonus = currentResonanceBonus + extraResonanceBonus;
+    const currentAverageDrop = averageBaseDrop
+      * (1 + (equipmentShardBonus + currentResonanceBonus) / 100);
+    const nextAverageDrop = averageBaseDrop
+      * (1 + (equipmentShardBonus + nextResonanceBonus) / 100);
+    const currentShardsPerDay = dropsPerDay * currentAverageDrop;
+    const extraShardsPerDay = dropsPerDay * averageBaseDrop * extraResonanceBonus / 100;
+    const retainedExtraShardsPerDay = extraShardsPerDay * C.SHARD_RETAINED_FRACTION;
+    const valuePerDay = retainedExtraShardsPerDay * d.shardSellPrice;
+    if (!Number.isFinite(valuePerDay)) return null;
+
+    return { weightedLevel, minimumBaseDrop, averageBaseDrop, effectiveDropChance, dropsPerDay,
+      equipmentShardBonus, currentResonanceBonus, nextResonanceBonus, extraResonanceBonus,
+      currentAverageDrop, nextAverageDrop,
+      currentShardsPerDay, nextShardsPerDay: currentShardsPerDay + extraShardsPerDay,
+      extraShardsPerDay, retainedExtraShardsPerDay, shardSellPrice: d.shardSellPrice, valuePerDay };
+  }
+
   function battlerPotionAnalysis(d, maximumSustainablePotion = maxSustainableBattlerPotion(d)) {
     const potionBoost = Math.max(0, finite(d.potionBoost));
     const potionBoostLevel = Math.max(0, finite(d.potionBoostLevel, potionBoost));
@@ -312,6 +349,7 @@
       maximumSustainablePotion, potionBoost, nextPotionBoost: potionBoost + 1,
       potionBoostCost: Number.isFinite(potionBoostCost) ? potionBoostCost : null,
       potionBoostGainPercent, matchingWisdomPotion: null, extraHerbsConsumedPerDay: null,
+      resonanceValue: resonanceUpgradeValue(d),
       farmGainPercent: null, farm: null, preferredOption: null,
       status: 'no-sustainable-potion',
     };
@@ -895,6 +933,12 @@
       fertilizer: getNum(totalBoosts, '131'),
       plots: getNum(totalBoosts, '132'),
       level: Math.max(mining, fishing, woodcutting),
+      battleLevel: getNum(playerData, 'Level', NaN),
+      miningLevel: getNum(playerData, 'MiningLevel', NaN),
+      fishingLevel: getNum(playerData, 'FishingLevel', NaN),
+      woodcuttingLevel: getNum(playerData, 'WoodcuttingLevel', NaN),
+      equipmentShardBonus: getNum(totalBoosts, '122'),
+      shardSellPrice: getNum(sell, '2', NaN),
       potionBoost: getNum(totalBoosts, '108'),
       potionBoostLevel: getNum(baseBoosts, '108', getNum(totalBoosts, '108')),
       baseRes: getNum(totalBoosts, '124') / 100,
@@ -946,7 +990,7 @@
       buildingCost, herbsPerHour, harvestHerbsPerPot, resonanceHerbsPerPot,
       ambitiousResourceMultiplier, battlerAtPotion, tserAtPotion, optimizeTserPotion,
       maxSustainableBattlerPotion, maxSustainableTserPotion,
-      farmUpgradeResources, balancedFarmLevels, farmForDailyHerbs, battlerPotionAnalysis,
+      farmUpgradeResources, balancedFarmLevels, farmForDailyHerbs, battlerPotionAnalysis, resonanceUpgradeValue,
       tomeTotalCost, tomeDropRoiBreakdown, farmUpgradeStats, labRoiBreakdown, mdIncomeBreakdown,
       dustCollectorRoiBreakdown, workshopDustCollectorRoiBreakdown,
       farmNoHedgeRoiBreakdown, farmHedgeRoiBreakdown,
