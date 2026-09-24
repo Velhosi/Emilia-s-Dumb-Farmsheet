@@ -425,6 +425,72 @@ const normalizedPrefixPlayer = Calc.normalizeFromApis(
 );
 assert.equal(normalizedPrefixPlayer.ambitiousCount, 4, 'Ambitious prefixes are detected from API equipment');
 
+// September 24 xChrispy API snapshot; the player confirmed Nexus level 23,970.
+const imbuedNexusPlayer = {
+  MiningLevel: 100069,
+  FishingLevel: 70762,
+  WoodcuttingLevel: 70762,
+  BaseBoosts: { 30: 7211102, 152: 981 },
+  TotalBoosts: { 30: 449185.792206 },
+  Equipment: Object.fromEntries([
+    2265003, 2263108, 2263904, 2257983, 2264840, 2265074, 2266454, 2263202,
+  ].map((boost, index) => [index + 1, {
+    Name: index === 0 ? "Imbued Prospector's Pickaxe" : 'Prospector equipment',
+    Prefix: index === 0 ? 10 : 0,
+    IsEquipped: true,
+    Infusions: 32,
+    Boosts: { 30: boost },
+  }])),
+};
+const normalizeImbuedPlayer = (player) => Calc.normalizeFromApis(
+  player, {}, [], { username: 'xChrispy', tax: 25, harvestPotion: 0, resonancePotion: 0 },
+);
+const normalizedImbuedNexus = normalizeImbuedPlayer(imbuedNexusPlayer);
+assert.equal(normalizedImbuedNexus.nexusLevel, 23970, 'Imbued equipment gives the confirmed Nexus level');
+const pickaxeWithoutPerk = {
+  ...imbuedNexusPlayer.Equipment[1], Name: 'Prospector Pickaxe', Prefix: 0,
+};
+const withoutImbuedPerk = normalizeImbuedPlayer({
+  ...imbuedNexusPlayer,
+  Equipment: { ...imbuedNexusPlayer.Equipment, 1: pickaxeWithoutPerk },
+});
+assert.equal(withoutImbuedPerk.nexusLevel, 23987, 'Ignoring the perk reproduces the inflated Nexus level');
+for (const prefixFields of [
+  { Prefix: 10 },
+  { Prefix: '10' },
+  { Prefix: 'Imbued' },
+  { Prefix: { Name: 'Imbued' } },
+  { Name: 'imbued Prospector Pickaxe' },
+  { Name: 'Imbued Prospector Pickaxe', Prefix: 10 },
+]) {
+  const normalized = normalizeImbuedPlayer({
+    ...imbuedNexusPlayer,
+    Equipment: {
+      ...imbuedNexusPlayer.Equipment,
+      1: { ...pickaxeWithoutPerk, ...prefixFields },
+    },
+  });
+  assert.equal(normalized.nexusLevel, 23970, 'Imbued prefix representations add one effective infusion');
+}
+const actualExtraInfusion = normalizeImbuedPlayer({
+  ...imbuedNexusPlayer,
+  Equipment: {
+    ...imbuedNexusPlayer.Equipment,
+    1: { ...pickaxeWithoutPerk, Infusions: 33 },
+  },
+});
+assert.equal(actualExtraInfusion.nexusLevel, 23970, 'Imbued +32 matches a normal +33 item');
+approximately(
+  normalizedImbuedNexus.equipmentResearch,
+  actualExtraInfusion.equipmentResearch,
+  'Equipment research also includes the Imbued infusion',
+);
+const normalizedImbuedResources = normalizeImbuedPlayer({
+  ...imbuedNexusPlayer,
+  Equipment: { 1: { Name: 'Imbued Pickaxe', Prefix: 10, Infusions: 32, Boosts: { 124: 100 } } },
+});
+approximately(normalizedImbuedResources.equipmentBaseRes, 2.65, 'Imbued applies once to equipment base resources');
+
 const distillationSigilPlayer = Calc.normalizeFromApis(
   { ...prefixPlayer, SigilBoost: Calc.C.DISTILLATION_SIGIL_BOOST_ID },
   { Buy: {}, Sell: {} },
@@ -506,4 +572,4 @@ const cappedPrefixPlayer = Calc.normalizeFromApis(
 );
 assert.equal(cappedPrefixPlayer.ambitiousCount, 8, 'Ambitious prefix count is capped at eight');
 
-console.log('Validated action counts, potion analysis, sigils, Ambitious prefixes, and live construction data.');
+console.log('Validated action counts, potion analysis, sigils, equipment prefixes, Nexus inference, and live construction data.');

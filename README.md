@@ -63,6 +63,8 @@ Farm — no hedge selects the best next 1,000-level Golems, Fertilizer, or Plots
 
 The post-workbook Ambitious rule is applied as a final multiplier to TSer resources: `1 - (Ambitious item count / 100)`. The count comes from equipped API items whose name or explicit prefix starts with `Ambitious`, and is capped at eight. The original validated workbook snapshots use a count of zero, so their documented outputs remain unchanged.
 
+Imbued equipment contributes one additional effective infusion beyond the API's `Infusions` field. The API parser recognizes prefix ID `10` or the Imbued name and applies the bonus once per item when calculating equipment research, equipment base resources, and the equipment contribution subtracted to infer Nexus level for Shard ROI.
+
 See `VALIDATION.md` for exact comparison values and the discrepancy between the older stored 79.99 / 52.07 values and the formulas in the newest workbook.
 
 ## Files

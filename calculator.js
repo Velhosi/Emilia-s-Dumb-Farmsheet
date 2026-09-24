@@ -860,6 +860,13 @@
       equipmentItems.filter(hasAmbitiousPrefix).length,
       C.MAX_AMBITIOUS_PREFIXES,
     );
+    const effectiveInfusions = (item) => {
+      // API Infusions excludes the extra infusion granted by Imbued (prefix 10).
+      const isImbued = finite(item?.Prefix ?? item?.prefix, NaN) === 10
+        || /^Imbued(?:\s|$)/i.test(String(item?.Name ?? item?.name ?? '').trim())
+        || /^Imbued$/i.test(String(prefixName(item)).trim());
+      return finite(item?.Infusions) + (isImbued ? 1 : 0);
+    };
 
     const mining = finite(playerData?.MiningLevel);
     const fishing = finite(playerData?.FishingLevel);
@@ -871,7 +878,7 @@
     let equipmentBaseRes = 0;
     for (const item of equipmentItems) {
       if (!item || !item.Boosts) continue;
-      const infusionMultiplier = 1 + 0.05 * finite(item.Infusions);
+      const infusionMultiplier = 1 + 0.05 * effectiveInfusions(item);
       if (item.Boosts[gatheringId] != null) {
         equipmentResearch += finite(item.Boosts[gatheringId]) * infusionMultiplier / 50;
       }
@@ -888,7 +895,7 @@
       const equipmentTerm = Object.values(equipment).reduce((acc, item) => {
         const b = item?.Boosts?.[gatheringId];
         if (b == null) return acc;
-        return acc + Math.floor(finite(b) * (1 + finite(item.Infusions) / 20)) * (1 + spireBase / 100);
+        return acc + Math.floor(finite(b) * (1 + effectiveInfusions(item) / 20)) * (1 + spireBase / 100);
       }, 0);
       const x = ((((totalResearchBoost - 1) * 100) / 0.02 - equipmentTerm) / baseResearchBoost - 1) * 100;
       if (Number.isFinite(x)) nexusLevel = Math.round(x);
