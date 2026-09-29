@@ -2,6 +2,7 @@
 
 const Calc = window.ManarionCalculator;
 const INPUT_STORAGE_KEY = 'emilia-farm-sheet-inputs-v1';
+const SHOW_GUILD_POTION = false; // Set to true to restore the TSer guild potion card.
 let hasRenderedResults = false;
 const infoPanels = new Map();
 
@@ -17,6 +18,7 @@ const elements = Object.freeze({
   sigilWarning: $('sigil-warning'),
   battlerPanels: [...document.querySelectorAll('.battler-result-panel')],
   tserPanels: [...document.querySelectorAll('.tser-result-panel')],
+  guildPotionPanel: $('tser-guild-potion-panel'),
   battlerSummaries: [...document.querySelectorAll('.battler-only')],
   tserSummaries: [...document.querySelectorAll('.tser-only')],
   updateButton: $('update-btn'),
@@ -261,7 +263,7 @@ function sustainablePotionInfo(role, data, result) {
   const atMax = role === 'tser'
     ? Calc.helpers.tserAtPotion(data, maxPotion)
     : Calc.helpers.battlerAtPotion(data, maxPotion);
-  const nextPotion = maxPotion + (role === 'battler' ? 1 : Calc.C.POTION_SEARCH_STEP);
+  const nextPotion = maxPotion + 1;
   const atCeiling = role === 'battler' && maxPotion >= Calc.C.MAX_WISDOM_POTION;
   const atNext = atCeiling ? null : role === 'tser'
     ? Calc.helpers.tserAtPotion(data, nextPotion)
@@ -290,9 +292,23 @@ function sustainablePotionInfo(role, data, result) {
 
   return {
     title: 'Maximum sustainable potion',
-    description: `The highest ${role === 'battler' ? 'whole-level' : '1,000-level'} potion that keeps combined herbs at or above zero. Bloomwells and Sageroots are treated as tradable 1:1.`,
+    description: 'The highest whole-level potion that keeps combined herbs at or above zero. Bloomwells and Sageroots are treated as tradable 1:1.',
     rows,
     note: 'Uses the entered Resonance potion and the player’s total Potion Duration, including Laboratory.',
+  };
+}
+
+function guildPotionInfo(data, analysis) {
+  return {
+    title: 'Most efficient guild potion',
+    description: 'Maximizes the total daily value earned by you and your guild before resource tax, while accounting for potion herbs, farm tax, and Hedge Fund coverage.',
+    rows: [
+      { label: 'Recommended Harvest potion', value: formatters.integer(analysis.bestPotion) },
+      { label: 'Gross resource value / day', value: formatCompact(analysis.grossResourceValue) },
+      { label: `Gross resource value with your current ${formatters.integer(data.harvestPotion)} potion / day`, value: formatCompact(analysis.currentGrossResourceValue) },
+      { label: 'Change from current potion / day', value: formatSignedCompact(analysis.grossResourceChange), tone: infoTone(analysis.grossResourceChange), total: true },
+    ],
+    note: 'Values are in MD and include baseline resources. The daily change compares gross resource value before tax and herb costs. The recommended tier still accounts for herb costs and searches Harvest tiers from 0 to 1,000,000 in 1,000-level steps using the entered Resonance potion.',
   };
 }
 
@@ -550,6 +566,7 @@ function renderInfoPanels(data, result) {
   setInfoPanel('tser-net-herbs', netHerbsInfo('tser', result));
   setInfoPanel('battler-max-potion', sustainablePotionInfo('battler', data, result));
   setInfoPanel('tser-max-potion', sustainablePotionInfo('tser', data, result));
+  setInfoPanel('tser-guild-potion', guildPotionInfo(data, result.tser.guildPotionAnalysis));
   setInfoPanel('battler-left-bloom', leftoverHerbInfo('battler', 'bloom', result));
   setInfoPanel('battler-left-sage', leftoverHerbInfo('battler', 'sage', result));
   setInfoPanel('tser-left-bloom', leftoverHerbInfo('tser', 'bloom', result));
@@ -694,6 +711,7 @@ function applyRoleView(role) {
   elements.tserSummaries.forEach((element) => { element.hidden = !isTser; });
   elements.battlerPanels.forEach((element) => { element.hidden = !isBattler; });
   elements.tserPanels.forEach((element) => { element.hidden = !isTser; });
+  elements.guildPotionPanel.hidden = !isTser || !SHOW_GUILD_POTION;
   elements.overview.dataset.role = role;
   elements.resultGrid.dataset.role = role;
   elements.resultsTitle.textContent = isTser ? 'TSer breakdown' : 'Battler breakdown';
@@ -727,6 +745,11 @@ function renderDetails(result) {
   setMetric('t-loss', result.tser.lossFromCurrentPotion, formatters.compact, true);
   setMetric('t-loss-pct', result.tser.percentLoss, formatters.percent, true);
   setMetric('t-max-sustainable-pot', result.tser.maxSustainablePotion, formatters.integer);
+  const guildPotion = result.tser.guildPotionAnalysis;
+  setMetric('t-guild-best-pot', guildPotion.bestPotion, formatters.integer);
+  setMetric('t-guild-resource-value', guildPotion.grossResourceValue, formatters.compact, true);
+  setMetric('t-guild-current-resource-value', guildPotion.currentGrossResourceValue, formatters.compact, true);
+  setMetric('t-guild-change', guildPotion.grossResourceChange, formatSignedCompact, true);
 
   setRoi('b-roi', result.roi.battler);
   setRoi('t-roi', result.roi.tser);

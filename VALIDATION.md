@@ -32,7 +32,7 @@ Outputs that do not depend on the updated daily-action counts still reproduce th
 ### Derived herb and potion values
 
 - Net herbs combine the current-potion Bloomwell and Sageroot leftovers. For the Hohmono snapshot this is **106,518,758,838.289** herbs for either role once herb trading is allowed.
-- Maximum sustainable potion keeps the combined Bloomwell and Sageroot total at or above zero, allowing either herb to be traded into the other 1:1. The calculation keeps the entered Resonance potion active and uses the API's total Potion Duration boost, which includes Laboratory duration. Battler now searches whole Wisdom levels for the potion analysis (up to 999,999); TSer retains 1,000-level Harvest steps. For the Hohmono snapshot this is **176,763** for Battler and **176,000** for TSer.
+- Maximum sustainable potion keeps the combined Bloomwell and Sageroot total at or above zero, allowing either herb to be traded into the other 1:1. The calculation keeps the entered Resonance potion active and uses the API's total Potion Duration boost, which includes Laboratory duration. Both Battler and TSer search whole potion levels; Battler Wisdom is capped at 999,999. For the Hohmono snapshot the exact sustainable tier is **176,763** for both roles, and tier **176,764** consumes more herbs than the farm produces. TSer's separate highest-income optimizer still uses 1,000-level steps.
 - A nonzero `SigilBoost` other than the Distillation/Potion Duration identifier (`110`) activates the event-accuracy warning. Missing or zero values do not.
 - Workshop → Dust Collector ROI reads Workshop level from `BaseBoosts[150]`, total Construction boost from `TotalBoosts[104]`, and the active Construction pet's level from `Pets[24]`. Stored workbook fixtures retain their original manual values through the calculator's compatibility fallback.
 
@@ -73,6 +73,10 @@ The historical workbook comparison above predates this correction. The base rewa
 The user also confirmed that the API's current enemy count omits 150 starter enemies which still count toward Mana Dust. Regression checks fix this captured example and cover effective enemy levels 149,999, 150,000, and 150,001. Daily MD, Dust Collector ROI, and Workshop → Dust Collector ROI all use the corrected shared reward function. The TSer income formulas are unaffected.
 
 ## Automated regression check
+
+The guild card's displayed resource comparison is separate from the optimizer's income after herb costs. The Hohmono fixture yields **474.659338Q/day** gross resources at the recommended tier and **494.936882Q/day** at its entered tier, a **−20.277544Q/day** gross resource change. Tests check these values, their reconciliation, and zero change when already using the recommended tier.
+
+The guild potion analysis selects **161,000** for the Hohmono snapshot, compared with the personal optimum of **125,000** at 40% resource tax. It yields **474.659338Q** gross resource value plus **30.190727Q** farm income after costs, for **504.850065Q/day** before resource tax and **1.195504Q/day** more than the entered 171,000 potion on the same basis. Tests cover invariance to resource tax, agreement with the personal optimizer at zero tax, neighbouring search tiers, sensitivity to herb prices, zero-value resources, the one-million ceiling, and preservation of the original inputs.
 
 The September 24 xChrispy API snapshot reproduces the Imbued/Nexus bug: treating the Imbued pickaxe as 32 infusions inferred Nexus 23,987, while its 33 effective infusions produce the user-confirmed Nexus **23,970**. Tests cover the numeric prefix ID and name representations, ensure matching ID and name do not double-count the perk, and check that an Imbued +32 item matches a normal +33 item. The same correction applies to equipment research and base-resource contributions; other prefixes do not gain an infusion.
 

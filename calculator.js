@@ -202,6 +202,26 @@
     return { bestPotion, bestIncome };
   }
 
+  function tserGuildPotionAnalysis(d) {
+    // Resource tax transfers value to the guild; herb and farm costs still apply.
+    const guildInputs = { ...d, tax: 0 };
+    const optimum = optimizeTserPotion(guildInputs);
+    const best = tserAtPotion(guildInputs, optimum.bestPotion);
+    const current = tserAtPotion(guildInputs, d.harvestPotion);
+    const grossResourceValue = best.pottedAfterEvent * finite(d.averageResourcePrice);
+    const currentGrossResourceValue = current.pottedAfterEvent * finite(d.averageResourcePrice);
+    return {
+      bestPotion: optimum.bestPotion,
+      grossResourceValue,
+      currentGrossResourceValue,
+      grossResourceChange: grossResourceValue - currentGrossResourceValue,
+      farmIncome: best.farmTax,
+      dailyIncome: best.fullIncome,
+      currentDailyIncome: current.fullIncome,
+      changeFromCurrent: best.fullIncome - current.fullIncome,
+    };
+  }
+
   function maxSustainablePotion(d, totalsAtPotion, { step = C.POTION_SEARCH_STEP } = {}) {
     const increment = Math.max(1, Math.trunc(finite(step, C.POTION_SEARCH_STEP)));
     const canSustain = (potion) => {
@@ -231,7 +251,7 @@
   }
 
   function maxSustainableTserPotion(d, options) {
-    return maxSustainablePotion(d, tserAtPotion, options);
+    return maxSustainablePotion(d, tserAtPotion, { step: 1, ...options });
   }
 
   function maxSustainableBattlerPotion(d, options) {
@@ -808,6 +828,7 @@
         ambitiousPenaltyPercent,
         netHerbs,
         maxSustainablePotion,
+        guildPotionAnalysis: tserGuildPotionAnalysis(d),
       },
       roi: {
         battler: {
@@ -995,7 +1016,7 @@
     normalizeFromApis,
     helpers: {
       buildingCost, herbsPerHour, harvestHerbsPerPot, resonanceHerbsPerPot,
-      ambitiousResourceMultiplier, battlerAtPotion, tserAtPotion, optimizeTserPotion,
+      ambitiousResourceMultiplier, battlerAtPotion, tserAtPotion, optimizeTserPotion, tserGuildPotionAnalysis,
       maxSustainableBattlerPotion, maxSustainableTserPotion,
       farmUpgradeResources, balancedFarmLevels, farmForDailyHerbs, battlerPotionAnalysis, resonanceUpgradeValue,
       tomeTotalCost, tomeDropRoiBreakdown, farmUpgradeStats, labRoiBreakdown, mdIncomeBreakdown,

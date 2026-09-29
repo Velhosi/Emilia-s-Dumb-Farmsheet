@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#081626">
   <meta name="description" content="Compare Battler and TSer daily farm income and upgrade ROI in Manarion.">
   <title>Emilia's Dumb Farm Sheet</title>
-  <link rel="stylesheet" href="styles.css?v=20260924.1">
+  <link rel="stylesheet" href="styles.css?v=20260929.4">
 </head>
 <body>
   <a class="skip-link" href="#results">Skip to results</a>
@@ -214,23 +214,6 @@
           </div>
         </article>
 
-        <article class="panel role-tser tser-result-panel" id="tser-potion-panel">
-          <header class="panel-head panel-head-compact">
-            <div>
-              <p class="role-number">Potion analysis</p>
-              <h3>Highest-income potion</h3>
-            </div>
-          </header>
-
-          <div class="metrics" aria-label="TSer highest-income potion comparison">
-            <div class="metric"><span class="label">Highest-income potion</span><span id="t-best-pot" class="value">—</span></div>
-            <div class="metric"><span class="label">Total income from it</span><span id="t-best-income" class="value">—</span></div>
-            <div class="metric"><span class="label">Loss from current potion</span><span id="t-loss" class="value">—</span></div>
-            <div class="metric"><span class="label">Percent loss</span><span id="t-loss-pct" class="value">—</span></div>
-            <div class="metric"><span class="label-with-info"><span class="label">Maximum sustainable potion</span><span class="info-popover"><button class="info-button" type="button" data-info="tser-max-potion" aria-label="Show the TSer maximum sustainable potion calculation">i</button></span></span><span id="t-max-sustainable-pot" class="value">—</span></div>
-          </div>
-        </article>
-
         <article class="panel role-tser tser-result-panel" id="tser-roi-panel">
           <header class="panel-head panel-head-compact roi-panel-head">
             <div>
@@ -251,13 +234,47 @@
             <div class="roi-row"><span class="name-with-info"><span class="name">Tome drop</span><span class="info-popover"><button class="info-button" type="button" data-info="tser-tome-drop-roi" aria-label="Show the Tome Drop ROI calculation">i</button></span></span><span id="t-roi-tomeDrop" class="days">—</span></div>
           </div>
         </article>
+
+        <article class="panel role-tser tser-result-panel" id="tser-potion-panel">
+          <header class="panel-head panel-head-compact">
+            <div>
+              <p class="role-number">Potion analysis</p>
+              <h3>Highest-income potion</h3>
+            </div>
+          </header>
+
+          <div class="metrics" aria-label="TSer highest-income potion comparison">
+            <div class="metric"><span class="label">Highest-income potion</span><span id="t-best-pot" class="value">—</span></div>
+            <div class="metric"><span class="label">Total income from it</span><span id="t-best-income" class="value">—</span></div>
+            <div class="metric"><span class="label">Loss from current potion</span><span id="t-loss" class="value">—</span></div>
+            <div class="metric"><span class="label">Percent loss</span><span id="t-loss-pct" class="value">—</span></div>
+            <div class="metric"><span class="label-with-info"><span class="label">Maximum sustainable potion</span><span class="info-popover"><button class="info-button" type="button" data-info="tser-max-potion" aria-label="Show the TSer maximum sustainable potion calculation">i</button></span></span><span id="t-max-sustainable-pot" class="value">—</span></div>
+          </div>
+        </article>
+
+        <article class="panel role-tser tser-result-panel" id="tser-guild-potion-panel" hidden>
+          <header class="panel-head panel-head-compact">
+            <div>
+              <p class="role-number">Before resource tax</p>
+              <h3>Most efficient guild potion</h3>
+            </div>
+            <span class="info-popover info-align-end"><button class="info-button" type="button" data-info="tser-guild-potion" aria-label="Show the most efficient guild potion calculation">i</button></span>
+          </header>
+
+          <div class="metrics" aria-label="TSer guild potion comparison">
+            <div class="metric"><span class="label">Recommended Harvest potion</span><span id="t-guild-best-pot" class="value">—</span></div>
+            <div class="metric"><span class="label">Gross resource value / day</span><span id="t-guild-resource-value" class="value">—</span></div>
+            <div class="metric"><span class="label">Gross resource value from current potion / day</span><span id="t-guild-current-resource-value" class="value">—</span></div>
+            <div class="metric"><span class="label">Change from current potion / day</span><span id="t-guild-change" class="value">—</span></div>
+          </div>
+        </article>
       </div>
     </section>
 
   </main>
 
   <noscript>This calculator needs JavaScript enabled to load live data and run its formulas.</noscript>
-  <script src="calculator.js?v=20260924.1"></script>
-  <script src="app.js?v=20260924.1"></script>
+  <script src="calculator.js?v=20260929.4"></script>
+  <script src="app.js?v=20260929.4"></script>
 </body>
 </html>

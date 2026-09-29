@@ -437,7 +437,6 @@ summary:focus-visible {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.tser-income-panel,
 .battler-income-panel {
   grid-column: 1 / -1;
 }
@@ -946,10 +945,6 @@ noscript {
 
   .result-grid[data-role="battler"] {
     grid-template-columns: 1fr;
-  }
-
-  .tser-income-panel {
-    grid-column: auto;
   }
 
   .panel {

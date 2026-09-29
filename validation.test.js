@@ -51,12 +51,76 @@ const validatedOutputs = {
 };
 
 assert.equal(result.tser.bestPotion, 125000, 'Highest-income potion');
-assert.equal(result.battler.maxSustainablePotion, 176763, 'Battler maximum sustainable whole-level potion');
-assert.equal(result.tser.maxSustainablePotion, 176000, 'Maximum sustainable potion');
+const guildPotion = result.tser.guildPotionAnalysis;
+assert.equal(guildPotion.bestPotion, 161000, 'Guild potion maximizes value before resource tax');
+approximately(guildPotion.grossResourceValue, 474659338068525950, 'Guild gross resource value');
+approximately(guildPotion.currentGrossResourceValue, 494936882153751550, 'Current potion gross resource value');
+approximately(guildPotion.grossResourceChange, -20277544085225600, 'Lower efficient tier shows its lower gross resource output');
+approximately(
+  guildPotion.currentGrossResourceValue + guildPotion.grossResourceChange,
+  guildPotion.grossResourceValue,
+  'Displayed gross resource difference reconciles the current and recommended potions',
+);
 assert.equal(
-  Math.floor(result.battler.maxSustainablePotion / 1000) * 1000,
+  Calc.helpers.tserGuildPotionAnalysis({ ...WORKBOOK_SNAPSHOTS.hohmono, harvestPotion: guildPotion.bestPotion }).grossResourceChange,
+  0,
+  'Gross resource change is zero when already using the recommended potion',
+);
+approximately(guildPotion.farmIncome, 30190727219356870, 'Guild potion still accounts for farm and herb costs');
+approximately(guildPotion.dailyIncome, 504850065287882800, 'Guild total daily income includes baseline resources');
+approximately(guildPotion.changeFromCurrent, 1195503840622720, 'Guild gain compared with the entered potion');
+approximately(
+  guildPotion.grossResourceValue + guildPotion.farmIncome,
+  guildPotion.dailyIncome,
+  'Guild resource and farm values sum to total daily income',
+);
+for (const tax of [0, 25, 99, 100]) {
+  assert.deepEqual(
+    Calc.helpers.tserGuildPotionAnalysis({ ...WORKBOOK_SNAPSHOTS.hohmono, tax }),
+    guildPotion,
+    `Guild potion and income are independent of ${tax}% resource tax`,
+  );
+}
+const untaxedTserInputs = { ...WORKBOOK_SNAPSHOTS.hohmono, tax: 0 };
+assert.equal(
+  Calc.helpers.optimizeTserPotion(untaxedTserInputs).bestPotion,
+  guildPotion.bestPotion,
+  'Guild and personal recommendations agree when resource tax is zero',
+);
+for (const potion of [guildPotion.bestPotion - 1000, guildPotion.bestPotion + 1000]) {
+  assert.ok(
+    Calc.helpers.tserAtPotion(untaxedTserInputs, potion).fullIncome < guildPotion.dailyIncome,
+    'Adjacent searched tiers produce less total guild value',
+  );
+}
+assert.ok(
+  Calc.helpers.tserGuildPotionAnalysis({
+    ...WORKBOOK_SNAPSHOTS.hohmono,
+    bloomwellPrice: WORKBOOK_SNAPSHOTS.hohmono.bloomwellPrice * 4,
+  }).bestPotion < guildPotion.bestPotion,
+  'More expensive Harvest herbs lower the efficient guild potion',
+);
+assert.equal(
+  Calc.helpers.tserGuildPotionAnalysis({
+    ...WORKBOOK_SNAPSHOTS.hohmono, bloomwellPrice: 0, sagerootPrice: 0,
+  }).bestPotion,
+  Calc.C.MAX_TSER_POTION,
+  'Guild optimizer reaches the ceiling when potion herbs have no cost',
+);
+assert.equal(
+  Calc.helpers.tserGuildPotionAnalysis({
+    ...WORKBOOK_SNAPSHOTS.hohmono, averageResourcePrice: 0,
+  }).bestPotion,
+  0,
+  'Guild optimizer avoids Harvest herb costs when resources have no value',
+);
+assert.equal(WORKBOOK_SNAPSHOTS.hohmono.tax, 40, 'Guild analysis preserves the entered tax');
+assert.equal(result.battler.maxSustainablePotion, 176763, 'Battler maximum sustainable whole-level potion');
+assert.equal(result.tser.maxSustainablePotion, 176763, 'TSer maximum sustainable whole-level potion');
+assert.equal(
+  result.battler.maxSustainablePotion,
   result.tser.maxSustainablePotion,
-  'Battler exact ceiling and TSer 1,000-level ceiling use the same herb budget',
+  'Battler and TSer exact ceilings use the same herb budget',
 );
 assert.equal(
   result.battler.netHerbs,
@@ -81,7 +145,7 @@ const nextBattlerPotionTotals = Calc.helpers.battlerAtPotion(
 );
 const nextPotionTotals = Calc.helpers.tserAtPotion(
   WORKBOOK_SNAPSHOTS.hohmono,
-  result.tser.maxSustainablePotion + Calc.C.POTION_SEARCH_STEP,
+  result.tser.maxSustainablePotion + 1,
 );
 assert.ok(
   sustainableTotals.leftoverBloom + sustainableTotals.leftoverSage >= 0,
@@ -89,7 +153,7 @@ assert.ok(
 );
 assert.ok(
   nextPotionTotals.leftoverBloom + nextPotionTotals.leftoverSage < 0,
-  'The next potion tier has negative combined herbs',
+  'One level above the maximum sustainable TSer potion has negative combined herbs',
 );
 assert.ok(
   sustainableBattlerTotals.leftoverBloom + sustainableBattlerTotals.leftoverSage >= 0,
