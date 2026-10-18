@@ -474,6 +474,7 @@
 
   function potionBoostROI(d) {
     const current = finite(d.potionBoost);
+    const purchasedLevel = finite(d.potionBoostLevel, current);
     const currentPotBase = potionBaseResourceBonus(d.harvestPotion, current);
     const nextPotBase = potionBaseResourceBonus(d.harvestPotion, current + 1);
     const common = (1 + finite(d.baseResResearch) / 100) * (finite(d.research) / 100);
@@ -482,7 +483,7 @@
     const valuePerDay = (nextRes - currentRes) * C.TS_POTTED_ACTIONS
       * finite(d.averageResourcePrice) * pctAfterTax(d.tax)
       * ambitiousResourceMultiplier(d);
-    const cost = Math.floor(10_000_000 * 1.1 ** current);
+    const cost = Math.floor(10_000_000 * 1.1 ** purchasedLevel);
     return safeDiv(cost, valuePerDay);
   }
 

@@ -50,6 +50,8 @@ The check locks the Hohmono values documented in `VALIDATION.md`, including the 
 
 ## Formula notes
 
+Both TSer Potion Boost ROI and the Battler potion comparison price the next upgrade from purchased `BaseBoosts[108]`, while potion effectiveness uses `TotalBoosts[108]`. Extra bonus points therefore improve potion effects without increasing the purchased upgrade's cost. Legacy inputs without a separate purchased level fall back to their total boost.
+
 All daily action totals share a 27,400-action event day. At 1,200 actions per hour, potion consumption, Laboratory savings, and Tome Drop calculations use the derived duration of 22.833333… hours (22 hours 50 minutes), with full precision retained in calculations.
 
 Battler Mana Dust includes the 150 starter enemies omitted by the API's current enemy count. It uses the effective enemy level `e = currentEnemy + 150` in both the base reward and the high-level multiplier: `(0.0001 × e² + e^1.2 + 10 × e) × 1.01^((e − 150000) / 2000)`, with the multiplier applied only above `e = 150000`. Daily MD and the Dust Collector / Workshop calculations share this formula.

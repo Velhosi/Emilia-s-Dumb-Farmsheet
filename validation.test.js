@@ -405,6 +405,46 @@ for (const [label, [actual, expected]] of Object.entries(validatedOutputs)) {
   approximately(actual, expected, label);
 }
 
+// Ownin's October 17 API values: 245 purchased levels, 249% effective boost.
+// Use the existing fixture for other inputs; these are not Ownin income estimates.
+const owninPotionBoost = Calc.normalizeFromApis(
+  { BaseBoosts: { 108: 245 }, TotalBoosts: { 108: 249 } }, {}, [], {},
+);
+assert.equal(owninPotionBoost.potionBoostLevel, 245);
+assert.equal(owninPotionBoost.potionBoost, 249);
+const bonusPotionInputs = {
+  ...WORKBOOK_SNAPSHOTS.hohmono,
+  potionBoostLevel: owninPotionBoost.potionBoostLevel,
+  potionBoost: owninPotionBoost.potionBoost,
+};
+const bonusPotionResult = Calc.calculate(bonusPotionInputs);
+// Changing the total can change rounding in the subtraction of daily resource totals.
+assert.ok(
+  Math.abs(bonusPotionResult.roi.tser.potionBoost / result.roi.tser.potionBoost - 1) < 1e-12,
+  'Extra Potion Boost preserves the next purchased upgrade cost and marginal ROI',
+);
+assert.ok(
+  bonusPotionResult.tser.grossPotted > result.tser.grossPotted,
+  'Effective Potion Boost still increases current resource income',
+);
+const purchased249Result = Calc.calculate({ ...bonusPotionInputs, potionBoostLevel: 249 });
+approximately(
+  purchased249Result.roi.tser.potionBoost / bonusPotionResult.roi.tser.potionBoost,
+  1.4641,
+  'Four additional purchased levels increase the upgrade cost by 46.41%',
+);
+assert.deepEqual(
+  bonusPotionResult.tser,
+  purchased249Result.tser,
+  'Purchased level changes pricing without changing effective potion income',
+);
+const zeroPurchasedResult = Calc.calculate({ ...bonusPotionInputs, potionBoostLevel: 0 });
+approximately(
+  zeroPurchasedResult.roi.tser.potionBoost / bonusPotionResult.roi.tser.potionBoost,
+  10_000_000 / Math.floor(10_000_000 * 1.1 ** 245),
+  'A zero purchased level is used rather than falling back to the total boost',
+);
+
 const fourAmbitiousResult = Calc.calculate({
   ...WORKBOOK_SNAPSHOTS.hohmono,
   ambitiousCount: 4,
