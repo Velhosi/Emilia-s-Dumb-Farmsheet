@@ -520,7 +520,7 @@
     const shardsNeeded = 0.000005 * (sumSquaresThrough(end) - sumSquaresThrough(previous))
       + 2 * (sumThrough(end) - sumThrough(previous));
     const cost = shardsNeeded * shardPrice;
-    const addedResearch = n * (0.0002 * nexus + 0.02);
+    const addedResearch = n * (0.0002 * nexus + 0.02) * finite(d.pinnacleResearchMultiplier, 1);
 
     const potBase = potionBaseResourceBonus(d.harvestPotion, d.potionBoost);
     const baseFactor = (1 + finite(d.level) * 0.03 + potBase + finite(d.baseRes))
@@ -877,7 +877,9 @@
     const baseBoosts = playerData?.BaseBoosts || {};
     const constellation = playerData?.Constellation || {};
     const equipment = playerData?.Equipment || {};
-    const equipmentItems = Object.values(equipment);
+    const equipmentItems = Object.values(equipment).filter(
+      item => item && item.IsEquipped !== false && item.isEquipped !== false,
+    );
     const getNum = (obj, key, fallback = 0) => finite(obj?.[key], fallback);
 
     const prefixName = (item) => {
@@ -911,6 +913,15 @@
     const woodcutting = finite(playerData?.WoodcuttingLevel);
     const gatheringId = mining >= fishing && mining >= woodcutting ? '30'
       : fishing >= mining && fishing >= woodcutting ? '31' : '32';
+    const spireBase = finite(baseBoosts['152']);
+    const pinnacleResearchItemCount = equipmentItems.filter(
+      item => finite(item.Boosts?.[gatheringId]) > 0,
+    ).length;
+    // Live API totals use the full Spire factor (including its base 1x), per matching item.
+    // Pinnacle multiplies the research bonus, leaving TotalBoosts' baseline 1 untouched.
+    const pinnacleResearchMultiplier = getNum(constellation, '49') > 0
+      ? 1 + pinnacleResearchItemCount * 0.0005 * (1 + spireBase / 100)
+      : 1;
 
     let equipmentResearch = 0;
     let equipmentBaseRes = 0;
@@ -929,13 +940,13 @@
     try {
       const totalResearchBoost = finite(totalBoosts[gatheringId], NaN);
       const baseResearchBoost = finite(baseBoosts[gatheringId], NaN);
-      const spireBase = finite(baseBoosts['152']);
-      const equipmentTerm = Object.values(equipment).reduce((acc, item) => {
+      const equipmentTerm = equipmentItems.reduce((acc, item) => {
         const b = item?.Boosts?.[gatheringId];
         if (b == null) return acc;
         return acc + Math.floor(finite(b) * (1 + effectiveInfusions(item) / 20)) * (1 + spireBase / 100);
       }, 0);
-      const x = ((((totalResearchBoost - 1) * 100) / 0.02 - equipmentTerm) / baseResearchBoost - 1) * 100;
+      const researchWithoutPinnacle = (totalResearchBoost - 1) / pinnacleResearchMultiplier;
+      const x = ((researchWithoutPinnacle * 100 / 0.02 - equipmentTerm) / baseResearchBoost - 1) * 100;
       if (Number.isFinite(x)) nexusLevel = Math.round(x);
     } catch (_) {}
 
@@ -995,6 +1006,7 @@
       spire: getNum(totalBoosts, '152'),
       equipmentBaseRes,
       equipmentResearch,
+      pinnacleResearchMultiplier,
       ambitiousCount,
       sigilBoost,
       hasNonDistillationSigil: sigilBoost > 0 && sigilBoost !== C.DISTILLATION_SIGIL_BOOST_ID,

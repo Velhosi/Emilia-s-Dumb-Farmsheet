@@ -6,6 +6,8 @@ Updated 2026-10-17 to reflect the local TSer Potion Boost pricing correction: pu
 
 Also updated for Ambidextrous construction timing and the Shards constellation drop-amount multiplier. Potency is already included in the API's total Potion Boost. Other new constellation perks are not independently simulated by this update.
 
+Updated 2026-10-18 for Pinnacle in Nexus inference and the marginal research gain used in Shard ROI, verified against live API totals.
+
 This document describes the current calculator. Formulas added from the screenshot are identified below; they have not been added to the calculator itself. No live player or market values are hardcoded here. Code blocks use mathematical notation: `^` means exponentiation (use `**` in JavaScript).
 
 ## 1. Upgrade costs, including the supplied screenshot
@@ -308,12 +310,12 @@ n = 1000
 shardsNeeded = 0.000005 * [S2(L+n) - S2(L-1)]
              + 2 * [S1(L+n) - S1(L-1)]
 cost = shardsNeeded * ShardBuyPrice
-extraResearch = n * (0.0002*NexusLevel + 0.02)
+extraResearch = n * (0.0002*NexusLevel + 0.02) * pinnacleResearchMultiplier
 extraDailyValue = baseFactor * (extraResearch/100) * resourceValueFactor
 ROI = cost / extraDailyValue
 ```
 
-The current cost expression sums `0.000005*k^2 + 2*k` from **k=L through L+n inclusive**, i.e. 1,001 terms for n=1,000. This preserves the current implementation; it is not a claim that this endpoint convention has been independently confirmed. Do not replace it with the combat cost. Missing Nexus or shard-price inputs make this ROI unavailable.
+The current cost expression sums `0.000005*k^2 + 2*k` from **k=L through L+n inclusive**, i.e. 1,001 terms for n=1,000. This preserves the current implementation; it is not a claim that this endpoint convention has been independently confirmed. Do not replace it with the combat cost. Missing Nexus or shard-price inputs make this ROI unavailable. The Pinnacle multiplier is defined in section 11 and defaults to 1 for older inputs.
 
 ### Laboratory: one level
 
@@ -452,6 +454,7 @@ The current app requests `/players/:username`, `/market`, and `/guilds` from the
 | Purchased Construction Codex / Ambidextrous ranks | `BaseBoosts[104]` / `Constellation[6]` |
 | Shards constellation ranks | `Constellation[14]`; amount multiplier `1 + 0.03 * ranks` |
 | Potency | `Constellation[11]`; already included in `TotalBoosts[108]`, do not add again |
+| Pinnacle | `Constellation[49] > 0`; research multiplier from matching equipped items and `BaseBoosts[152]` |
 | Construction pet | `Pets[24].Level` when active; search by pet ID 24 if needed; missing Active defaults true in parser |
 | Guild level | Match player's `GuildID` to guild list `ID`, then read `Level` |
 | Non-Distillation sigil warning | `SigilBoost > 0 && SigilBoost != 110` |
@@ -475,6 +478,12 @@ gatheringId = 30 for highest Mining, 31 for highest Fishing, otherwise 32
              (ties prefer Mining, then Fishing)
 effectiveInfusions(item) = item.Infusions + (item is Imbued ? 1 : 0)
 infusionMultiplier(item) = 1 + effectiveInfusions(item)/20
+Only equipped items contribute below (missing IsEquipped defaults to equipped).
+
+matchingItems = count(equipped items with positive Boosts[gatheringId])
+pinnacleResearchMultiplier = Constellation[49] > 0
+  ? 1 + matchingItems * 0.0005 * (1 + BaseBoosts[152]/100)
+  : 1
 
 equipmentResearch = sum(item.Boosts[gatheringId] * infusionMultiplier(item) / 50)
 equipmentBaseRes = sum(item.Boosts[124]/100 * infusionMultiplier(item))
@@ -483,12 +492,14 @@ equipmentTerm = sum(floor(item.Boosts[gatheringId] * infusionMultiplier(item))
                     * (1 + BaseBoosts[152]/100))
 
 NexusLevel = round((
-  (((TotalBoosts[gatheringId] - 1)*100/0.02 - equipmentTerm)
+  (((TotalBoosts[gatheringId] - 1)/pinnacleResearchMultiplier*100/0.02 - equipmentTerm)
      / BaseBoosts[gatheringId]) - 1
 ) * 100)
 ```
 
 Missing item boosts contribute zero. Imbued is recognized by numeric prefix ID 10, an Imbued item name, or an explicit Imbued prefix name. The API's `Infusions` excludes the extra infusion; add it exactly once even when multiple identifiers match. Ambitious is counted from equipped items' names or explicit prefix names, capped at eight.
+
+The Pinnacle formula matches the October 18 API totals for Hohmono, Ownin, and Pepo. The observed multiplier uses the **full Spire factor**, including its base 1x (equivalently, `1 + matchingItems * (Spire + 100) * 0.000005`). It multiplies the research bonus, excluding the API's baseline 1. For Hohmono, eight matching items and Spire 1,415 give `1.0606x` and Nexus 25,921. Current research already contains Pinnacle: remove it only for the inverse Nexus calculation, and apply it to the marginal research from new shard upgrades. This correction does not add a Pinnacle model to the Spire ROI formula above.
 
 `equipmentBaseRes` is available from normalization but the income formula already uses `TotalBoosts[124]/100`; do not add equipment base resources again. Nexus inference uses the highest gathering **level** to select its boost ID, while normalized research independently uses the largest total gathering boost. Do not confuse the two selections. An invalid Nexus inference returns unavailable, not a genuine level zero.
 

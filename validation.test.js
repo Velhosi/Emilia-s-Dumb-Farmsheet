@@ -595,6 +595,95 @@ const normalizedImbuedResources = normalizeImbuedPlayer({
 });
 approximately(normalizedImbuedResources.equipmentBaseRes, 2.65, 'Imbued applies once to equipment base resources');
 
+// October 18 API captures cover three Pinnacle players and a control with Imbued only.
+const pinnacleCaptures = [
+  { name: 'Hohmono', gatheringId: 31, spire: 1415, base: 8649032,
+    total: 648856.4271074544, multiplier: 1.0606, pinnacle: 1, nexus: 25921,
+    boosts: [2592486, 2594990, 2546178, 2544025, 2517911, 2545008, 2585794, 2595131] },
+  { name: 'Ownin', gatheringId: 30, spire: 1010, base: 7363846,
+    total: 516480.0717928687, multiplier: 1.0444, pinnacle: 1, nexus: 25921,
+    boosts: [2470175, 2404163, 2410645, 2411745, 2398571, 2410224, 2363705, 2412306] },
+  { name: 'Pepo', gatheringId: 31, spire: 1060, base: 7805278,
+    total: 516789.27457638405, multiplier: 1.0464, pinnacle: 1, nexus: 24600,
+    infusions: [31, 31, 31, 31, 31, 31, 31, 31],
+    boosts: [2288767, 2276200, 2281820, 2295891, 2293411, 2296266, 2277672, 2294885] },
+  { name: 'Mephisto', gatheringId: 32, spire: 700, base: 5948908,
+    total: 358677.436, multiplier: 1, pinnacle: 0, nexus: 24600,
+    infusions: [31, 29, 30, 30, 30, 30, 31, 31], prefixes: [13, 14, 11, 10, 13, 11, 8, 8],
+    boosts: [2005919, 2016870, 2014974, 1975120, 2019303, 2014928, 2010716, 2022322] },
+];
+for (const capture of pinnacleCaptures) {
+  const player = {
+    MiningLevel: capture.gatheringId === 30 ? 2 : 1,
+    FishingLevel: capture.gatheringId === 31 ? 2 : 1,
+    WoodcuttingLevel: capture.gatheringId === 32 ? 2 : 1,
+    BaseBoosts: { [capture.gatheringId]: capture.base, 152: capture.spire },
+    TotalBoosts: { [capture.gatheringId]: capture.total, 152: capture.spire },
+    Constellation: { 49: capture.pinnacle },
+    Equipment: Object.fromEntries(capture.boosts.map((boost, i) => [i + 1, {
+      IsEquipped: true, Infusions: capture.infusions?.[i] ?? 32, Prefix: capture.prefixes?.[i] ?? 0,
+      Boosts: { [capture.gatheringId]: boost },
+    }])),
+  };
+  const normalized = normalizeImbuedPlayer(player);
+  assert.equal(normalized.nexusLevel, capture.nexus, `${capture.name} Nexus matches the independent level check`);
+  approximately(normalized.pinnacleResearchMultiplier, capture.multiplier, `${capture.name} Pinnacle multiplier`);
+  assert.equal(normalized.research, capture.total * 100, 'Current income retains the full API research total');
+}
+
+const pinnacleImbuedPlayer = normalizeImbuedPlayer({
+  ...imbuedNexusPlayer,
+  Constellation: { 49: 1 },
+  TotalBoosts: { 30: 1 + (449185.792206 - 1) * 1.04324 },
+});
+assert.equal(pinnacleImbuedPlayer.nexusLevel, 23970, 'Pinnacle and the extra Imbued infusion work together');
+
+// At zero Spire, the live model still has the base 1x Spire component.
+const smallPinnaclePlayer = {
+  MiningLevel: 1, BaseBoosts: { 30: 100, 152: 0 }, TotalBoosts: { 30: 1.06003 },
+  Constellation: { 49: 1 },
+  Equipment: {
+    1: { Infusions: 0, Boosts: { 30: 100 } },
+    2: { IsEquipped: false, Boosts: { 30: 100 } },
+    3: { Boosts: { 31: 100, 121: 100 } },
+  },
+};
+const smallPinnacle = normalizeImbuedPlayer(smallPinnaclePlayer);
+assert.equal(smallPinnacle.nexusLevel, 100, 'Only equipped items with the relevant research stat count');
+approximately(smallPinnacle.pinnacleResearchMultiplier, 1.0005, 'One matching item contributes one Pinnacle bonus');
+const noPinnacle = normalizeImbuedPlayer({
+  ...smallPinnaclePlayer, Constellation: { 49: 0 }, TotalBoosts: { 30: 1.06 },
+});
+assert.equal(noPinnacle.nexusLevel, 100, 'A locked Pinnacle perk does not change Nexus');
+assert.equal(noPinnacle.pinnacleResearchMultiplier, 1, 'Locked Pinnacle has no multiplier');
+const noPinnacleEquipment = normalizeImbuedPlayer({
+  ...smallPinnaclePlayer, Equipment: {}, TotalBoosts: { 30: 1.04 },
+});
+assert.equal(noPinnacleEquipment.nexusLevel, 100, 'Pinnacle without matching equipment has no effect');
+
+// Compare Shard ROI with the income difference from an independently reconstructed +1,000 snapshot.
+const pinnacleShardInputs = {
+  ...WORKBOOK_SNAPSHOTS.hohmono,
+  nexusLevel: 25921, shardBoost: 8649032, research: 648856.4271074544 * 100,
+  pinnacleResearchMultiplier: 1.0606,
+};
+const afterShardResearch = 100 + ((8649032 + 1000) * 260.21 + 808342733.4) * 0.02 * 1.0606;
+const beforeShards = Calc.helpers.tserAtPotion(pinnacleShardInputs, pinnacleShardInputs.harvestPotion);
+const afterShards = Calc.helpers.tserAtPotion(
+  { ...pinnacleShardInputs, research: afterShardResearch }, pinnacleShardInputs.harvestPotion,
+);
+const addedShardIncome = (afterShards.pottedAfterEvent - beforeShards.pottedAfterEvent)
+  * pinnacleShardInputs.averageResourcePrice;
+let shardUpgradeCost = 0;
+for (let level = 8649032; level <= 8650032; level++) {
+  shardUpgradeCost += (0.000005 * level ** 2 + 2 * level) * pinnacleShardInputs.shardPrice;
+}
+const pinnacleShardRoi = Calc.calculate(pinnacleShardInputs).roi.tser.shards;
+assert.ok(
+  Math.abs(pinnacleShardRoi / (shardUpgradeCost / addedShardIncome) - 1) < 1e-9,
+  'Shard ROI includes Pinnacle in the marginal research gain after correcting Nexus',
+);
+
 const distillationSigilPlayer = Calc.normalizeFromApis(
   { ...prefixPlayer, SigilBoost: Calc.C.DISTILLATION_SIGIL_BOOST_ID },
   { Buy: {}, Sell: {} },

@@ -74,6 +74,8 @@ The post-workbook Ambitious rule is applied as a final multiplier to TSer resour
 
 Imbued equipment contributes one additional effective infusion beyond the API's `Infusions` field. The API parser recognizes prefix ID `10` or the Imbued name and applies the bonus once per item when calculating equipment research, equipment base resources, and the equipment contribution subtracted to infer Nexus level for Shard ROI.
 
+Pinnacle (`Constellation[49]`) is removed from the API research bonus before inferring Nexus. The October 18 live data matches `P = 1 + matching equipped items × 0.0005 × (1 + BaseBoosts[152]/100)`: the full Spire factor includes its base 1x. Divide `TotalBoosts[gatheringId] - 1` by `P`, then subtract equipment research to infer Nexus. Current income keeps the full API total; Shard ROI multiplies newly gained research by `P`. Missing or locked Pinnacle defaults to `P = 1`. Hohmono now resolves to Nexus 25,921; Pepo and Mephisto resolve to 24,600.
+
 See `VALIDATION.md` for exact comparison values and the discrepancy between the older stored 79.99 / 52.07 values and the formulas in the newest workbook.
 
 ## Files
