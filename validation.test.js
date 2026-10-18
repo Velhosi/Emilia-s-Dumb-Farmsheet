@@ -631,6 +631,7 @@ const liveConstructionPlayer = Calc.normalizeFromApis(
   { username: 'ConstructionTest', tax: 0, harvestPotion: 1000, resonancePotion: 1000 },
 );
 assert.equal(liveConstructionPlayer.workshopLevel, 640, 'Workshop level is read from API boost 150');
+assert.equal(liveConstructionPlayer.constructionCodex, 75, 'Purchased Construction Codex is retained separately');
 assert.equal(liveConstructionPlayer.constructionBoost, 715, 'Construction boost is read from API boost 104');
 assert.equal(liveConstructionPlayer.constructionPetLevel, 13, 'Active construction pet level is read from pet 24');
 
@@ -662,6 +663,34 @@ assert.ok(
   Number.isFinite(liveConstructionRoi) && liveConstructionRoi !== changedConstructionRoi,
   'Workshop to Dust Collector ROI responds to the live Construction boost',
 );
+
+const constellationConstruction = Calc.normalizeFromApis({
+  BaseBoosts: { 104: 100, 150: 1000 }, TotalBoosts: { 104: 1100 },
+  Pets: { 24: { Level: 12, Active: true } }, Constellation: { 6: 3 },
+}, {}, [], {});
+assert.equal(constellationConstruction.ambidextrousLevel, 3, 'Ambidextrous reads constellation effect 6');
+assert.equal(constellationConstruction.constructionBoost, 1100, 'Ambidextrous is not added to Construction Boost');
+const ambidextrousInputs = { ...WORKBOOK_SNAPSHOTS.emilia,
+  constructionCodex: constellationConstruction.constructionCodex,
+  constructionBoost: constellationConstruction.constructionBoost,
+  constructionPetLevel: constellationConstruction.constructionPetLevel,
+  workshopLevel: constellationConstruction.workshopLevel,
+  ambidextrousLevel: constellationConstruction.ambidextrousLevel,
+};
+const ambidextrousBreakdown = Calc.helpers.workshopDustCollectorRoiBreakdown(ambidextrousInputs);
+const noAmbidextrousBreakdown = Calc.helpers.workshopDustCollectorRoiBreakdown({ ...ambidextrousInputs, ambidextrousLevel: 0 });
+approximately(ambidextrousBreakdown.ambidextrousChancePercent, 3, '100 Codex and three ranks give 3% extra-tick chance');
+approximately(ambidextrousBreakdown.ambidextrousExtraSecondsPerTick, 0.09, 'Expected extra timer reduction is 0.09 seconds per tick');
+approximately(ambidextrousBreakdown.constructionTickMultiplier, 1.27, 'Pet and Codex proc contributions add rather than multiply');
+approximately(ambidextrousBreakdown.currentConstructionMultiplier, 12 * 1.27, 'Current construction includes Ambidextrous once');
+approximately(ambidextrousBreakdown.nextConstructionMultiplier, 12.01 * 1.27, 'Workshop upgrade leaves purchased Codex and proc chance fixed');
+approximately(ambidextrousBreakdown.roi / noAmbidextrousBreakdown.roi, Math.sqrt(1.24 / 1.27), 'Ambidextrous improves the existing cumulative Workshop payback');
+assert.equal(ambidextrousBreakdown.workshopCost, noAmbidextrousBreakdown.workshopCost, 'Ambidextrous does not change building costs');
+const withoutPet = Calc.helpers.workshopDustCollectorRoiBreakdown({ ...ambidextrousInputs, constructionPetLevel: 0 });
+approximately(withoutPet.constructionTickMultiplier, 1.03, 'Ambidextrous works without an active pet');
+const withoutCodex = Calc.helpers.workshopDustCollectorRoiBreakdown({ ...ambidextrousInputs, constructionCodex: 0 });
+approximately(withoutCodex.constructionTickMultiplier, 1.24, 'Workshop levels are not substituted for purchased Codex levels');
+assert.equal(liveConstructionPlayer.ambidextrousLevel, 0, 'Older API responses default to no Ambidextrous');
 
 const cappedPrefixPlayer = Calc.normalizeFromApis(
   {

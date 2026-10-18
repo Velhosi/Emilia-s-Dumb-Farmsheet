@@ -120,4 +120,41 @@ assert.ok(Math.abs(emiliaResonance.minimumBaseDrop - 211771.26449518432) < 1e-8)
 assert.ok(Math.abs(emiliaResonance.valuePerDay - 8448264136769.767) < 0.01);
 assert.ok(H.resonanceUpgradeValue({ ...normalizedShards, battleLevel: 93781 }).valuePerDay > emiliaResonance.valuePerDay);
 assert.equal(H.battlerPotionAnalysis({ ...inputs, ...shardInputs }).resonanceValue.valuePerDay, shardValue.valuePerDay);
+
+// Potency already appears in TotalBoosts[108]; Shards is a separate drop-amount multiplier.
+const constellationPlayer = Calc.normalizeFromApis({
+  Level: 0, MiningLevel: 0, FishingLevel: 0, WoodcuttingLevel: 0,
+  BaseBoosts: { 108: 245 }, TotalBoosts: { 108: 249, 102: 0, 122: 500 },
+  Constellation: { 11: 2, 14: 3 },
+}, { Sell: { 2: 10 } }, [], { harvestPotion: 100000, resonancePotion: 100 });
+assert.equal(constellationPlayer.potionBoost, 249, 'Potency is not added to the API total a second time');
+assert.equal(constellationPlayer.potionBoostLevel, 245, 'Potency leaves the purchased upgrade cost level unchanged');
+assert.equal(constellationPlayer.shardConstellationLevel, 3, 'Shards reads constellation effect 14');
+const constellationValue = H.resonanceUpgradeValue(constellationPlayer);
+const noShardsValue = H.resonanceUpgradeValue({ ...constellationPlayer, shardConstellationLevel: 0 });
+assert.equal(constellationValue.shardConstellationBonusPercent, 9, 'Three Shards ranks add 9% rather than compounding');
+assert.equal(constellationValue.effectiveDropChance, 1/80, 'Shards modifies quantity, not drop chance');
+assert.equal(constellationValue.minimumBaseDrop, 100, 'Weighted minimum base drop is unchanged');
+assert.equal(constellationValue.currentResonanceBonus, 1745, 'Current Resonance uses all 249% effective Potion Boost');
+assert.equal(constellationValue.nextResonanceBonus, 1750, 'Next purchased point raises total Potion Boost by one');
+for (const key of ['currentAverageDrop', 'nextAverageDrop', 'currentShardsPerDay', 'extraShardsPerDay', 'retainedExtraShardsPerDay', 'valuePerDay']) {
+  assert.ok(Math.abs(constellationValue[key] / noShardsValue[key] - 1.09) < 1e-12, `${key} includes the 9% Shards multiplier exactly once`);
+}
+assert.ok(Math.abs((constellationValue.nextShardsPerDay - constellationValue.currentShardsPerDay) - constellationValue.extraShardsPerDay) < 1e-8,
+  'Current and upgraded shard totals reconcile with the marginal gain');
+assert.equal(H.resonanceUpgradeValue({ ...constellationPlayer, shardConstellationLevel: 10 }).shardConstellationMultiplier, 1.3);
+const constellationComparison = H.battlerPotionAnalysis({ ...inputs,
+  ...shardInputs, potionBoost: constellationPlayer.potionBoost,
+  potionBoostLevel: constellationPlayer.potionBoostLevel,
+  shardConstellationLevel: constellationPlayer.shardConstellationLevel,
+});
+assert.equal(constellationComparison.potionBoostCost, Math.floor(1e7 * 1.1 ** 245));
+assert.equal(constellationComparison.potionBoostGainPercent, 100/349, 'Wisdom gain uses the effective total including Potency');
+assert.equal(constellationComparison.matchingWisdomPotion, Math.ceil(constellationComparison.maximumSustainablePotion * 350/349));
+const comparisonWithoutShards = H.battlerPotionAnalysis({ ...inputs, ...shardInputs,
+  potionBoost: 249, potionBoostLevel: 245, shardConstellationLevel: 0,
+});
+assert.equal(constellationComparison.preferredOption, comparisonWithoutShards.preferredOption, 'Separate Resonance income does not alter the XP-only recommendation');
+assert.equal(constellationComparison.maximumSustainablePotion, comparisonWithoutShards.maximumSustainablePotion, 'Shards does not change potion consumption');
+assert.equal(normalizedShards.shardConstellationLevel, 0, 'Older API responses default to no Shards perk');
 console.log('Validated Battler potion equivalence, sustainable thresholds, balanced farm costs, recommendations, and Resonance shard value.');

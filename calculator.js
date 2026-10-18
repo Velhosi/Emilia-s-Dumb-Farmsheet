@@ -339,21 +339,25 @@
     const effectiveDropChance = Math.min(1, C.BASE_SHARD_DROP_CHANCE * (1 + d.dropBoost / 100));
     const dropsPerDay = C.NON_EVENT_BATTLES_PER_DAY * effectiveDropChance;
     const equipmentShardBonus = Math.max(0, finite(d.equipmentShardBonus));
+    const shardConstellationBonusPercent = 3 * Math.max(0, finite(d.shardConstellationLevel));
+    const shardConstellationMultiplier = 1 + shardConstellationBonusPercent / 100;
     const currentResonanceBonus = 5 * d.resonancePotion * (1 + d.potionBoost / 100);
     // Equipment and Resonance add to the same shard-amount bonus. Only the potion changes.
     const extraResonanceBonus = 5 * d.resonancePotion / 100;
     const nextResonanceBonus = currentResonanceBonus + extraResonanceBonus;
     const currentAverageDrop = averageBaseDrop
-      * (1 + (equipmentShardBonus + currentResonanceBonus) / 100);
+      * (1 + (equipmentShardBonus + currentResonanceBonus) / 100) * shardConstellationMultiplier;
     const nextAverageDrop = averageBaseDrop
-      * (1 + (equipmentShardBonus + nextResonanceBonus) / 100);
+      * (1 + (equipmentShardBonus + nextResonanceBonus) / 100) * shardConstellationMultiplier;
     const currentShardsPerDay = dropsPerDay * currentAverageDrop;
-    const extraShardsPerDay = dropsPerDay * averageBaseDrop * extraResonanceBonus / 100;
+    const extraShardsPerDay = dropsPerDay * averageBaseDrop * extraResonanceBonus / 100
+      * shardConstellationMultiplier;
     const retainedExtraShardsPerDay = extraShardsPerDay * C.SHARD_RETAINED_FRACTION;
     const valuePerDay = retainedExtraShardsPerDay * d.shardSellPrice;
     if (!Number.isFinite(valuePerDay)) return null;
 
     return { weightedLevel, minimumBaseDrop, averageBaseDrop, effectiveDropChance, dropsPerDay,
+      shardConstellationBonusPercent, shardConstellationMultiplier,
       equipmentShardBonus, currentResonanceBonus, nextResonanceBonus, extraResonanceBonus,
       currentAverageDrop, nextAverageDrop,
       currentShardsPerDay, nextShardsPerDay: currentShardsPerDay + extraShardsPerDay,
@@ -366,7 +370,7 @@
     const potionBoostCost = Math.floor(10_000_000 * 1.1 ** potionBoostLevel);
     const potionBoostGainPercent = 100 / (100 + potionBoost);
     const comparison = {
-      maximumSustainablePotion, potionBoost, nextPotionBoost: potionBoost + 1,
+      maximumSustainablePotion, potionBoost, potionBoostLevel, nextPotionBoost: potionBoost + 1,
       potionBoostCost: Number.isFinite(potionBoostCost) ? potionBoostCost : null,
       potionBoostGainPercent, matchingWisdomPotion: null, extraHerbsConsumedPerDay: null,
       resonanceValue: resonanceUpgradeValue(d),
@@ -758,14 +762,20 @@
   function workshopDustCollectorRoiBreakdown(d) {
     const workshop = finite(d.workshopLevel);
     const pet = finite(d.constructionPetLevel);
+    const constructionCodex = Math.max(0, finite(d.constructionCodex));
+    const ambidextrousLevel = Math.max(0, finite(d.ambidextrousLevel));
+    const ambidextrousChancePercent = constructionCodex * ambidextrousLevel * 0.01;
+    const ambidextrousExtraSecondsPerTick = 3 * ambidextrousChancePercent / 100;
     const constructionBoost = d.constructionBoost == null
       ? workshop + finite(d.constructionCodex)
       : finite(d.constructionBoost);
     const speed = finite(d.buildSpeed, 1) || 1;
     const petEffective = (((1 - 0.02 * pet) * 3) + ((pet * 0.02) * 6)) / 3;
-    const buildSeconds = ((1 + constructionBoost / 100) * petEffective) * speed;
+    // The game's timer adds pet and Ambidextrous expected reductions to each tick.
+    const constructionTickMultiplier = petEffective + ambidextrousChancePercent / 100;
+    const buildSeconds = ((1 + constructionBoost / 100) * constructionTickMultiplier) * speed;
     const nextConstructionMultiplier = ((1 + (constructionBoost + 1) / 100)
-      * petEffective) * speed;
+      * constructionTickMultiplier) * speed;
     const buildsPerDay = (86400 / buildSeconds) * speed;
     const timeSavePerBuild = buildsPerDay
       * (1 - ((1 + constructionBoost / 100) / (1 + (constructionBoost + 1) / 100))
@@ -780,6 +790,11 @@
     return {
       workshopCost,
       constructionBoost,
+      constructionCodex,
+      ambidextrousLevel,
+      ambidextrousChancePercent,
+      ambidextrousExtraSecondsPerTick,
+      constructionTickMultiplier,
       constructionPetLevel: pet,
       constructionPetMultiplier: petEffective,
       buildSpeed: speed,
@@ -860,6 +875,7 @@
   function normalizeFromApis(playerData, marketData, guilds, userInputs) {
     const totalBoosts = playerData?.TotalBoosts || {};
     const baseBoosts = playerData?.BaseBoosts || {};
+    const constellation = playerData?.Constellation || {};
     const equipment = playerData?.Equipment || {};
     const equipmentItems = Object.values(equipment);
     const getNum = (obj, key, fallback = 0) => finite(obj?.[key], fallback);
@@ -967,6 +983,7 @@
       fishingLevel: getNum(playerData, 'FishingLevel', NaN),
       woodcuttingLevel: getNum(playerData, 'WoodcuttingLevel', NaN),
       equipmentShardBonus: getNum(totalBoosts, '122'),
+      shardConstellationLevel: Math.max(0, Math.trunc(getNum(constellation, '14'))),
       shardSellPrice: getNum(sell, '2', NaN),
       potionBoost: getNum(totalBoosts, '108'),
       potionBoostLevel: getNum(baseBoosts, '108', getNum(totalBoosts, '108')),
@@ -1004,6 +1021,8 @@
       dustEquipment: getNum(totalBoosts, '121'),
       currentEnemy: finite(playerData?.Enemy),
       workshopLevel,
+      constructionCodex,
+      ambidextrousLevel: Math.max(0, Math.trunc(getNum(constellation, '6'))),
       constructionPetLevel: constructionPet && constructionPetActive
         ? finite(constructionPet.Level ?? constructionPet.level)
         : 0,

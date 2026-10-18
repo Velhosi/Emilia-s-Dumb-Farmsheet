@@ -4,6 +4,8 @@ Prepared 2026-10-13 from this project's `calculator.js`, the user's supplied cos
 
 Updated 2026-10-17 to reflect the local TSer Potion Boost pricing correction: purchased level determines cost for both roles; total boost determines effect.
 
+Also updated for Ambidextrous construction timing and the Shards constellation drop-amount multiplier. Potency is already included in the API's total Potion Boost. Other new constellation perks are not independently simulated by this update.
+
 This document describes the current calculator. Formulas added from the screenshot are identified below; they have not been added to the calculator itself. No live player or market values are hardcoded here. Code blocks use mathematical notation: `^` means exponentiation (use `**` in JavaScript).
 
 ## 1. Upgrade costs, including the supplied screenshot
@@ -241,10 +243,13 @@ resonanceBonusPercent = 5 * Z * (1 + B/100)
 extraResonanceBonusPercent = 5 * Z / 100
 nextResonanceBonusPercent = resonanceBonusPercent + extraResonanceBonusPercent
 
+shardConstellationMultiplier = 1 + 0.03 * Constellation[14]
 averageDrop = averageBaseDrop
              * (1 + (EquipmentShardBonus + resonanceBonusPercent)/100)
+             * shardConstellationMultiplier
 currentShardsPerDay = dropsPerDay * averageDrop
 extraShardsPerDay = dropsPerDay * averageBaseDrop * extraResonanceBonusPercent/100
+                   * shardConstellationMultiplier
 
 extraShardsRetainedAt90PercentTax = extraShardsPerDay * 0.1
 extraMDPerDayAt90PercentTax = extraShardsRetainedAt90PercentTax * ShardSellPrice
@@ -398,8 +403,11 @@ p = active Construction pet level, or 0
 s = buildSpeed, default 1
 
 petMultiplier = [3*(1-0.02p) + 6*(0.02p)]/3 = 1 + 0.02p
-m = (1 + C/100) * petMultiplier * s
-nextM = (1 + (C+1)/100) * petMultiplier * s
+ambidextrousChance = BaseBoosts[104] * Constellation[6] / 10000
+expectedExtraSecondsPerTick = 3 * ambidextrousChance
+tickMultiplier = petMultiplier + ambidextrousChance
+m = (1 + C/100) * tickMultiplier * s
+nextM = (1 + (C+1)/100) * tickMultiplier * s
 buildsPerDay = (86400/m) * s
 timeSavePerBuild = buildsPerDay * [1 - (1+C/100)/(1+(C+1)/100)] / s
 
@@ -441,6 +449,9 @@ The current app requests `/players/:username`, `/market`, and `/guilds` from the
 | Drop Boost / equipment shard bonus | `TotalBoosts[102]` / `[122]` |
 | Nature / Water / Fire tome levels | `BaseBoosts[27]` / `[26]` / `[25]` |
 | Construction boost | `TotalBoosts[104]`; fallback `Workshop + BaseBoosts[104]` |
+| Purchased Construction Codex / Ambidextrous ranks | `BaseBoosts[104]` / `Constellation[6]` |
+| Shards constellation ranks | `Constellation[14]`; amount multiplier `1 + 0.03 * ranks` |
+| Potency | `Constellation[11]`; already included in `TotalBoosts[108]`, do not add again |
 | Construction pet | `Pets[24].Level` when active; search by pet ID 24 if needed; missing Active defaults true in parser |
 | Guild level | Match player's `GuildID` to guild list `ID`, then read `Level` |
 | Non-Distillation sigil warning | `SigilBoost > 0 && SigilBoost != 110` |

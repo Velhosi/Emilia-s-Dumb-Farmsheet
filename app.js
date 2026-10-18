@@ -546,6 +546,12 @@ function workshopDustCollectorRoiInfo(data) {
       { label: 'Total Construction Speed', value: formatters.percent(breakdown.constructionBoost) },
       { label: 'Active Construction pet level', value: formatters.integer(breakdown.constructionPetLevel) },
       { label: 'Construction pet multiplier', value: `${formatters.days(breakdown.constructionPetMultiplier)}×` },
+      ...(breakdown.ambidextrousLevel > 0 ? [
+        { label: 'Construction Codex level', value: formatters.integer(breakdown.constructionCodex) },
+        { label: 'Ambidextrous ranks', value: formatters.integer(breakdown.ambidextrousLevel) },
+        { label: 'Chance to remove another 3 seconds / tick', value: formatters.percent(breakdown.ambidextrousChancePercent) },
+        { label: 'Expected extra seconds removed / tick', value: formatFull(breakdown.ambidextrousExtraSecondsPerTick) },
+      ] : []),
       { label: 'Current combined multiplier', value: `${formatters.days(breakdown.currentConstructionMultiplier)}×` },
       { label: 'Multiplier after Workshop upgrade', value: `${formatters.days(breakdown.nextConstructionMultiplier)}×` },
       { section: 'Dust Collector value' },
@@ -557,7 +563,7 @@ function workshopDustCollectorRoiInfo(data) {
       { label: 'Calculation', value: `√(${formatCompact(breakdown.paybackNumerator)} ÷ ${formatCompact(breakdown.paybackDenominator)})` },
       { label: 'Workshop → Dust Collector ROI', value: `${formatters.days(breakdown.roi)} days`, tone: infoTone(breakdown.roi), total: true },
     ],
-    note: 'Estimates how long the next Workshop level takes to repay its cost through the extra MD earned by completing future Dust Collector upgrades sooner. Total Construction Speed already includes Workshop and Codex boosts, so Workshop is not added twice.',
+    note: 'Estimates how long the next Workshop level takes to repay its cost through the extra MD earned by completing future Dust Collector upgrades sooner. Total Construction Speed already includes Workshop and Codex boosts. Ambidextrous adds to the pet’s expected timer reduction using purchased Construction Codex levels; upgrading Workshop does not raise that chance.',
   };
 }
 
@@ -594,6 +600,8 @@ function battlerPotionInfo(data, analysis) {
     { label: 'Resonance potion', value: formatters.integer(data.resonancePotion) },
     { label: 'Potion Duration', value: formatters.percent(data.potDuration) },
     { label: 'Event hours / day', value: formatters.days(Calc.C.BATTLE_HOURS_PER_DAY) },
+    { label: 'Purchased Potion Boost level', value: formatters.integer(analysis.potionBoostLevel) },
+    { label: 'Total Potion Boost (including Potency)', value: formatters.percent(analysis.potionBoost) },
     { label: 'Potion Boost cost', value: formatCompact(analysis.potionBoostCost) },
   ];
   if (analysis.farm) {
@@ -640,6 +648,9 @@ function resonanceValueInfo(resonance) {
       { label: 'Resonance shard bonus', value: `${formatters.percent(resonance.currentResonanceBonus)} → ${formatters.percent(resonance.nextResonanceBonus)}` },
       { label: 'Minimum shard drop', value: formatFull(resonance.minimumBaseDrop) },
       { label: 'Average base drop', value: formatFull(resonance.averageBaseDrop) },
+      ...(resonance.shardConstellationBonusPercent > 0 ? [
+        { label: 'Constellation shard amount bonus', value: `+${formatters.percent(resonance.shardConstellationBonusPercent)}` },
+      ] : []),
       { label: 'Average drop including boost', value: `${formatCompact(resonance.currentAverageDrop, 3)} → ${formatCompact(resonance.nextAverageDrop, 3)}` },
       { label: 'Extra shards / day before tax', value: formatCompact(resonance.extraShardsPerDay) },
       { label: 'Extra shards retained with 90% tax', value: formatCompact(resonance.retainedExtraShardsPerDay) },
