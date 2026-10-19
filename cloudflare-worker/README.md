@@ -5,8 +5,11 @@ This Cloudflare Worker provides the browser-safe API used by the static GitHub P
 - `GET /players/:username`
 - `GET /market`
 - `GET /guilds`
+- `GET /leaderboards/stars_unlocked?page=1&gameMode=0&guild=5` (`guild` is optional; `gameMode` is 0 or 1, and `page` is 1–100)
 
 It is deliberately not a general-purpose proxy. Browser access is limited to `https://velhosi.github.io` and local `localhost` / `127.0.0.1` previews. Responses are marked `no-store` so the calculator receives current Manarion data.
+
+The stars route supplies the total unlocked count, including stars not yet assigned in the constellation. Other leaderboard types and unsupported query parameters are rejected. This route was deployed and verified on October 19, 2026 (version `514ee9db-90f8-4a78-9ee7-55cce325b7dc`). The website changes remain local for review; no Git push was part of the relay deployment.
 
 ## Deploy
 

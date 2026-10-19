@@ -27,7 +27,22 @@ function jsonResponse(body, status, origin) {
   return new Response(JSON.stringify(body), { status, headers });
 }
 
-function upstreamUrl(pathname) {
+function upstreamUrl(requestUrl) {
+  const { pathname, searchParams } = requestUrl;
+  if (pathname === '/leaderboards/stars_unlocked') {
+    const allowed = new Set(['page', 'gameMode', 'guild']);
+    if ([...searchParams.keys()].some(key => !allowed.has(key) || searchParams.getAll(key).length !== 1)) return null;
+    const page = searchParams.get('page') ?? '1';
+    const gameMode = searchParams.get('gameMode') ?? '0';
+    const guild = searchParams.get('guild');
+    if (!/^[1-9]\d*$/.test(page) || Number(page) > 100 || !/^[01]$/.test(gameMode)) return null;
+    if (guild !== null && (!/^[1-9]\d*$/.test(guild) || !Number.isSafeInteger(Number(guild)))) return null;
+    const target = new URL(`${MANARION_API}${pathname}`);
+    target.searchParams.set('page', page);
+    target.searchParams.set('gameMode', gameMode);
+    if (guild !== null) target.searchParams.set('guild', guild);
+    return target.toString();
+  }
   if (pathname === '/market' || pathname === '/guilds') {
     return `${MANARION_API}${pathname}`;
   }
@@ -65,11 +80,11 @@ export default {
       return jsonResponse({
         service: 'Emilia Manarion API relay',
         status: 'ok',
-        routes: ['/players/:username', '/market', '/guilds'],
+        routes: ['/players/:username', '/market', '/guilds', '/leaderboards/stars_unlocked'],
       }, 200, origin);
     }
 
-    const target = upstreamUrl(requestUrl.pathname);
+    const target = upstreamUrl(requestUrl);
     if (!target) {
       return jsonResponse({ error: 'Route not found.' }, 404, origin);
     }

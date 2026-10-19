@@ -56,6 +56,31 @@ test('answers CORS preflight without contacting Manarion', async () => {
   assert.equal(response.headers.get('Access-Control-Allow-Methods'), 'GET, OPTIONS');
 });
 
+test('proxies stars unlocked with validated pagination, game mode, and guild filtering', async () => {
+  let fetchedUrl;
+  globalThis.fetch = async url => {
+    fetchedUrl = String(url);
+    return Response.json({ Entries: [{ Name: 'Hohmono', Score: 39 }], TotalPages: 2 });
+  };
+  const response = await worker.fetch(request('/leaderboards/stars_unlocked?page=2&gameMode=0&guild=5'));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'), SITE_ORIGIN);
+  assert.equal(fetchedUrl, 'https://api.manarion.com/leaderboards/stars_unlocked?page=2&gameMode=0&guild=5');
+  assert.equal((await response.json()).Entries[0].Score, 39);
+});
+
+test('rejects other leaderboards and unsupported star leaderboard parameters', async () => {
+  globalThis.fetch = async () => assert.fail('invalid routes must not reach the API');
+  for (const path of [
+    '/leaderboards/battle', '/leaderboards/stars_unlocked?page=0',
+    '/leaderboards/stars_unlocked?page=101', '/leaderboards/stars_unlocked?gameMode=2',
+    '/leaderboards/stars_unlocked?guild=-1', '/leaderboards/stars_unlocked?apikey=example',
+    '/leaderboards/stars_unlocked?page=1&page=2',
+  ]) {
+    assert.equal((await worker.fetch(request(path))).status, 404, path);
+  }
+});
+
 test('rejects unsupported routes, methods, and browser origins', async () => {
   globalThis.fetch = async () => assert.fail('rejected requests should not contact the upstream API');
 

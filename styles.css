@@ -343,10 +343,6 @@ summary:focus-visible {
   margin: 14px 0 42px;
 }
 
-.overview[data-role="battler"] {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
 .summary-card {
   --card-accent: var(--line-strong);
   position: relative;
@@ -907,9 +903,6 @@ noscript {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .overview[data-role="battler"] {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 780px) {
@@ -963,10 +956,6 @@ noscript {
 
   .settings,
   .overview {
-    grid-template-columns: 1fr;
-  }
-
-  .overview[data-role="battler"] {
     grid-template-columns: 1fr;
   }
 

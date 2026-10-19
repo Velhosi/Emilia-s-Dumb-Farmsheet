@@ -6,6 +6,12 @@ Hourly calculations use that same event day: 27,400 actions ÷ 1,200 actions per
 
 ## Hohmono TSer validation
 
+`sunpetal-potion.test.js` checks the developer's approximate Sunpetal production formula against the existing fixtures: Emilia produces about **178,639.668/day**, sustaining tier **481** (177,950.519/day consumed; tier 482 needs 178,750.400/day). Hohmono's historical fixture sustains tier **650**. Tests verify the exact next-tier boundary, total Potion Duration, 24-hour production versus 27,400-action potion use, the 999,999 limit, zero supported tiers, and independence from other potions, resource tax, and Potion Boost. These are estimates under the supplied production formula, not observations of exact in-game Sunpetal output.
+
+The historical fixtures have no elemental star harvest bonus, so their original values below remain unchanged. `star-bonus.test.js` separately verifies that a 39-star Water bonus raises Hohmono's modeled Fish output by **3.9%** and divides resource-based ROI by **1.039**, without changing farm herbs, sustainability, Battler income, or non-resource ROI. It checks all three elemental mappings, rank sums, unassigned stars, missing/lagging star counts, personal and guild potion optimization, paginated leaderboard lookup, and API relay fallback. The Worker tests cover the new restricted leaderboard route. Run `node --test star-bonus.test.js cloudflare-worker/test/worker.test.js`.
+
+October 19 deployment verification used the live relay with the local preview's Origin header and checked `Access-Control-Allow-Origin` and `Cache-Control: no-store`. Hohmono returned **44 unlocked / 39 assigned**, **+4.4% Fish**, and Nexus **25,921**; Pepo returned **33 / 33**, no matching Fish bonus, and Nexus **24,600**; Mephisto returned **1 / 1**, **+0.1% Wood**, and Nexus **24,600**. These are live observations, not fixed future expectations.
+
 Inputs from the supplied Hohmono workbook:
 
 - Username: Hohmono

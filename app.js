@@ -298,6 +298,31 @@ function sustainablePotionInfo(role, data, result) {
   };
 }
 
+function sunpetalPotionInfo(analysis) {
+  if (!analysis) return {
+    title: 'Maximum sustainable Potion of Guidance',
+    description: 'A sustainable tier is unavailable for these farm or Potion Duration values.',
+    rows: [],
+  };
+  return {
+    title: 'Maximum sustainable Potion of Guidance',
+    description: 'Estimated sustainable Potion of Guidance tier, using the developer’s approximate Sunpetal production formula.',
+    rows: [
+      { label: 'Combined farm herbs / hour', value: formatCompact(analysis.farmHerbsPerHour) },
+      { label: 'Sunpetals / hour (estimated)', value: formatFull(analysis.sunpetalsPerHour) },
+      { label: 'Sunpetals / day (estimated)', value: formatFull(analysis.sunpetalsPerDay) },
+      { label: 'Potion duration', value: `${formatFull(analysis.durationHours)} hours` },
+      { label: 'Potion use / day', value: `${formatFull(Calc.C.BATTLE_HOURS_PER_DAY)} hours` },
+      { label: 'Sunpetals consumed / day', value: formatFull(analysis.sunpetalsConsumedPerDay) },
+      ...(analysis.nextTierConsumptionPerDay == null ? [] : [
+        { label: `Next tier: ${formatters.integer(analysis.maximumSustainablePotion + 1)} / day`, value: formatFull(analysis.nextTierConsumptionPerDay) },
+      ]),
+      { label: 'Maximum sustainable tier (estimated)', value: `≈ ${formatters.integer(analysis.maximumSustainablePotion)}`, total: true },
+    ],
+    note: 'Estimated production = 0.05 × √(combined hourly farm herbs), produced for 24 hours per day. Potion cost = L(L + 1)/2 + 0.0002L³ Sunpetals. Uses your total Potion Duration and the same 27,400-action day as other potions. Assumes all Sunpetals go toward this potion, with none reserved for Renewal or dungeon skips.',
+  };
+}
+
 function guildPotionInfo(data, analysis) {
   return {
     title: 'Most efficient guild potion',
@@ -568,10 +593,26 @@ function workshopDustCollectorRoiInfo(data) {
 }
 
 function renderInfoPanels(data, result) {
+  setInfoPanel('tser-resources', {
+    title: 'Extra resource value',
+    description: 'Resource income with your Harvest potion compared with unpotted income, after resource tax.',
+    rows: [
+      { label: data.unlockedStars == null ? 'Assigned stars (minimum)' : 'Unlocked stars', value: formatters.integer(data.resourceStarCount) },
+      { label: 'Matching elemental star bonus', value: `+${formatters.percent(data.starResourceBonusPercent)}` },
+      { label: 'Resources / day with potion, after tax', value: formatCompact(result.tser.pottedAfterEvent) },
+      { label: 'Unpotted resources / day, after tax', value: formatCompact(result.tser.unpottedAfterEvent) },
+      { label: 'Extra resource value / day', value: formatCompact(result.tser.extraResValue), total: true },
+    ],
+    note: data.starResourceBonusEstimated
+      ? 'The unlocked-star count could not be confirmed. The bonus uses assigned stars and may be understated.'
+      : 'Fire boosts Iron, Water boosts Fish, and Nature boosts Wood by 0.1% per unlocked star. The matching perk must be active. This multiplier applies to gathered resources, including Harvest potion gains.',
+  });
   setInfoPanel('battler-net-herbs', netHerbsInfo('battler', result));
   setInfoPanel('tser-net-herbs', netHerbsInfo('tser', result));
   setInfoPanel('battler-max-potion', sustainablePotionInfo('battler', data, result));
   setInfoPanel('tser-max-potion', sustainablePotionInfo('tser', data, result));
+  setInfoPanel('battler-sunpetal-potion', sunpetalPotionInfo(result.sunpetalPotion));
+  setInfoPanel('tser-sunpetal-potion', sunpetalPotionInfo(result.sunpetalPotion));
   setInfoPanel('tser-guild-potion', guildPotionInfo(data, result.tser.guildPotionAnalysis));
   setInfoPanel('battler-left-bloom', leftoverHerbInfo('battler', 'bloom', result));
   setInfoPanel('battler-left-sage', leftoverHerbInfo('battler', 'sage', result));
@@ -701,6 +742,8 @@ function renderSummary(result) {
   setText('summary-battler', formatCompact(result.battler.fullIncome));
   setMetric('summary-battler-net-herbs', result.battler.netHerbs, formatSignedCompact, true);
   setText('summary-battler-max-potion', formatters.integer(result.battler.maxSustainablePotion));
+  setText('summary-battler-guidance', result.sunpetalPotion
+    ? `≈ ${formatters.integer(result.sunpetalPotion.maximumSustainablePotion)}` : 'N/A');
   setText('summary-tser', formatCompact(result.tser.fullIncome));
   setText('summary-potion', formatters.integer(result.tser.bestPotion));
   setText('summary-loss', formatters.percent(result.tser.percentLoss));
@@ -737,6 +780,9 @@ function applyRoleView(role) {
 
 function renderDetails(result) {
   renderBattlerPotionAnalysis(result.battler.potionAnalysis);
+  const sunpetalTier = result.sunpetalPotion
+    ? `≈ ${formatters.integer(result.sunpetalPotion.maximumSustainablePotion)}` : 'N/A';
+  setText('t-sunpetal-max', sunpetalTier);
   setMetric('b-left-bloom', result.battler.leftoverBloom, formatters.compact, true);
   setMetric('b-left-sage', result.battler.leftoverSage, formatters.compact, true);
   setMetric('b-dust', result.battler.leftoverSold, formatters.compact, true);
@@ -794,49 +840,9 @@ function clearResults() {
   elements.sigilWarning.hidden = true;
 }
 
-async function requestJson(url, headers = {}) {
-  const response = await fetch(url, {
-    cache: 'no-store',
-    headers: { Accept: 'application/json', ...headers },
-  });
-  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-  return response.json();
-}
-
-const MANARION_API_SOURCES = [
-  {
-    label: 'Cloudflare API relay',
-    baseUrl: 'https://emilia-manarion-api.emilia-manarion-api.workers.dev',
-  },
-  {
-    label: 'direct Manarion API',
-    baseUrl: 'https://api.manarion.com',
-  },
-];
-
-async function fetchJson(path) {
-  const errors = [];
-
-  for (const source of MANARION_API_SOURCES) {
-    try {
-      return await requestJson(`${source.baseUrl}${path}`);
-    } catch (error) {
-      errors.push(`${source.label} failed (${error.message})`);
-    }
-  }
-
-  throw new Error(errors.join('; '));
-}
-
 async function getLiveData(inputs) {
-  const name = encodeURIComponent(inputs.username.trim());
-  const [playerData, marketData, guilds] = await Promise.all([
-    fetchJson(`/players/${name}`),
-    fetchJson('/market'),
-    fetchJson('/guilds'),
-  ]);
-
-  return Calc.normalizeFromApis(playerData, marketData, guilds, inputs);
+  const { playerData, marketData, guilds, unlockedStars } = await window.ManarionApi.fetchPlayerInputs(inputs.username);
+  return Calc.normalizeFromApis(playerData, marketData, guilds, inputs, unlockedStars);
 }
 
 function getInputs() {
@@ -898,7 +904,9 @@ async function update() {
   try {
     const live = await getLiveData(inputs);
     render(live, Calc.calculate(live));
-    setStatus('Updated from the live Manarion API.', 'ok');
+    setStatus(live.starResourceBonusEstimated
+      ? 'Updated. Star harvest bonus uses assigned stars; the unlocked-star count is unavailable.'
+      : 'Updated from the live Manarion API.', live.starResourceBonusEstimated ? 'error' : 'ok');
   } catch (error) {
     setStatus(`Could not load live Manarion data: ${error.message}`, 'error');
   } finally {

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#081626">
   <meta name="description" content="Compare Battler and TSer daily farm income and upgrade ROI in Manarion.">
   <title>Emilia's Dumb Farm Sheet</title>
-  <link rel="stylesheet" href="styles.css?v=20261018.1">
+  <link rel="stylesheet" href="styles.css?v=20261019.2">
 </head>
 <body>
   <a class="skip-link" href="#results">Skip to results</a>
@@ -91,6 +91,12 @@
         <p class="summary-label"><span class="summary-index" aria-hidden="true">03</span> Maximum sustainable potion <span class="info-popover info-align-end"><button class="info-button" type="button" data-info="battler-max-potion" aria-label="Show the Battler maximum sustainable potion calculation">i</button></span></p>
         <p class="summary-value" id="summary-battler-max-potion">—</p>
         <p class="summary-caption">after trading herbs as needed</p>
+      </article>
+
+      <article class="summary-card sustainable-card battler-only" id="summary-battler-guidance-card" hidden>
+        <p class="summary-label"><span class="summary-index" aria-hidden="true">04</span> Maximum sustainable Potion of Guidance <span class="info-popover info-align-end"><button class="info-button" type="button" data-info="battler-sunpetal-potion" aria-label="Show the estimated sustainable Potion of Guidance calculation">i</button></span></p>
+        <p class="summary-value" id="summary-battler-guidance">—</p>
+        <p class="summary-caption">estimated from daily Sunpetal production</p>
       </article>
 
       <article class="summary-card role-tser tser-only" id="summary-tser-card">
@@ -208,7 +214,7 @@
             <div class="metric"><span class="label-with-info"><span class="label">Leftover Sageroots daily</span><span class="info-popover"><button class="info-button" type="button" data-info="tser-left-sage" aria-label="Show the TSer leftover Sageroots calculation">i</button></span></span><span id="t-left-sage" class="value">—</span></div>
             <div class="metric"><span class="label-with-info"><span class="label">Leftover herb value</span><span class="info-popover"><button class="info-button" type="button" data-info="tser-leftover-value" aria-label="Show the TSer leftover herb value calculation">i</button></span></span><span id="t-dust" class="value">—</span></div>
             <div class="metric"><span class="label-with-info"><span class="label">Farm tax taken</span><span class="info-popover"><button class="info-button" type="button" data-info="tser-farm-tax" aria-label="Show the TSer farm tax calculation">i</button></span></span><span id="t-tax" class="value">—</span></div>
-            <div class="metric"><span class="label">Extra resource value (incl. tax)</span><span id="t-extra" class="value">—</span></div>
+            <div class="metric"><span class="label-with-info"><span class="label">Extra resource value (incl. tax)</span><span class="info-popover"><button class="info-button" type="button" data-info="tser-resources" aria-label="Show resource income and the star harvest bonus">i</button></span></span><span id="t-extra" class="value">—</span></div>
             <div class="metric"><span class="label">Full farm + potion resource income</span><span id="t-farm-pot" class="value">—</span></div>
             <div class="metric total"><span class="label">Full income + unpotted resources</span><span id="t-total" class="value">—</span></div>
           </div>
@@ -249,6 +255,7 @@
             <div class="metric"><span class="label">Loss from current potion</span><span id="t-loss" class="value">—</span></div>
             <div class="metric"><span class="label">Percent loss</span><span id="t-loss-pct" class="value">—</span></div>
             <div class="metric"><span class="label-with-info"><span class="label">Maximum sustainable potion</span><span class="info-popover"><button class="info-button" type="button" data-info="tser-max-potion" aria-label="Show the TSer maximum sustainable potion calculation">i</button></span></span><span id="t-max-sustainable-pot" class="value">—</span></div>
+            <div class="metric"><span class="label-with-info"><span class="label">Maximum sustainable Potion of Guidance</span><span class="info-popover"><button class="info-button" type="button" data-info="tser-sunpetal-potion" aria-label="Show the estimated sustainable Potion of Guidance calculation">i</button></span></span><span id="t-sunpetal-max" class="value">—</span></div>
           </div>
         </article>
 
@@ -274,7 +281,8 @@
   </main>
 
   <noscript>This calculator needs JavaScript enabled to load live data and run its formulas.</noscript>
-  <script src="calculator.js?v=20261018.1"></script>
-  <script src="app.js?v=20261018.1"></script>
+  <script src="calculator.js?v=20261019.2"></script>
+  <script src="api.js?v=20261019.2"></script>
+  <script src="app.js?v=20261019.2"></script>
 </body>
 </html>

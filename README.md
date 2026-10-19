@@ -44,6 +44,8 @@ Run the dependency-free regression check with Node:
 ```sh
 node validation.test.js
 node battler-potion.test.js
+node sunpetal-potion.test.js
+node --test star-bonus.test.js cloudflare-worker/test/worker.test.js
 ```
 
 The check locks the Hohmono values documented in `VALIDATION.md`, including the best-potion search, all validated TSer ROI rows, and the shared Battler/TSer Tome Drop ROI.
@@ -76,7 +78,11 @@ Imbued equipment contributes one additional effective infusion beyond the API's 
 
 Pinnacle (`Constellation[49]`) is removed from the API research bonus before inferring Nexus. The October 18 live data matches `P = 1 + matching equipped items × 0.0005 × (1 + BaseBoosts[152]/100)`: the full Spire factor includes its base 1x. Divide `TotalBoosts[gatheringId] - 1` by `P`, then subtract equipment research to infer Nexus. Current income keeps the full API total; Shard ROI multiplies newly gained research by `P`. Missing or locked Pinnacle defaults to `P = 1`. Hohmono now resolves to Nexus 25,921; Pepo and Mephisto resolve to 24,600.
 
+The elemental star harvest bonus multiplies gathered resources by `1 + unlockedStars × 0.001` when the modeled gathering skill has its matching perk: Fire (`Constellation[1]`) for Mining/Iron, Water (`2`) for Fishing/Fish, or Nature (`3`) for Woodcutting/Wood. It applies to potted and unpotted income, potion optimization, and resource-derived ROI, without changing API research/Nexus or farm herbs. `api.js` reads the public `stars_unlocked` leaderboard, filtered by guild and paginated as needed. The rank sum in the profile counts assigned stars only; the developer confirmed that unassigned unlocked stars also count. Missing or lagging leaderboard data falls back to assigned stars with a visible estimate notice. The resource information panel shows the count and bonus. The relay's stars leaderboard route was deployed and verified on October 19. No direct profile field for the unlocked-star count was present then; when one is added, prefer that verified field in `fetchUnlockedStars` and retain the leaderboard fallback.
+
 See `VALIDATION.md` for exact comparison values and the discrepancy between the older stored 79.99 / 52.07 values and the formulas in the newest workbook.
+
+The fourth Battler summary card and the TSer potion analysis card show an estimated maximum sustainable Potion of Guidance tier. The developer's approximate production is `0.05 × sqrt(combined farm herbs/hour)` Sunpetals/hour, produced for 24 hours. Potion cost uses the same `L(L+1)/2 + 0.0002L³` scaling as Harvest/Wisdom, the player's total Potion Duration, and 22 hours 50 minutes of daily use. A whole-tier search stops at 999,999. The estimate assumes all produced Sunpetals are available for Guidance, with none spent on Renewal or dungeon skips; its information panel shows production and consumption. It does not change existing herb balances or income.
 
 ## Files
 
@@ -84,8 +90,11 @@ See `VALIDATION.md` for exact comparison values and the discrepancy between the 
 - `styles.css` - responsive dark UI
 - `calculator.js` - spreadsheet formulas converted to named JavaScript functions
 - `data.js` - validated Emilia and Hohmono fixtures used only by the regression test
-- `app.js` - live API fetching and UI rendering
+- `api.js` - live API requests and unlocked-star leaderboard lookup
+- `app.js` - UI rendering and live-data normalization
 - `validation.test.js` - dependency-free formula regression checks
 - `battler-potion.test.js` - sustainable Wisdom equivalence, balanced farm allocation, and upgrade cost checks
+- `star-bonus.test.js` - star harvest, resource ROI, potion optimization, API lookup, and fallback checks
+- `sunpetal-potion.test.js` - estimated Sunpetal production and whole-tier sustainability checks
 - `VALIDATION.md` - workbook-vs-JavaScript validation notes
 - `cloudflare-worker/` - restricted live API relay and its tests/deployment configuration

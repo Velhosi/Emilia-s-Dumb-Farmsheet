@@ -8,6 +8,10 @@ Also updated for Ambidextrous construction timing and the Shards constellation d
 
 Updated 2026-10-18 for Pinnacle in Nexus inference and the marginal research gain used in Shard ROI, verified against live API totals.
 
+Also updated for the separate elemental star harvest multiplier and its unlocked-star leaderboard source, including the assigned-star fallback.
+
+October 19: the user confirmed with the developer that unassigned unlocked stars count. Live verification through the deployed relay found Hohmono at 44 unlocked versus 39 assigned, giving +4.4% Fish. The profile API still lacked a direct count field; replace the lookup with that field once its name and meaning are confirmed, retaining the leaderboard fallback.
+
 This document describes the current calculator. Formulas added from the screenshot are identified below; they have not been added to the calculator itself. No live player or market values are hardcoded here. Code blocks use mathematical notation: `^` means exponentiation (use `**` in JavaScript).
 
 ## 1. Upgrade costs, including the supplied screenshot
@@ -140,6 +144,18 @@ herbsPerDay >= [PotionHerbs(P) + ResonanceHerbs(Z)] * H / duration
 
 This assumes the herbs can be exchanged 1:1, so combined herbs must be nonnegative; each individual herb balance need not be. Hold Resonance fixed. Search integer tiers with binary search. Battler Wisdom is capped at 999,999; the TSer sustainability search has no matching one-million ceiling. If even P=0 cannot support Resonance, the current helper returns 0 as a fallback, not proof that Resonance is sustainable.
 
+For the separate Sunpetal/Guidance potion, use the developer's approximate production supplied on October 19:
+
+```text
+sunpetalsPerHour ≈ 0.05 * sqrt(combinedFarmHerbsPerHour)
+sunpetalsPerDay ≈ sunpetalsPerHour * 24
+sunpetalsConsumedPerDay(L) = [L(L+1)/2 + 0.0002L^3] * H / duration
+maximumSustainableSunpetalPotion = largest integer L in 0..999999
+  with sunpetalsConsumedPerDay(L) <= sunpetalsPerDay
+```
+
+`H = 27400/1200` and `duration = 1 + TotalBoosts[110]/100`, as with other daily potion use. The user confirmed the same potion-cost scaling. The public game client's brewing limit is 999,999 for non-Renewal potions. This estimates spending all Sunpetal production on Guidance; subtract any other Sunpetal spending separately if modeling Renewal or dungeon skips. It neither consumes Bloomwells/Sageroots nor changes their sustainability. The UI marks the whole-tier answer approximate because production is estimated.
+
 ## 4. TSer resource income
 
 ```text
@@ -151,11 +167,11 @@ potBase(P, B) = 0.1 * P * (1 + B/100)
 
 unpottedPerAction = (1 + 0.03g + baseRes)
                   * (1 + baseResResearch/100)
-                  * (1 + research/100) * a
+                  * (1 + research/100) * a * starHarvestMultiplier
 
 pottedPerAction(P) = (1 + 0.03g + baseRes + potBase(P, B))
                    * (1 + baseResResearch/100)
-                   * ((research + 604.42)/100) * a
+                   * ((research + 604.42)/100) * a * starHarvestMultiplier
 
 grossResourcesPerDay = pottedPerAction(P) * A
 playerResourcesPerDay = grossResourcesPerDay * q
@@ -169,6 +185,8 @@ fullIncome = farmNetIncome + playerResourceValuePerDay
 ```
 
 The current unpotted formula uses `1 + research/100`, whereas the potted formula uses `(research + 604.42)/100`. The separate resource-upgrade ROI formulas use `research/100`. These are literal current implementation choices; do not silently make them identical when porting.
+
+`starHarvestMultiplier = 1 + unlockedStars * 0.001` only if the matching elemental perk is active: Mining uses `Constellation[1]` (Fire/Iron), Fishing uses `[2]` (Water/Fish), and Woodcutting uses `[3]` (Nature/Wood). Otherwise it is 1. Use the modeled gathering skill (the highest gathering level, with the same tie rules as Nexus). This is a final resource multiplier, separate from Pinnacle and the API research total. It boosts Harvest potion resource gains, but not farm herbs or battle MD. Apply it consistently to all potion tiers in both optimizers.
 
 Personal highest-income potion searches `P = 0, 1000, 2000, ..., 1,000,000`, maximizing `farmPlusPotionIncome`. It is not restricted to sustainable potions. Since the unpotted baseline is constant, the same tier maximizes full income.
 
@@ -267,7 +285,7 @@ For the TSer resource upgrade formulas, define:
 
 ```text
 baseFactor = (1 + 0.03g + baseRes + potBase(P, B)) * (1 + baseResResearch/100)
-resourceValueFactor = A * q * pRes * a
+resourceValueFactor = A * q * pRes * a * starHarvestMultiplier
 ```
 
 ### Base Resources: next 5,000 purchased levels
@@ -431,6 +449,10 @@ The source calls `m` `buildSeconds` internally but returns it as `currentConstru
 ## 11. API inputs, equipment, and Nexus inference
 
 The current app requests `/players/:username`, `/market`, and `/guilds` from the Manarion API, using its browser relay with a direct-API fallback. The direct base is `https://api.manarion.com`. These are the existing app's routes; this reference does not verify a guild-member roster endpoint. Role, potion tiers, and resource/MD tax come from entered settings, not automatic API inference.
+
+For profiles with an elemental constellation perk, it additionally requests `/leaderboards/stars_unlocked?page=1&gameMode=0&guild={GuildID}`. The optional guild filter reduces pagination; normal mode is 0, solo ironman is 1 when supplied by the player data. Match `Entries[].Name` case-insensitively to the profile name and use its integer `Score`; follow `TotalPages` when necessary (up to 100 pages). See the [official API documentation](https://api.manarion.com/docs). Pass the result as the optional fifth `unlockedStars` argument to `normalizeFromApis`.
+
+Summing the values of `Constellation` effects 1–51 counts assigned stars, including every rank. It can undercount the harvest bonus: the October 18 game fix includes stars that are available but unassigned. An October 18 Pepo capture has 27 assigned and 32 unlocked. If the leaderboard request fails, the player is absent, or its score is below the assigned count, the calculator uses the assigned count and sets `starResourceBonusEstimated` when the resource perk applies. The UI identifies that estimate. Do not treat missing lookup data as an exact zero or remove this multiplier while inferring Nexus.
 
 | Normalized input | Source / conversion |
 | --- | --- |
