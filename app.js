@@ -317,7 +317,7 @@ function sunpetalPotionInfo(analysis) {
       ...(analysis.nextTierConsumptionPerDay == null ? [] : [
         { label: `Next tier: ${formatters.integer(analysis.maximumSustainablePotion + 1)} / day`, value: formatFull(analysis.nextTierConsumptionPerDay) },
       ]),
-      { label: 'Maximum sustainable tier (estimated)', value: `≈ ${formatters.integer(analysis.maximumSustainablePotion)}`, total: true },
+      { label: 'Maximum sustainable tier (estimated)', value: formatters.integer(analysis.maximumSustainablePotion), total: true },
     ],
     note: 'Estimated production = 0.05 × √(combined hourly farm herbs), produced for 24 hours per day. Potion cost = L(L + 1)/2 + 0.0002L³ Sunpetals. Uses your total Potion Duration and the same 27,400-action day as other potions. Assumes all Sunpetals go toward this potion, with none reserved for Renewal or dungeon skips.',
   };
@@ -743,7 +743,7 @@ function renderSummary(result) {
   setMetric('summary-battler-net-herbs', result.battler.netHerbs, formatSignedCompact, true);
   setText('summary-battler-max-potion', formatters.integer(result.battler.maxSustainablePotion));
   setText('summary-battler-guidance', result.sunpetalPotion
-    ? `≈ ${formatters.integer(result.sunpetalPotion.maximumSustainablePotion)}` : 'N/A');
+    ? formatters.integer(result.sunpetalPotion.maximumSustainablePotion) : 'N/A');
   setText('summary-tser', formatCompact(result.tser.fullIncome));
   setText('summary-potion', formatters.integer(result.tser.bestPotion));
   setText('summary-loss', formatters.percent(result.tser.percentLoss));
@@ -781,7 +781,7 @@ function applyRoleView(role) {
 function renderDetails(result) {
   renderBattlerPotionAnalysis(result.battler.potionAnalysis);
   const sunpetalTier = result.sunpetalPotion
-    ? `≈ ${formatters.integer(result.sunpetalPotion.maximumSustainablePotion)}` : 'N/A';
+    ? formatters.integer(result.sunpetalPotion.maximumSustainablePotion) : 'N/A';
   setText('t-sunpetal-max', sunpetalTier);
   setMetric('b-left-bloom', result.battler.leftoverBloom, formatters.compact, true);
   setMetric('b-left-sage', result.battler.leftoverSage, formatters.compact, true);
