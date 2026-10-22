@@ -164,7 +164,7 @@ h1 {
 
 .settings {
   display: grid;
-  grid-template-columns: minmax(145px, 1.05fr) .68fr .92fr .92fr .66fr auto;
+  grid-template-columns: minmax(130px, 1fr) .7fr .95fr .9fr .9fr .7fr;
   gap: 11px;
   align-items: end;
 }
@@ -252,6 +252,8 @@ h1 {
 
 .actions {
   display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
   gap: 8px;
 }
 

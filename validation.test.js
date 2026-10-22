@@ -190,13 +190,13 @@ approximately(
 assert.equal(tomeDropBreakdown.tomeName, 'Water', 'Tome Drop selects the highest-level tome');
 assert.equal(tomeDropBreakdown.currentLevel, 425, 'Tome Drop reports the selected tome level');
 approximately(
-  tomeDropBreakdown.tomeSellPrice,
+  tomeDropBreakdown.tomeMarketPrice,
   WORKBOOK_SNAPSHOTS.hohmono.waterTomePrice,
   'Tome Drop values added drops with the selected tome sell price',
 );
 approximately(
   tomeDropBreakdown.extraValuePerDay,
-  tomeDropBreakdown.extraTomesPerDay * tomeDropBreakdown.tomeSellPrice,
+  tomeDropBreakdown.extraTomesPerDay * tomeDropBreakdown.tomeMarketPrice,
   'Tome Drop daily value breakdown',
 );
 approximately(
@@ -612,6 +612,17 @@ const pinnacleCaptures = [
     infusions: [31, 29, 30, 30, 30, 30, 31, 31], prefixes: [13, 14, 11, 10, 13, 11, 8, 8],
     boosts: [2005919, 2016870, 2014974, 1975120, 2019303, 2014928, 2010716, 2022322] },
 ];
+function assertSpireMatchesUpgrade(current, nextResearch, label) {
+  const before = Calc.helpers.tserAtPotion(current, current.harvestPotion);
+  const after = Calc.helpers.tserAtPotion({ ...current, research: nextResearch }, current.harvestPotion);
+  const extraDailyValue = (after.pottedAfterEvent - before.pottedAfterEvent) * current.averageResourcePrice;
+  const expectedRoi = Calc.helpers.buildingCost(current.spire, current.averageResourcePrice) / extraDailyValue;
+  const actualRoi = Calc.calculate(current).roi.tser.spire;
+  assert.ok(Number.isFinite(actualRoi) && actualRoi > 0, `${label}: Spire ROI is available`);
+  assert.ok(Math.abs(actualRoi / expectedRoi - 1) < 1e-9,
+    `${label}: Spire ROI matches income from the full upgraded research total (${actualRoi} vs ${expectedRoi})`);
+}
+
 for (const capture of pinnacleCaptures) {
   const player = {
     MiningLevel: capture.gatheringId === 30 ? 2 : 1,
@@ -629,6 +640,27 @@ for (const capture of pinnacleCaptures) {
   assert.equal(normalized.nexusLevel, capture.nexus, `${capture.name} Nexus matches the independent level check`);
   approximately(normalized.pinnacleResearchMultiplier, capture.multiplier, `${capture.name} Pinnacle multiplier`);
   assert.equal(normalized.research, capture.total * 100, 'Current income retains the full API research total');
+
+  // Rebuild a +1 Spire API total independently from equipment and the confirmed Nexus.
+  const nextSpire = capture.spire + 1;
+  const equipmentLevels = Object.values(player.Equipment).reduce((sum, item) => sum
+    + Math.floor(item.Boosts[capture.gatheringId] * (1 + (item.Infusions + (item.Prefix === 10 ? 1 : 0)) / 20)), 0);
+  const nextPinnacle = capture.pinnacle ? 1 + capture.boosts.length * (nextSpire + 100) * 0.000005 : 1;
+  const nextTotal = 1 + (capture.base * (1 + capture.nexus / 100)
+    + equipmentLevels * (1 + nextSpire / 100)) * 0.0002 * nextPinnacle;
+  const upgraded = normalizeImbuedPlayer({
+    ...player,
+    BaseBoosts: { ...player.BaseBoosts, 152: nextSpire },
+    TotalBoosts: { ...player.TotalBoosts, [capture.gatheringId]: nextTotal, 152: nextSpire },
+  });
+  assert.equal(upgraded.nexusLevel, capture.nexus, `${capture.name}: Spire upgrade preserves Nexus`);
+  for (const tax of [0, 25]) {
+    assertSpireMatchesUpgrade({
+      ...WORKBOOK_SNAPSHOTS.hohmono, ...normalized,
+      tax, harvestPotion: 171000, averageResourcePrice: 50,
+      ambitiousCount: 2, starResourceBonusPercent: 4.4,
+    }, upgraded.research, `${capture.name}, ${tax}% tax`);
+  }
 }
 
 const pinnacleImbuedPlayer = normalizeImbuedPlayer({
@@ -651,15 +683,26 @@ const smallPinnaclePlayer = {
 const smallPinnacle = normalizeImbuedPlayer(smallPinnaclePlayer);
 assert.equal(smallPinnacle.nexusLevel, 100, 'Only equipped items with the relevant research stat count');
 approximately(smallPinnacle.pinnacleResearchMultiplier, 1.0005, 'One matching item contributes one Pinnacle bonus');
+approximately(smallPinnacle.pinnacleResearchPerSpireLevel, 0.000005,
+  'Only the matching equipped item contributes additional Pinnacle per Spire level');
+assertSpireMatchesUpgrade({
+  ...WORKBOOK_SNAPSHOTS.hohmono, ...smallPinnacle,
+  averageResourcePrice: 50, harvestPotion: 171000,
+}, (1 + (100 * 2 + 100 * 1.01) * 0.0002 * 1.000505) * 100,
+'First Spire level with Pinnacle excludes the baseline and includes the cross-term');
 const noPinnacle = normalizeImbuedPlayer({
   ...smallPinnaclePlayer, Constellation: { 49: 0 }, TotalBoosts: { 30: 1.06 },
 });
 assert.equal(noPinnacle.nexusLevel, 100, 'A locked Pinnacle perk does not change Nexus');
 assert.equal(noPinnacle.pinnacleResearchMultiplier, 1, 'Locked Pinnacle has no multiplier');
+assert.equal(noPinnacle.pinnacleResearchPerSpireLevel, 0, 'Locked Pinnacle adds no Spire scaling');
 const noPinnacleEquipment = normalizeImbuedPlayer({
   ...smallPinnaclePlayer, Equipment: {}, TotalBoosts: { 30: 1.04 },
 });
 assert.equal(noPinnacleEquipment.nexusLevel, 100, 'Pinnacle without matching equipment has no effect');
+assert.equal(noPinnacleEquipment.pinnacleResearchPerSpireLevel, 0, 'No matching gear means no added Pinnacle scaling');
+assert.equal(Calc.calculate({ ...noPinnacleEquipment, averageResourcePrice: 50 }).roi.tser.spire,
+  null, 'Spire has no resource payback without matching research equipment');
 
 // Compare Shard ROI with the income difference from an independently reconstructed +1,000 snapshot.
 const pinnacleShardInputs = {

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#081626">
   <meta name="description" content="Compare Battler and TSer daily farm income and upgrade ROI in Manarion.">
   <title>Emilia's Dumb Farm Sheet</title>
-  <link rel="stylesheet" href="styles.css?v=20261019.2">
+  <link rel="stylesheet" href="styles.css?v=20261021.2">
 </head>
 <body>
   <a class="skip-link" href="#results">Skip to results</a>
@@ -24,7 +24,7 @@
           <p class="section-kicker">Inputs</p>
           <h2 id="settings-title">Player setup</h2>
         </div>
-        <p>Enter a player to fetch current Manarion data.</p>
+        <p>Enter a player to fetch current Manarion data. Prices use buy/sell midpoints.</p>
       </div>
 
       <form id="settings-form" class="settings" aria-describedby="status">
@@ -49,6 +49,11 @@
         <div class="field">
           <label for="resonance">Potion of Resonance</label>
           <input id="resonance" name="resonance" type="number" inputmode="numeric" step="1" min="0" placeholder="Enter potion level" required>
+        </div>
+
+        <div class="field">
+          <label for="guidance">Potion of Guidance</label>
+          <input id="guidance" name="guidance" type="number" inputmode="numeric" step="1" min="0" max="999999" placeholder="0 if unused">
         </div>
 
         <div class="field">
@@ -281,8 +286,8 @@
   </main>
 
   <noscript>This calculator needs JavaScript enabled to load live data and run its formulas.</noscript>
-  <script src="calculator.js?v=20261019.2"></script>
-  <script src="api.js?v=20261019.2"></script>
-  <script src="app.js?v=20261019.3"></script>
+  <script src="calculator.js?v=20261021.2"></script>
+  <script src="api.js?v=20261021.2"></script>
+  <script src="app.js?v=20261021.2"></script>
 </body>
 </html>

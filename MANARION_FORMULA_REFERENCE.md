@@ -7,6 +7,7 @@ Updated 2026-10-17 to reflect the local TSer Potion Boost pricing correction: pu
 Also updated for Ambidextrous construction timing and the Shards constellation drop-amount multiplier. Potency is already included in the API's total Potion Boost. Other new constellation perks are not independently simulated by this update.
 
 Updated 2026-10-18 for Pinnacle in Nexus inference and the marginal research gain used in Shard ROI, verified against live API totals.
+Updated 2026-10-21 to include Pinnacle's increasing multiplier in Spire ROI.
 
 Also updated for the separate elemental star harvest multiplier and its unlocked-star leaderboard source, including the assigned-star fallback.
 
@@ -82,9 +83,10 @@ B = total Potion Boost in percentage points
 D = total Potion Duration boost in percentage points
 duration = 1 + D / 100  [hours per potion]
 
-pBloom = Bloomwell sell price in MD/herb
-pSage  = Sageroot sell price in MD/herb
-pRes   = round((IronSell + FishSell + WoodSell) / 3)
+pBloom = Bloomwell buy/sell midpoint in MD/herb
+pSage  = Sageroot buy/sell midpoint in MD/herb
+pSun   = Sunpetal buy/sell midpoint in MD/herb
+pRes   = (IronMidpoint + FishMidpoint + WoodMidpoint) / 3
 pHerb  = (pBloom + pSage) / 2
 
 ambitiousCount = equipped Ambitious items, clamped to 0..8
@@ -103,9 +105,12 @@ For farm levels `G` (Golems), `F` (Fertilizer), and `Pl` (Plots):
 herbsPerHour = 2.5 * (1 + G/100)^0.9
                   * (1 + F/100)^0.9
                   * (1 + Pl/100)^0.9
-herbsPerDay = 24 * herbsPerHour
-bloomProduced = herbsPerDay / 2
-sageProduced  = herbsPerDay / 2
+baseHerbsPerDay = 24 * herbsPerHour
+bloomMultiplier = 1 + 0.02 * Constellation[10]
+sageMultiplier  = 1 + 0.02 * Constellation[9]
+bloomProduced = baseHerbsPerDay / 2 * bloomMultiplier
+sageProduced  = baseHerbsPerDay / 2 * sageMultiplier
+herbsPerDay = bloomProduced + sageProduced
 
 PotionHerbs(P)   = P(P + 1)/2 + 0.0002P^3
 ResonanceHerbs(Z) = 2 * [Z(Z + 1)/2 + 0.0002Z^3]
@@ -120,21 +125,21 @@ Harvest uses Bloomwells; Wisdom uses Sageroots. Resonance consumes equal amounts
 
 ```text
 TSer:
-  leftoverBloom = herbsPerDay/2 - mainUsed - resUsed/2
-  leftoverSage  = herbsPerDay/2 - resUsed/2
+  leftoverBloom = bloomProduced - mainUsed - resUsed/2
+  leftoverSage  = sageProduced - resUsed/2
 
 Battler:
-  leftoverBloom = herbsPerDay/2 - resUsed/2
-  leftoverSage  = herbsPerDay/2 - mainUsed - resUsed/2
+  leftoverBloom = bloomProduced - resUsed/2
+  leftoverSage  = sageProduced - mainUsed - resUsed/2
 
 netHerbs = leftoverBloom + leftoverSage
 leftoverHerbValue = leftoverBloom*pBloom + leftoverSage*pSage
-farmLevy = herbsPerDay * 50,000
+farmLevy = baseHerbsPerDay * 50,000
 hedgeDiscount = HedgeLevel * 10^9 * 24
 farmNetIncome = leftoverHerbValue - farmLevy + hedgeDiscount
 ```
 
-The implementation's `farmTax` field actually means **farmNetIncome**, not the amount of tax paid. Negative herb leftovers are valued as a cost at the same sell price. The current formula applies the full Hedge discount without capping it at the levy.
+The implementation's `farmTax` field actually means **farmNetIncome**, not the amount of tax paid. Negative herb leftovers use the same midpoint prices. Atlas herb bonuses affect their respective harvested amounts, not base upkeep or Sunpetals. The October 21 [official client](https://manarion.com/assets/GameRoutes-BrQEYLa-.js) calculates upkeep from the base farm formula. The current model applies the full Hedge discount without capping it at the levy.
 
 Maximum sustainable potion is the highest whole-number `P` satisfying:
 
@@ -147,14 +152,14 @@ This assumes the herbs can be exchanged 1:1, so combined herbs must be nonnegati
 For the separate Sunpetal/Guidance potion, use the developer's approximate production supplied on October 19:
 
 ```text
-sunpetalsPerHour ≈ 0.05 * sqrt(combinedFarmHerbsPerHour)
+sunpetalsPerHour ≈ 0.05 * sqrt(baseFarmHerbsPerHour)
 sunpetalsPerDay ≈ sunpetalsPerHour * 24
 sunpetalsConsumedPerDay(L) = [L(L+1)/2 + 0.0002L^3] * H / duration
 maximumSustainableSunpetalPotion = largest integer L in 0..999999
   with sunpetalsConsumedPerDay(L) <= sunpetalsPerDay
 ```
 
-`H = 27400/1200` and `duration = 1 + TotalBoosts[110]/100`, as with other daily potion use. The user confirmed the same potion-cost scaling. The public game client's brewing limit is 999,999 for non-Renewal potions. This estimates spending all Sunpetal production on Guidance; subtract any other Sunpetal spending separately if modeling Renewal or dungeon skips. It neither consumes Bloomwells/Sageroots nor changes their sustainability. The UI marks the whole-tier answer approximate because production is estimated.
+`H = 27400/1200` and `duration = 1 + TotalBoosts[110]/100`, as with other daily potion use. The user confirmed the same potion-cost scaling. The public game client's brewing limit is 999,999 for non-Renewal potions. This estimates spending all Sunpetal production on Guidance; subtract any other Sunpetal spending separately if modeling Renewal or dungeon skips. It neither consumes Bloomwells/Sageroots nor changes their sustainability. The tooltip explains that production is estimated; the displayed tier has no approximation symbol. Laboratory savings use the separately entered Guidance tier, not this maximum.
 
 ## 4. TSer resource income
 
@@ -272,10 +277,10 @@ extraShardsPerDay = dropsPerDay * averageBaseDrop * extraResonanceBonusPercent/1
                    * shardConstellationMultiplier
 
 extraShardsRetainedAt90PercentTax = extraShardsPerDay * 0.1
-extraMDPerDayAt90PercentTax = extraShardsRetainedAt90PercentTax * ShardSellPrice
+extraMDPerDayAt90PercentTax = extraShardsRetainedAt90PercentTax * ShardMarketPrice
 ```
 
-The base chance 1/80 is developer-confirmed according to the user. Gear and Resonance bonuses are additive; unchanged gear cancels from the marginal gain. For shard tax `s`, use `extraShardsPerDay * (1-s/100) * ShardSellPrice`, or multiply the displayed 10%-retained value by `(100-s)/10`. Resource/MD tax does not apply to this separate shard estimate.
+The base chance 1/80 is developer-confirmed according to the user. Gear and Resonance bonuses are additive; unchanged gear cancels from the marginal gain. For shard tax `s`, use `extraShardsPerDay * (1-s/100) * ShardMarketPrice`, or multiply the displayed 10%-retained value by `(100-s)/10`. Resource/MD tax does not apply to this separate shard estimate.
 
 ## 8. Resource, farm, and building ROI
 
@@ -311,12 +316,15 @@ ROI = cost / extraDailyValue
 ### Spire: one level
 
 ```text
-extraResearch = equipmentResearch * 0.01
+P = pinnacleResearchMultiplier (defaults to 1)
+dP = pinnacleResearchPerSpireLevel (defaults to 0)
+extraResearch = equipmentResearch * 0.01 * (P + dP)
+                + ((research - 100) / P) * dP
 extraDailyValue = baseFactor * (extraResearch/100) * resourceValueFactor
 ROI = BuildingCost(SpireLevel) / extraDailyValue
 ```
 
-`equipmentResearch` includes effective infusions but not the Spire multiplier; its API derivation is in section 11.
+`equipmentResearch` includes effective infusions and per-item flooring but not the Spire multiplier; its API derivation is in section 11. With Pinnacle active, `dP = matchingItems * 0.000005`; otherwise it is zero. The next Spire level adds ordinary equipment research at the **next** Pinnacle multiplier, and increases the multiplier on the existing research bonus. `research` is the current API total in percentage units, so subtract its unboosted baseline of 100 before removing the current Pinnacle multiplier. This includes the cross-term and avoids boosting the baseline or applying Pinnacle twice. Without Pinnacle this reduces to `equipmentResearch * 0.01`.
 
 ### Gathering research shards: next 1,000 levels
 
@@ -327,7 +335,7 @@ L = purchased gathering research boost (BaseBoosts[gatheringId])
 n = 1000
 shardsNeeded = 0.000005 * [S2(L+n) - S2(L-1)]
              + 2 * [S1(L+n) - S1(L-1)]
-cost = shardsNeeded * ShardBuyPrice
+cost = shardsNeeded * ShardMarketPrice
 extraResearch = n * (0.0002*NexusLevel + 0.02) * pinnacleResearchMultiplier
 extraDailyValue = baseFactor * (extraResearch/100) * resourceValueFactor
 ROI = cost / extraDailyValue
@@ -337,14 +345,15 @@ The current cost expression sums `0.000005*k^2 + 2*k` from **k=L through L+n inc
 
 ### Laboratory: one level
 
-Let `HP = PotionHerbs(P)` and `HZ = ResonanceHerbs(Z)`.
+Let `HP = PotionHerbs(P)`, `HZ = ResonanceHerbs(Z)`, and `HG = PotionHerbs(enteredGuidanceTier)`. Blank Guidance means zero; hold all entered tiers fixed for the comparison.
 
 ```text
 nextDuration = 1 + (D+1)/100
 mainHerbsSaved = (HP/duration - HP/nextDuration) * H
 resonanceHerbsSaved = (HZ/duration - HZ/nextDuration) * H
+sunpetalsSaved = (HG/duration - HG/nextDuration) * H
 mainHerbPrice = TSer ? pBloom : pSage
-dailySavings = abs(mainHerbsSaved*mainHerbPrice + resonanceHerbsSaved*pHerb)
+dailySavings = abs(mainHerbsSaved*mainHerbPrice + resonanceHerbsSaved*pHerb + sunpetalsSaved*pSun)
 ROI = BuildingCost(LaboratoryLevel) / dailySavings
 ```
 
@@ -361,9 +370,12 @@ ROI = BuildingCost(DustCollectorLevel) / extraDailyMD
 Evaluate Golems, Fertilizer, and Plots individually; choose the lowest finite ROI.
 
 ```text
-extraHerbsPerDay = 24 * [herbsPerHour(sectionLevel+1000) - currentHerbsPerHour]
+extraBaseHerbsPerDay = 24 * [herbsPerHour(sectionLevel+1000) - currentHerbsPerHour]
+extraHerbsPerDay = extraBaseHerbsPerDay * (bloomMultiplier + sageMultiplier) / 2
+yieldWeightedHerbPrice = (bloomMultiplier*pBloom + sageMultiplier*pSage)
+                        / (bloomMultiplier + sageMultiplier)
 cost = [1000L^2 + 1,001,000L + 333,833,500 + 208,500] * pRes
-dailyBenefit = extraHerbsPerDay * (pHerb - 50,000)
+dailyBenefit = extraHerbsPerDay * yieldWeightedHerbPrice - extraBaseHerbsPerDay * 50,000
 ROI = cost / dailyBenefit
 ```
 
@@ -372,10 +384,10 @@ The legacy farm ROI cost includes an extra **208,500 resource units** beyond the
 ### Farm plus Hedge: choose one section +1,000 and cover its added levy
 
 ```text
-extraHerbsPerHour = extraHerbsPerDay / 24
-hedgeLevels = ceil(max(0, extraHerbsPerHour*50,000) / 10^9)
+extraBaseHerbsPerHour = extraBaseHerbsPerDay / 24
+hedgeLevels = ceil(max(0, extraBaseHerbsPerHour*50,000) / 10^9)
 combinedCost = farmCostFromPreviousFormula + hedgeLevels*10^12
-dailyBenefit = extraHerbsPerDay * pHerb
+dailyBenefit = extraHerbsPerDay * yieldWeightedHerbPrice
 ROI = combinedCost / dailyBenefit
 ```
 
@@ -396,7 +408,7 @@ upgradeResources = TomeTotalCost(L+1) - TomeTotalCost(L)
 cost = upgradeResources * pRes
 ```
 
-Select the highest-level Nature, Water, or Fire tome upgrade; ties follow that order. Use the selected tome's own sell price.
+Select the highest-level Nature, Water, or Fire tome upgrade; ties follow that order. Use the selected tome's own buy/sell midpoint.
 
 ```text
 tomeDropChance = 0.005 * (1 + DropBoost/100)
@@ -406,7 +418,7 @@ averageDrop = (L + enemyBoost/2 + 1) * guildMultiplier
 nextAverageDrop = averageDrop + guildMultiplier
 currentTomesPerDay = A * tomeDropChance * averageDrop
 extraTomesPerDay = A * tomeDropChance * guildMultiplier
-extraDailyValue = extraTomesPerDay * SelectedTomeSellPrice
+extraDailyValue = extraTomesPerDay * SelectedTomeMarketPrice
 ROI = cost / extraDailyValue
 ```
 
@@ -484,14 +496,14 @@ Summing the values of `Constellation` effects 1–51 counts assigned stars, incl
 Market mappings:
 
 ```text
-Bloomwell = Sell[41]; Sageroot = Sell[40]
-Resource average = round((Sell[8] + Sell[7] + Sell[9])/3)
-Shard value from drops = Sell[2]
-Shard purchase cost for ROI = Buy[2]
-Nature tome = Sell[15]; Water tome = Sell[14]; Fire tome = Sell[13]
+mid(id) = (Buy[id] + Sell[id]) / 2
+Bloomwell = mid(41); Sageroot = mid(40); Sunpetal = mid(39)
+Resource average = (mid(8) + mid(7) + mid(9))/3
+Shard value from drops and upgrade cost = mid(2)
+Nature tome = mid(15); Water tome = mid(14); Fire tome = mid(13)
 ```
 
-The parser additionally exposes rounded buy/sell midpoint prices for Power Orb (35), Perfect Orb (50), Divine Essence (47), and Elementium (46); they currently have no associated ROI formulas here.
+The parser also exposes midpoints for Power Orb (35), Perfect Orb (50), Divine Essence (47), and Elementium (46). All midpoints retain full precision. When only one side has a finite positive quote, use that quote rather than averaging it with zero. Missing Sunpetal quotes make Guidance-inclusive Laboratory ROI unavailable. Missing Guidance inputs preserve the old two-potion calculation.
 
 Equipment and Nexus:
 
@@ -506,8 +518,11 @@ matchingItems = count(equipped items with positive Boosts[gatheringId])
 pinnacleResearchMultiplier = Constellation[49] > 0
   ? 1 + matchingItems * 0.0005 * (1 + BaseBoosts[152]/100)
   : 1
+pinnacleResearchPerSpireLevel = Constellation[49] > 0
+  ? matchingItems * 0.000005
+  : 0
 
-equipmentResearch = sum(item.Boosts[gatheringId] * infusionMultiplier(item) / 50)
+equipmentResearch = sum(floor(item.Boosts[gatheringId] * infusionMultiplier(item)) / 50)
 equipmentBaseRes = sum(item.Boosts[124]/100 * infusionMultiplier(item))
 
 equipmentTerm = sum(floor(item.Boosts[gatheringId] * infusionMultiplier(item))
@@ -521,7 +536,7 @@ NexusLevel = round((
 
 Missing item boosts contribute zero. Imbued is recognized by numeric prefix ID 10, an Imbued item name, or an explicit Imbued prefix name. The API's `Infusions` excludes the extra infusion; add it exactly once even when multiple identifiers match. Ambitious is counted from equipped items' names or explicit prefix names, capped at eight.
 
-The Pinnacle formula matches the October 18 API totals for Hohmono, Ownin, and Pepo. The observed multiplier uses the **full Spire factor**, including its base 1x (equivalently, `1 + matchingItems * (Spire + 100) * 0.000005`). It multiplies the research bonus, excluding the API's baseline 1. For Hohmono, eight matching items and Spire 1,415 give `1.0606x` and Nexus 25,921. Current research already contains Pinnacle: remove it only for the inverse Nexus calculation, and apply it to the marginal research from new shard upgrades. This correction does not add a Pinnacle model to the Spire ROI formula above.
+The Pinnacle formula matches the October 18 API totals for Hohmono, Ownin, and Pepo. The observed multiplier uses the **full Spire factor**, including its base 1x (equivalently, `1 + matchingItems * (Spire + 100) * 0.000005`). It multiplies the research bonus, excluding the API's baseline 1. For Hohmono, eight matching items and Spire 1,415 give `1.0606x` and Nexus 25,921. Current research already contains Pinnacle: remove it for the inverse Nexus calculation and for the existing bonus in the Spire marginal-gain formula. Shard ROI applies the current multiplier to newly gained research; Spire ROI also accounts for that multiplier increasing with the next Spire level.
 
 `equipmentBaseRes` is available from normalization but the income formula already uses `TotalBoosts[124]/100`; do not add equipment base resources again. Nexus inference uses the highest gathering **level** to select its boost ID, while normalized research independently uses the largest total gathering boost. Do not confuse the two selections. An invalid Nexus inference returns unavailable, not a genuine level zero.
 

@@ -50,6 +50,21 @@
       * (1 + finite(p.plots) / 100) ** 0.9;
   }
 
+  function farmHerbBonuses(d) {
+    const bloomBonusPercent = 2 * Math.max(0, finite(d.bloomwellConstellationLevel));
+    const sageBonusPercent = 2 * Math.max(0, finite(d.sagerootConstellationLevel));
+    const bloomMultiplier = 1 + bloomBonusPercent / 100;
+    const sageMultiplier = 1 + sageBonusPercent / 100;
+    return { bloomBonusPercent, sageBonusPercent, bloomMultiplier, sageMultiplier,
+      totalMultiplier: (bloomMultiplier + sageMultiplier) / 2 };
+  }
+
+  function averageFarmHerbPrice(d) {
+    const { bloomMultiplier, sageMultiplier } = farmHerbBonuses(d);
+    return (bloomMultiplier * finite(d.bloomwellPrice) + sageMultiplier * finite(d.sagerootPrice))
+      / (bloomMultiplier + sageMultiplier);
+  }
+
   function harvestHerbsPerPot(level) {
     const x = finite(level);
     return (x * (x + 1) / 2) + (0.0002 * x ** 3);
@@ -117,15 +132,20 @@
   }
 
   function farmTotals(d, harvestPotion) {
-    const herbHr = herbsPerHour(d);
-    const herbDaily = herbHr * 24;
-    const bloomDaily = herbDaily / 2;
-    const sageDaily = herbDaily / 2;
+    const baseHerbHr = herbsPerHour(d);
+    const baseHerbDaily = baseHerbHr * 24;
+    const bonuses = farmHerbBonuses(d);
+    const bloomDaily = baseHerbDaily / 2 * bonuses.bloomMultiplier;
+    const sageDaily = baseHerbDaily / 2 * bonuses.sageMultiplier;
+    const herbHr = baseHerbHr * bonuses.totalMultiplier;
+    const herbDaily = bloomDaily + sageDaily;
     const harvestPerPot = harvestHerbsPerPot(harvestPotion);
     const harvestHr = herbsPerHourFromPotion(harvestPerPot, d.potDuration);
     const resPerPot = resonanceHerbsPerPot(d.resonancePotion);
     const resHr = herbsPerHourFromPotion(resPerPot, d.potDuration);
-    return { herbHr, herbDaily, bloomDaily, sageDaily, harvestPerPot, harvestHr, resPerPot, resHr };
+    return { baseHerbHr, baseHerbDaily, herbHr, herbDaily, bloomDaily, sageDaily,
+      bloomBonusPercent: bonuses.bloomBonusPercent, sageBonusPercent: bonuses.sageBonusPercent,
+      harvestPerPot, harvestHr, resPerPot, resHr };
   }
 
   function battlerAtPotion(d, harvestPotion) {
@@ -133,7 +153,7 @@
     const leftoverBloom = f.bloomDaily - ((f.resHr * C.BATTLE_HOURS_PER_DAY) / 2);
     const leftoverSage = f.sageDaily - ((f.harvestHr * C.BATTLE_HOURS_PER_DAY) + ((f.resHr / 2) * C.BATTLE_HOURS_PER_DAY));
     const leftoverSold = leftoverBloom * finite(d.bloomwellPrice) + leftoverSage * finite(d.sagerootPrice);
-    const farmTax = (leftoverSold - f.herbDaily * C.FARM_DUST_PER_HERB) + finite(d.farmDiscount) * 1_000_000_000 * 24;
+    const farmTax = (leftoverSold - f.baseHerbDaily * C.FARM_DUST_PER_HERB) + finite(d.farmDiscount) * 1_000_000_000 * 24;
     const mdEarned = dustDaily(d, true);
     return {
       ...f,
@@ -155,7 +175,7 @@
     const leftoverBloom = f.bloomDaily - ((f.harvestHr * C.BATTLE_HOURS_PER_DAY) + ((f.resHr / 2) * C.BATTLE_HOURS_PER_DAY));
     const leftoverSage = f.sageDaily - ((f.resHr * C.BATTLE_HOURS_PER_DAY) / 2);
     const leftoverSold = leftoverBloom * finite(d.bloomwellPrice) + leftoverSage * finite(d.sagerootPrice);
-    const farmTax = (leftoverSold - f.herbDaily * C.FARM_DUST_PER_HERB) + finite(d.farmDiscount) * 1_000_000_000 * 24;
+    const farmTax = (leftoverSold - f.baseHerbDaily * C.FARM_DUST_PER_HERB) + finite(d.farmDiscount) * 1_000_000_000 * 24;
 
     const grossUnpotted = grossUnpottedResourcePerAction(d);
     const taxedUnpotted = grossUnpotted * pctAfterTax(d.tax);
@@ -322,7 +342,8 @@
 
   function farmForDailyHerbs(d, requiredHerbsPerDay) {
     if (!Number.isFinite(requiredHerbsPerDay)) return null;
-    const dailyHerbsAt = upgrades => herbsPerHour({ ...d, ...balancedFarmLevels(d, upgrades) }) * 24;
+    const harvestMultiplier = farmHerbBonuses(d).totalMultiplier;
+    const dailyHerbsAt = upgrades => herbsPerHour({ ...d, ...balancedFarmLevels(d, upgrades) }) * 24 * harvestMultiplier;
     let low = 0;
     let high = 0;
     if (dailyHerbsAt(0) < requiredHerbsPerDay) {
@@ -348,8 +369,9 @@
       return { label, key, resource, currentLevel, nextLevel: levels[key], addedLevels,
         resources: farmUpgradeResources(currentLevel, addedLevels) };
     });
-    const extraHerbsPerDay = (herbsPerHour({ ...d, ...levels }) - herbsPerHour(d)) * 24;
-    const addedFarmTaxPerHour = extraHerbsPerDay / 24 * C.FARM_DUST_PER_HERB;
+    const extraBaseHerbsPerDay = (herbsPerHour({ ...d, ...levels }) - herbsPerHour(d)) * 24;
+    const extraHerbsPerDay = extraBaseHerbsPerDay * harvestMultiplier;
+    const addedFarmTaxPerHour = extraBaseHerbsPerDay / 24 * C.FARM_DUST_PER_HERB;
     const hedgeLevelsNeeded = Math.ceil(Math.max(0, addedFarmTaxPerHour) / C.HEDGE_DISCOUNT_PER_HOUR);
     const resourcesNeeded = upgrades.reduce((sum, upgrade) => sum + upgrade.resources, 0);
     const farmCost = resourcesNeeded * finite(d.averageResourcePrice);
@@ -360,7 +382,7 @@
 
   function resonanceUpgradeValue(d) {
     const required = [d.battleLevel, d.miningLevel, d.fishingLevel, d.woodcuttingLevel,
-      d.dropBoost, d.resonancePotion, d.potionBoost, d.shardSellPrice];
+      d.dropBoost, d.resonancePotion, d.potionBoost, d.shardMarketPrice];
     if (!required.every(value => Number.isFinite(value) && value >= 0)) return null;
 
     const weightedLevel = 3 * d.battleLevel + d.miningLevel + d.fishingLevel + d.woodcuttingLevel;
@@ -384,7 +406,7 @@
     const extraShardsPerDay = dropsPerDay * averageBaseDrop * extraResonanceBonus / 100
       * shardConstellationMultiplier;
     const retainedExtraShardsPerDay = extraShardsPerDay * C.SHARD_RETAINED_FRACTION;
-    const valuePerDay = retainedExtraShardsPerDay * d.shardSellPrice;
+    const valuePerDay = retainedExtraShardsPerDay * d.shardMarketPrice;
     if (!Number.isFinite(valuePerDay)) return null;
 
     return { weightedLevel, minimumBaseDrop, averageBaseDrop, effectiveDropChance, dropsPerDay,
@@ -392,7 +414,7 @@
       equipmentShardBonus, currentResonanceBonus, nextResonanceBonus, extraResonanceBonus,
       currentAverageDrop, nextAverageDrop,
       currentShardsPerDay, nextShardsPerDay: currentShardsPerDay + extraShardsPerDay,
-      extraShardsPerDay, retainedExtraShardsPerDay, shardSellPrice: d.shardSellPrice, valuePerDay };
+      extraShardsPerDay, retainedExtraShardsPerDay, shardMarketPrice: d.shardMarketPrice, valuePerDay };
   }
 
   function battlerPotionAnalysis(d, maximumSustainablePotion = maxSustainableBattlerPotion(d)) {
@@ -443,8 +465,16 @@
     const harvestSavingsValuePerDay = harvestHerbsSavedPerDay * finite(harvestHerbPrice);
     const resonanceSavingsValuePerDay = resonanceHerbsSavedPerDay
       * ((finite(d.bloomwellPrice) + finite(d.sagerootPrice)) / 2);
+    // Hold the entered Guidance tier fixed when valuing the duration upgrade.
+    const guidancePotion = Math.max(0, Math.trunc(finite(d.guidancePotion)));
+    const sunpetalsPerPotion = harvestHerbsPerPot(guidancePotion);
+    const sunpetalsPerHour = herbsPerHourFromPotion(sunpetalsPerPotion, d.potDuration);
+    const nextSunpetalsPerHour = herbsPerHourFromPotion(sunpetalsPerPotion, finite(d.potDuration) + 1);
+    const sunpetalsSavedPerDay = (sunpetalsPerHour - nextSunpetalsPerHour) * C.BATTLE_HOURS_PER_DAY;
+    const sunpetalPrice = finite(d.sunpetalPrice, NaN);
+    const guidanceSavingsValuePerDay = guidancePotion === 0 ? 0 : sunpetalsSavedPerDay * sunpetalPrice;
     const totalSavingsValuePerDay = Math.abs(
-      harvestSavingsValuePerDay + resonanceSavingsValuePerDay,
+      harvestSavingsValuePerDay + resonanceSavingsValuePerDay + guidanceSavingsValuePerDay,
     );
     const nextLevelCost = buildingCost(d.labLevel, d.averageResourcePrice);
 
@@ -463,6 +493,12 @@
       averageHerbPrice: (finite(d.bloomwellPrice) + finite(d.sagerootPrice)) / 2,
       harvestSavingsValuePerDay,
       resonanceSavingsValuePerDay,
+      guidancePotion,
+      sunpetalsPerHour,
+      nextSunpetalsPerHour,
+      sunpetalsSavedPerDay,
+      sunpetalPrice,
+      guidanceSavingsValuePerDay,
       totalSavingsValuePerDay,
       roi: safeDiv(nextLevelCost, totalSavingsValuePerDay),
     };
@@ -493,7 +529,13 @@
 
   function spireROI(d) {
     const currentEquipmentResearch = finite(d.equipmentResearch);
-    const extraResearch = currentEquipmentResearch * 0.01; // +1 Spire level changes the multiplier by 0.01x.
+    const pinnacleMultiplier = finite(d.pinnacleResearchMultiplier, 1);
+    const pinnacleIncrease = finite(d.pinnacleResearchPerSpireLevel);
+    // API research includes Pinnacle already; its baseline 100% is not boosted.
+    // Apply next level's multiplier to new equipment research and the multiplier
+    // increase to the existing bonus. This includes the cross-term from both gains.
+    const extraResearch = currentEquipmentResearch * 0.01 * (pinnacleMultiplier + pinnacleIncrease)
+      + ((finite(d.research) - 100) / pinnacleMultiplier) * pinnacleIncrease;
     if (!extraResearch) return null;
     const potBase = potionBaseResourceBonus(d.harvestPotion, d.potionBoost);
     const baseFactor = (1 + finite(d.level) * 0.03 + potBase + finite(d.baseRes))
@@ -565,23 +607,26 @@
 
   function farmUpgradeStats(d) {
     const currentHerbs = herbsPerHour(d);
-    const avgHerbPrice = (finite(d.bloomwellPrice) + finite(d.sagerootPrice)) / 2;
+    const avgHerbPrice = averageFarmHerbPrice(d);
+    const harvestMultiplier = farmHerbBonuses(d).totalMultiplier;
     const rows = [
       ['Golems', 'golems'],
       ['Fertilizer', 'fertilizer'],
       ['Plots', 'plots'],
     ].map(([label, key]) => {
       const next = { ...d, [key]: finite(d[key]) + C.FARM_UPGRADE_SIZE };
-      const extraHerbsHr = herbsPerHour(next) - currentHerbs;
+      const extraBaseHerbsHr = herbsPerHour(next) - currentHerbs;
+      const extraHerbsHr = extraBaseHerbsHr * harvestMultiplier;
       const level = finite(d[key]);
       const cost = (1000 * level ** 2 + 1_001_000 * level + 333_833_500 + 208_500)
         * finite(d.averageResourcePrice);
-      const taxDenominator = extraHerbsHr * 24 * avgHerbPrice - extraHerbsHr * 24 * C.FARM_DUST_PER_HERB;
+      const taxDenominator = extraHerbsHr * 24 * avgHerbPrice - extraBaseHerbsHr * 24 * C.FARM_DUST_PER_HERB;
       const noTaxDenominator = extraHerbsHr * 24 * avgHerbPrice;
       return {
         label,
         key,
         extraHerbsHr,
+        extraBaseHerbsHr,
         cost,
         taxedROI: safeDiv(cost, taxDenominator),
         noTaxROI: safeDiv(cost, noTaxDenominator),
@@ -593,7 +638,7 @@
   function farmNoHedgeRoiBreakdown(d) {
     const rows = farmUpgradeStats(d);
     const valid = rows.filter(row => Number.isFinite(row.taxedROI));
-    const averageHerbPrice = (finite(d.bloomwellPrice) + finite(d.sagerootPrice)) / 2;
+    const averageHerbPrice = averageFarmHerbPrice(d);
     if (!valid.length) {
       return {
         bestUpgrade: null,
@@ -613,7 +658,7 @@
     ));
     const extraHerbsPerDay = best.extraHerbsHr * 24;
     const grossHerbValuePerDay = extraHerbsPerDay * averageHerbPrice;
-    const farmTaxPerDay = extraHerbsPerDay * C.FARM_DUST_PER_HERB;
+    const farmTaxPerDay = best.extraBaseHerbsHr * 24 * C.FARM_DUST_PER_HERB;
     const netDailyBenefit = grossHerbValuePerDay - farmTaxPerDay;
 
     return {
@@ -635,11 +680,11 @@
 
   function farmHedgeRoiBreakdown(d) {
     const rows = farmUpgradeStats(d);
-    const averageHerbPrice = (finite(d.bloomwellPrice) + finite(d.sagerootPrice)) / 2;
+    const averageHerbPrice = averageFarmHerbPrice(d);
     const combinations = rows.map((row) => {
       const extraHerbsPerDay = row.extraHerbsHr * 24;
       const grossHerbValuePerDay = extraHerbsPerDay * averageHerbPrice;
-      const addedFarmTaxPerHour = row.extraHerbsHr * C.FARM_DUST_PER_HERB;
+      const addedFarmTaxPerHour = row.extraBaseHerbsHr * C.FARM_DUST_PER_HERB;
       const hedgeLevelsNeeded = Math.ceil(Math.max(addedFarmTaxPerHour, 0)
         / C.HEDGE_DISCOUNT_PER_HOUR);
       const hedgeCost = hedgeLevelsNeeded * C.HEDGE_COST_PER_LEVEL;
@@ -754,7 +799,7 @@
       currentTomesPerDay: perDay,
       nextTomesPerDay: nextPerDay,
       extraTomesPerDay,
-      tomeSellPrice: highest.price,
+      tomeMarketPrice: highest.price,
       extraValuePerDay,
       roi: safeDiv(upgradeCostDust, extraValuePerDay),
     };
@@ -962,14 +1007,18 @@
     const pinnacleResearchMultiplier = getNum(constellation, '49') > 0
       ? 1 + pinnacleResearchItemCount * 0.0005 * (1 + spireBase / 100)
       : 1;
+    const pinnacleResearchPerSpireLevel = getNum(constellation, '49') > 0
+      ? pinnacleResearchItemCount * 0.000005
+      : 0;
 
     let equipmentResearch = 0;
     let equipmentBaseRes = 0;
     for (const item of equipmentItems) {
       if (!item || !item.Boosts) continue;
-      const infusionMultiplier = 1 + 0.05 * effectiveInfusions(item);
+      const infusionMultiplier = 1 + effectiveInfusions(item) / 20;
       if (item.Boosts[gatheringId] != null) {
-        equipmentResearch += finite(item.Boosts[gatheringId]) * infusionMultiplier / 50;
+        // Match the per-item rounding used by the API and Nexus inference.
+        equipmentResearch += Math.floor(finite(item.Boosts[gatheringId]) * infusionMultiplier) / 50;
       }
       if (item.Boosts['124'] != null) {
         equipmentBaseRes += (finite(item.Boosts['124']) / 100) * infusionMultiplier;
@@ -1001,8 +1050,12 @@
 
     const sell = marketData?.Sell || {};
     const buy = marketData?.Buy || {};
-    const averageRes = Math.round((getNum(sell, '8') + getNum(sell, '7') + getNum(sell, '9')) / 3);
-    const averageMarketPrice = (id) => Math.round((getNum(buy, String(id)) + getNum(sell, String(id))) / 2);
+    const averageMarketPrice = (id, fallback = 0) => {
+      const quotes = [buy[String(id)], sell[String(id)]].map(Number)
+        .filter(value => Number.isFinite(value) && value > 0);
+      return quotes.length ? quotes.reduce((sum, value) => sum + value, 0) / quotes.length : fallback;
+    };
+    const averageRes = (averageMarketPrice(8) + averageMarketPrice(7) + averageMarketPrice(9)) / 3;
     const research = Math.max(getNum(totalBoosts, '30'), getNum(totalBoosts, '31'), getNum(totalBoosts, '32')) * 100;
     const sigilBoost = finite(playerData?.SigilBoost);
     const pets = playerData?.Pets || {};
@@ -1022,9 +1075,13 @@
       tax: finite(userInputs.tax),
       harvestPotion: finite(userInputs.harvestPotion),
       resonancePotion: finite(userInputs.resonancePotion),
+      guidancePotion: Math.max(0, Math.min(C.MAX_SUNPETAL_POTION, Math.trunc(finite(userInputs.guidancePotion)))),
       potDuration: getNum(totalBoosts, '110'),
-      bloomwellPrice: getNum(sell, '41'),
-      sagerootPrice: getNum(sell, '40'),
+      bloomwellPrice: averageMarketPrice(41),
+      sagerootPrice: averageMarketPrice(40),
+      sunpetalPrice: averageMarketPrice(39, NaN),
+      bloomwellConstellationLevel: Math.max(0, Math.trunc(getNum(constellation, '10'))),
+      sagerootConstellationLevel: Math.max(0, Math.trunc(getNum(constellation, '9'))),
       golems: getNum(totalBoosts, '130'),
       fertilizer: getNum(totalBoosts, '131'),
       plots: getNum(totalBoosts, '132'),
@@ -1035,7 +1092,7 @@
       woodcuttingLevel: getNum(playerData, 'WoodcuttingLevel', NaN),
       equipmentShardBonus: getNum(totalBoosts, '122'),
       shardConstellationLevel: Math.max(0, Math.trunc(getNum(constellation, '14'))),
-      shardSellPrice: getNum(sell, '2', NaN),
+      shardMarketPrice: averageMarketPrice(2, NaN),
       potionBoost: getNum(totalBoosts, '108'),
       potionBoostLevel: getNum(baseBoosts, '108', getNum(totalBoosts, '108')),
       baseRes: getNum(totalBoosts, '124') / 100,
@@ -1051,6 +1108,7 @@
       equipmentBaseRes,
       equipmentResearch,
       pinnacleResearchMultiplier,
+      pinnacleResearchPerSpireLevel,
       ambitiousCount,
       sigilBoost,
       hasNonDistillationSigil: sigilBoost > 0 && sigilBoost !== C.DISTILLATION_SIGIL_BOOST_ID,
@@ -1061,11 +1119,11 @@
       baseResAmount: getNum(baseBoosts, '124'),
       labLevel: getNum(baseBoosts, '160'),
       shardBoost: getNum(baseBoosts, gatheringId),
-      shardPrice: getNum(buy, '2'),
+      shardPrice: averageMarketPrice(2),
       nexusLevel,
-      natureTomePrice: getNum(sell, '15'),
-      waterTomePrice: getNum(sell, '14'),
-      fireTomePrice: getNum(sell, '13'),
+      natureTomePrice: averageMarketPrice(15),
+      waterTomePrice: averageMarketPrice(14),
+      fireTomePrice: averageMarketPrice(13),
       dropBoost: getNum(totalBoosts, '102'),
       natureTomeLevel: getNum(baseBoosts, '27'),
       waterTomeLevel: getNum(baseBoosts, '26'),

@@ -308,7 +308,7 @@ function sunpetalPotionInfo(analysis) {
     title: 'Maximum sustainable Potion of Guidance',
     description: 'Estimated sustainable Potion of Guidance tier, using the developer’s approximate Sunpetal production formula.',
     rows: [
-      { label: 'Combined farm herbs / hour', value: formatCompact(analysis.farmHerbsPerHour) },
+      { label: 'Base farm herbs / hour', value: formatCompact(analysis.farmHerbsPerHour) },
       { label: 'Sunpetals / hour (estimated)', value: formatFull(analysis.sunpetalsPerHour) },
       { label: 'Sunpetals / day (estimated)', value: formatFull(analysis.sunpetalsPerDay) },
       { label: 'Potion duration', value: `${formatFull(analysis.durationHours)} hours` },
@@ -319,7 +319,7 @@ function sunpetalPotionInfo(analysis) {
       ]),
       { label: 'Maximum sustainable tier (estimated)', value: formatters.integer(analysis.maximumSustainablePotion), total: true },
     ],
-    note: 'Estimated production = 0.05 × √(combined hourly farm herbs), produced for 24 hours per day. Potion cost = L(L + 1)/2 + 0.0002L³ Sunpetals. Uses your total Potion Duration and the same 27,400-action day as other potions. Assumes all Sunpetals go toward this potion, with none reserved for Renewal or dungeon skips.',
+    note: 'Estimated production = 0.05 × √(base hourly farm herbs), produced for 24 hours per day. Bloomwell and Sageroot nodes affect those herbs only. Potion cost = L(L + 1)/2 + 0.0002L³ Sunpetals. Uses your total Potion Duration and the same 27,400-action day as other potions. Assumes all Sunpetals go toward this potion, with none reserved for Renewal or dungeon skips.',
   };
 }
 
@@ -348,7 +348,12 @@ function leftoverHerbInfo(role, herb, result) {
   const harvestConsumption = totals.harvestHr * Calc.C.BATTLE_HOURS_PER_DAY;
   const leftover = isBloom ? totals.leftoverBloom : totals.leftoverSage;
   const potionName = role === 'battler' ? 'Wisdom' : 'Harvest';
-  const rows = [{ label: `Daily ${herbName} produced`, value: formatCompact(produced) }];
+  const bonusPercent = isBloom ? totals.bloomBonusPercent : totals.sageBonusPercent;
+  const rows = [
+    { label: `Base daily ${herbName}`, value: formatCompact(totals.baseHerbDaily / 2) },
+    { label: 'Atlas harvest bonus', value: `+${formatters.percent(bonusPercent)}` },
+    { label: `Daily ${herbName} produced`, value: formatCompact(produced) },
+  ];
 
   if (harvestUsesThisHerb) {
     rows.push({ label: `${potionName} potion consumption`, value: formatDebit(harvestConsumption) });
@@ -376,14 +381,14 @@ function leftoverValueInfo(role, data, result) {
   const sageValue = totals.leftoverSage * data.sagerootPrice;
   return {
     title: 'Leftover herb value',
-    description: 'Each leftover herb balance is multiplied by its current Manarion sell price.',
+    description: 'Each leftover herb balance is valued at the midpoint of current Manarion buy and sell orders.',
     rows: [
       {
-        label: `Bloomwells: ${formatSignedCompact(totals.leftoverBloom)} × ${formatters.integer(data.bloomwellPrice)}`,
+        label: `Bloomwells: ${formatSignedCompact(totals.leftoverBloom)} × ${formatFull(data.bloomwellPrice)}`,
         value: formatSignedCompact(bloomValue),
       },
       {
-        label: `Sageroots: ${formatSignedCompact(totals.leftoverSage)} × ${formatters.integer(data.sagerootPrice)}`,
+        label: `Sageroots: ${formatSignedCompact(totals.leftoverSage)} × ${formatFull(data.sagerootPrice)}`,
         value: formatSignedCompact(sageValue),
       },
       { label: 'Leftover herb value', value: formatSignedCompact(totals.leftoverSold), tone: infoTone(totals.leftoverSold), total: true },
@@ -393,11 +398,11 @@ function leftoverValueInfo(role, data, result) {
 
 function farmTaxInfo(role, data, result) {
   const totals = result[role];
-  const productionTax = totals.herbDaily * Calc.C.FARM_DUST_PER_HERB;
+  const productionTax = totals.baseHerbDaily * Calc.C.FARM_DUST_PER_HERB;
   const hedgeDiscount = data.farmDiscount * 1_000_000_000 * 24;
   return {
     title: 'Farm tax taken',
-    description: 'The farm charges 50,000 MD for every herb produced. Hedge Fund’s permanent Farm Discount offsets that charge when the player has it.',
+    description: 'Farm upkeep is 50,000 MD per base herb, before Atlas harvest bonuses. Hedge Fund’s permanent Farm Discount offsets that charge.',
     rows: [
       { label: 'Leftover herb value', value: formatSignedCompact(totals.leftoverSold) },
       { label: 'Herb production tax', value: formatDebit(productionTax) },
@@ -446,12 +451,19 @@ function labRoiInfo(role, data) {
       { label: 'Herbs saved / hour', value: formatFull(breakdown.resonanceHerbsSavedPerHour) },
       { label: `Daily herbs saved (${formatCompact(breakdown.resonanceHerbsSavedPerHour)} × ${eventHours}h)`, value: formatCompact(breakdown.resonanceHerbsSavedPerDay) },
       { label: `Daily value (${formatCompact(breakdown.resonanceHerbsSavedPerDay)} × ${formatCompact(breakdown.averageHerbPrice)})`, value: formatCompact(breakdown.resonanceSavingsValuePerDay) },
+      { section: 'Potion of Guidance — Sunpetals' },
+      { label: 'Entered potion tier', value: formatters.integer(breakdown.guidancePotion) },
+      { label: 'Current Sunpetal use / hour', value: formatFull(breakdown.sunpetalsPerHour) },
+      { label: 'Use / hour with +1 duration', value: formatFull(breakdown.nextSunpetalsPerHour) },
+      { label: 'Sunpetals saved / day', value: formatFull(breakdown.sunpetalsSavedPerDay) },
+      { label: 'Sunpetal buy/sell midpoint', value: `${formatFull(breakdown.sunpetalPrice)} MD` },
+      { label: 'Guidance savings / day', value: formatCompact(breakdown.guidanceSavingsValuePerDay) },
       { section: 'Payback' },
       { label: 'Total savings / day', value: formatCompact(breakdown.totalSavingsValuePerDay), total: true },
       { label: 'Calculation', value: `${formatCompact(breakdown.nextLevelCost)} ÷ ${formatCompact(breakdown.totalSavingsValuePerDay)}` },
       { label: 'ROI', value: `${formatters.days(breakdown.roi)} days`, tone: infoTone(breakdown.roi), total: true },
     ],
-    note: `${role === 'battler' ? 'Battler Wisdom' : 'TSer Harvest'} savings use the ${roleHerb} sell price. Resonance uses the average sell price of both herb halves across the full ${eventHours}-hour event day.`,
+    note: `All savings use buy/sell midpoint prices over the ${eventHours}-hour event day. Each entered potion tier stays fixed when comparing durations. Guidance is excluded when its input is blank or zero.`,
   };
 }
 
@@ -489,15 +501,15 @@ function farmNoHedgeRoiInfo(data) {
       { section: `Best upgrade: ${upgradeLabel}` },
       { label: 'Upgrade cost', value: formatCompact(breakdown.cost) },
       { label: 'Additional herbs / day', value: formatCompact(breakdown.extraHerbsPerDay) },
-      { label: 'Average herb sell price', value: `${formatCompact(breakdown.averageHerbPrice)} MD` },
+      { label: 'Yield-weighted herb midpoint', value: `${formatCompact(breakdown.averageHerbPrice)} MD` },
       { label: 'Gross herb value / day', value: formatCompact(breakdown.grossHerbValuePerDay) },
-      { label: 'Farm tax (extra herbs × 50,000 MD)', value: formatDebit(breakdown.farmTaxPerDay) },
+      { label: 'Farm tax (extra base herbs × 50,000 MD)', value: formatDebit(breakdown.farmTaxPerDay) },
       { label: 'Daily benefit after tax', value: formatCompact(breakdown.netDailyBenefit) },
       { section: 'Payback' },
       { label: 'Calculation', value: `${formatCompact(breakdown.cost)} ÷ ${formatCompact(breakdown.netDailyBenefit)}` },
       { label: 'Farm — no hedge ROI', value: `${formatters.days(breakdown.roi)} days`, tone: infoTone(breakdown.roi), total: true },
     ],
-    note: 'Divides the cost of the best-returning 1,000-level farm upgrade by the additional daily herb value remaining after the 50,000 MD tax per herb. Hedge Fund’s discount is not included.',
+    note: 'Divides the cost of the best-returning 1,000-level farm upgrade by its additional daily herb value after upkeep. Atlas bonuses increase each herb’s yield; upkeep charges 50,000 MD per base herb. Hedge Fund’s discount is not included.',
   };
 }
 
@@ -513,7 +525,7 @@ function farmHedgeRoiInfo(data) {
       { section: `Best combination: ${upgradeLabel}` },
       { label: 'Farm upgrade cost', value: formatCompact(breakdown.farmUpgradeCost) },
       { label: 'Additional herbs / day', value: formatCompact(breakdown.extraHerbsPerDay) },
-      { label: 'Average herb sell price', value: `${formatCompact(breakdown.averageHerbPrice)} MD` },
+      { label: 'Yield-weighted herb midpoint', value: `${formatCompact(breakdown.averageHerbPrice)} MD` },
       { label: 'Full herb value / day', value: formatCompact(breakdown.grossHerbValuePerDay) },
       { section: 'Hedge Fund coverage' },
       { label: 'Added farm tax to cover / hour', value: formatCompact(breakdown.addedFarmTaxPerHour) },
@@ -535,7 +547,7 @@ function tomeDropRoiInfo(data) {
   const breakdown = Calc.helpers.tomeDropRoiBreakdown(data);
   return {
     title: 'Tome Drop ROI',
-    description: 'Upgrades the player’s highest-level tome and values the additional daily drops using that tome’s current sell price.',
+    description: 'Upgrades the player’s highest-level tome and values the additional daily drops using that tome’s buy/sell midpoint.',
     rows: [
       { section: 'Upgrade' },
       { label: 'Tome being upgraded', value: breakdown.tomeName },
@@ -549,7 +561,7 @@ function tomeDropRoiInfo(data) {
       { label: 'Current tomes / day', value: formatFull(breakdown.currentTomesPerDay) },
       { label: 'Tomes / day after upgrading', value: formatFull(breakdown.nextTomesPerDay) },
       { label: 'Extra tomes / day', value: formatCompact(breakdown.extraTomesPerDay) },
-      { label: `${breakdown.tomeName} Tome sell price`, value: `${formatCompact(breakdown.tomeSellPrice)} MD` },
+      { label: `${breakdown.tomeName} Tome buy/sell midpoint`, value: `${formatCompact(breakdown.tomeMarketPrice)} MD` },
       { label: 'Extra value / day', value: formatCompact(breakdown.extraValuePerDay) },
       { section: 'Payback' },
       { label: 'Calculation', value: `${formatCompact(breakdown.upgradeCost)} ÷ ${formatCompact(breakdown.extraValuePerDay)}` },
@@ -695,7 +707,7 @@ function resonanceValueInfo(resonance) {
       { label: 'Average drop including boost', value: `${formatCompact(resonance.currentAverageDrop, 3)} → ${formatCompact(resonance.nextAverageDrop, 3)}` },
       { label: 'Extra shards / day before tax', value: formatCompact(resonance.extraShardsPerDay) },
       { label: 'Extra shards retained with 90% tax', value: formatCompact(resonance.retainedExtraShardsPerDay) },
-      { label: 'Shard market sell price', value: `${formatFull(resonance.shardSellPrice)} MD` },
+      { label: 'Shard buy/sell midpoint', value: `${formatFull(resonance.shardMarketPrice)} MD` },
       { label: 'Total extra MD value', value: formatCompact(resonance.valuePerDay), total: true },
     ],
   };
@@ -851,6 +863,7 @@ function getInputs() {
     tax: num($('tax').value),
     harvestPotion: num($('harvest').value),
     resonancePotion: num($('resonance').value),
+    guidancePotion: num($('guidance').value),
     role: elements.role.value,
   };
 }
@@ -861,6 +874,7 @@ function getInputValues() {
     tax: $('tax').value,
     harvestPotion: $('harvest').value,
     resonancePotion: $('resonance').value,
+    guidancePotion: $('guidance').value,
     role: elements.role.value,
   };
 }
@@ -880,6 +894,7 @@ function restoreInputs() {
     $('tax').value = typeof saved.tax === 'string' ? saved.tax : '';
     $('harvest').value = typeof saved.harvestPotion === 'string' ? saved.harvestPotion : '';
     $('resonance').value = typeof saved.resonancePotion === 'string' ? saved.resonancePotion : '';
+    $('guidance').value = typeof saved.guidancePotion === 'string' ? saved.guidancePotion : '';
     elements.role.value = ['tser', 'battler'].includes(saved.role) ? saved.role : '';
   } catch (_) {}
 }

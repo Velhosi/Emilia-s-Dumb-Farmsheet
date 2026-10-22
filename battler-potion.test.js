@@ -70,7 +70,7 @@ assert.equal(H.battlerPotionAnalysis({ ...inputs, golems: 1e8, fertilizer: 1e8, 
 // from +1 Potion Boost at Resonance 100 = 2,568.75 extra shards; keep 256.875 at 90% tax.
 const shardInputs = { battleLevel: 0, miningLevel: 0, fishingLevel: 0, woodcuttingLevel: 0,
   dropBoost: 0, resonancePotion: 100, potionBoost: 200, equipmentShardBonus: 500,
-  shardSellPrice: 10, tax: 25 };
+  shardMarketPrice: 10, tax: 25 };
 const shardValue = H.resonanceUpgradeValue(shardInputs);
 assert.equal(Calc.C.NON_EVENT_BATTLES_PER_DAY, 27400);
 assert.equal(Calc.C.NON_EVENT_BATTLES_PER_DAY, Calc.C.TS_POTTED_ACTIONS,
@@ -97,11 +97,11 @@ assert.equal(H.resonanceUpgradeValue({ ...shardInputs, potionBoost: 300 }).value
   'A one-point Potion Boost upgrade adds the same absolute Resonance bonus at any starting boost');
 assert.equal(H.resonanceUpgradeValue({ ...shardInputs, resonancePotion: 200 }).valuePerDay, shardValue.valuePerDay * 2);
 assert.equal(H.resonanceUpgradeValue({ ...shardInputs, dropBoost: 100 }).valuePerDay, shardValue.valuePerDay * 2);
-assert.equal(H.resonanceUpgradeValue({ ...shardInputs, shardSellPrice: 20 }).valuePerDay, shardValue.valuePerDay * 2);
+assert.equal(H.resonanceUpgradeValue({ ...shardInputs, shardMarketPrice: 20 }).valuePerDay, shardValue.valuePerDay * 2);
 assert.equal(H.resonanceUpgradeValue({ ...shardInputs, resonancePotion: 0 }).valuePerDay, 0);
-assert.equal(H.resonanceUpgradeValue({ ...shardInputs, shardSellPrice: 0 }).valuePerDay, 0);
+assert.equal(H.resonanceUpgradeValue({ ...shardInputs, shardMarketPrice: 0 }).valuePerDay, 0);
 assert.equal(H.resonanceUpgradeValue({ ...shardInputs, battleLevel: undefined }), null);
-assert.equal(H.resonanceUpgradeValue({ ...shardInputs, shardSellPrice: NaN }), null);
+assert.equal(H.resonanceUpgradeValue({ ...shardInputs, shardMarketPrice: NaN }), null);
 
 const shardPlayer = { Level: 93780, MiningLevel: 52950, FishingLevel: 52950, WoodcuttingLevel: 79413,
   BaseBoosts: { 108: 238 }, TotalBoosts: { 102: 194, 108: 238, 122: 750 } };
@@ -113,11 +113,11 @@ assert.equal(normalizedShards.fishingLevel, 52950);
 assert.equal(normalizedShards.woodcuttingLevel, 79413);
 assert.equal(normalizedShards.level, 79413, 'Existing TSer level selection is preserved');
 assert.equal(normalizedShards.equipmentShardBonus, 750);
-assert.equal(normalizedShards.shardSellPrice, 13206);
+assert.equal(normalizedShards.shardMarketPrice, (11727 + 13206) / 2);
 const emiliaResonance = H.resonanceUpgradeValue(normalizedShards);
 assert.equal(emiliaResonance.weightedLevel, 466653);
 assert.ok(Math.abs(emiliaResonance.minimumBaseDrop - 211771.26449518432) < 1e-8);
-assert.ok(Math.abs(emiliaResonance.valuePerDay - 8448264136769.767) < 0.01);
+assert.ok(Math.abs(emiliaResonance.valuePerDay - 8448264136769.767 * ((11727 + 13206) / 2) / 13206) < 0.01);
 assert.ok(H.resonanceUpgradeValue({ ...normalizedShards, battleLevel: 93781 }).valuePerDay > emiliaResonance.valuePerDay);
 assert.equal(H.battlerPotionAnalysis({ ...inputs, ...shardInputs }).resonanceValue.valuePerDay, shardValue.valuePerDay);
 
