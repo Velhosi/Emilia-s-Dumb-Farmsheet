@@ -83,7 +83,8 @@ function infoTone(value) {
 const formatters = Object.freeze({
   compact: formatCompact,
   days: (value) => Number.isFinite(value)
-    ? value.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })
+    ? (value > 0 && value < 0.005 ? '<0.01'
+      : value.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 }))
     : 'N/A',
   integer: (value) => Number.isFinite(value) ? Math.round(value).toLocaleString() : 'N/A',
   percent: (value) => Number.isFinite(value)
@@ -391,8 +392,68 @@ function leftoverValueInfo(role, data, result) {
         label: `Sageroots: ${formatSignedCompact(totals.leftoverSage)} × ${formatFull(data.sagerootPrice)}`,
         value: formatSignedCompact(sageValue),
       },
+      {
+        label: `Sunpetals: ${formatSignedCompact(totals.leftoverSunpetals)} × ${formatFull(data.sunpetalPrice)}`,
+        value: formatSignedCompact(totals.leftoverSunpetals * data.sunpetalPrice),
+      },
       { label: 'Leftover herb value', value: formatSignedCompact(totals.leftoverSold), tone: infoTone(totals.leftoverSold), total: true },
     ],
+    note: Number.isFinite(data.sunpetalPrice) ? '' : 'No Sunpetal quote is available, so Sunpetals are excluded from the value total.',
+  };
+}
+
+function leftoverSunpetalsInfo(role, data, result) {
+  const totals = result[role];
+  return {
+    title: 'Leftover Sunpetals',
+    rows: [
+      { label: 'Sunpetals produced / day', value: formatFull(totals.sunpetalsPerDay) },
+      { label: 'Entered Potion of Guidance', value: formatters.integer(data.guidancePotion) },
+      { label: 'Guidance consumption / day', value: formatDebit(totals.guidanceConsumedPerDay) },
+      { label: 'Leftover Sunpetals / day', value: formatSignedCompact(totals.leftoverSunpetals), total: true },
+    ],
+    note: 'Production uses the developer’s estimate of 5% of the square root of base hourly farm output. Guidance uses 27,400 daily actions and your Potion Duration. Renewal and dungeon spending are not included.',
+  };
+}
+
+function nodeYieldRoiInfo(analysis) {
+  if (!analysis) return { title: 'T2 resource ROI', description: 'Player mastery or gathering levels are unavailable.', rows: [] };
+  const a = analysis;
+  return {
+    title: `${a.name} ROI — 500 yield upgrades`,
+    description: 'Payback for 500 yield upgrades, using expected daily T2 resources and buy/sell midpoint prices.',
+    rows: [
+      { section: 'Player and node bonuses' },
+      { label: 'Resource selection', value: a.element ? `${a.element[0].toUpperCase()}${a.element.slice(1)} mastery` : `Highest skill: ${a.skill}` },
+      { label: `${a.skill} level`, value: formatters.integer(a.skillLevel) },
+      { label: 'Level yield multiplier', value: `${formatFull(a.levelMultiplier)}×` },
+      { label: 'Gathering rate (all bonuses included)', value: `+${formatters.percent((a.rateMultiplier - 1) * 100)}` },
+      { label: 'Effective node chance / action', value: formatters.percent(a.chance * 100) },
+      { label: 'Ticks per discovery', value: formatters.integer(a.duration) },
+      { label: 'Node Yield bonus', value: `+${formatters.percent(a.nodeYieldBonusPercent)}` },
+      { label: `Aquarius bonus (${formatters.integer(a.starCount)} stars)`, value: `+${formatters.percent(a.aquariusBonusPercent)}` },
+      { label: 'Combined constellation yield', value: `${formatFull(a.constellationYieldMultiplier)}×` },
+      { label: 'Double harvest chance', value: formatters.percent(a.doubleChance * 100) },
+      { label: 'Leo / Gemini', value: `${a.leo ? 'Active' : 'Inactive'} / ${a.gemini ? 'Active' : 'Inactive'}` },
+      { label: 'Common → Mythic starting odds (%)', value: a.gemini ? '0 / 90 / 6 / 3 / 0.8 / 0.2' : '75 / 15 / 6 / 3 / 0.8 / 0.2' },
+      { section: '500-upgrade cost' },
+      { label: 'Purchased yield level', value: `${formatters.integer(a.currentLevel)} → ${formatters.integer(a.nextLevel)}` },
+      { label: `${a.costResource} required`, value: formatCompact(a.upgradeResources) },
+      { label: `${a.costResource} buy/sell midpoint`, value: `${formatFull(a.costPrice)} MD` },
+      { label: 'Total upgrade cost', value: `${formatCompact(a.upgradeCost)} MD` },
+      { section: 'Expected daily benefit' },
+      { label: 'Actions / day', value: formatters.integer(a.actionsPerDay) },
+      { label: 'Time harvesting a node', value: formatters.percent(a.activeFraction * 100) },
+      { label: 'Average active rarity (1–6)', value: formatFull(a.averageActiveRarity) },
+      { label: `Current ${a.name} / day`, value: formatFull(a.currentDailyYield) },
+      { label: `${a.name} / day after upgrading`, value: formatFull(a.nextDailyYield) },
+      { label: `Extra ${a.name} / day`, value: formatFull(a.extraDailyYield) },
+      { label: `${a.name} buy/sell midpoint`, value: `${formatFull(a.price)} MD` },
+      { label: 'Extra value / day (untaxed)', value: `${formatCompact(a.extraValuePerDay)} MD` },
+      { label: 'ROI', value: Number.isFinite(a.roi) ? `${formatters.days(a.roi)} days` : 'N/A', total: true },
+    ],
+    note: a.starCountEstimated
+      ? 'Aquarius uses assigned stars as a fallback; unassigned stars could increase the yield.' : '',
   };
 }
 
@@ -502,6 +563,7 @@ function farmNoHedgeRoiInfo(data) {
       { label: 'Upgrade cost', value: formatCompact(breakdown.cost) },
       { label: 'Additional herbs / day', value: formatCompact(breakdown.extraHerbsPerDay) },
       { label: 'Yield-weighted herb midpoint', value: `${formatCompact(breakdown.averageHerbPrice)} MD` },
+      { label: 'Additional Sunpetal value / day', value: formatCompact(breakdown.extraSunpetalValue) },
       { label: 'Gross herb value / day', value: formatCompact(breakdown.grossHerbValuePerDay) },
       { label: 'Farm tax (extra base herbs × 50,000 MD)', value: formatDebit(breakdown.farmTaxPerDay) },
       { label: 'Daily benefit after tax', value: formatCompact(breakdown.netDailyBenefit) },
@@ -526,6 +588,7 @@ function farmHedgeRoiInfo(data) {
       { label: 'Farm upgrade cost', value: formatCompact(breakdown.farmUpgradeCost) },
       { label: 'Additional herbs / day', value: formatCompact(breakdown.extraHerbsPerDay) },
       { label: 'Yield-weighted herb midpoint', value: `${formatCompact(breakdown.averageHerbPrice)} MD` },
+      { label: 'Additional Sunpetal value / day', value: formatCompact(breakdown.extraSunpetalValue) },
       { label: 'Full herb value / day', value: formatCompact(breakdown.grossHerbValuePerDay) },
       { section: 'Hedge Fund coverage' },
       { label: 'Added farm tax to cover / hour', value: formatCompact(breakdown.addedFarmTaxPerHour) },
@@ -630,6 +693,10 @@ function renderInfoPanels(data, result) {
   setInfoPanel('battler-left-sage', leftoverHerbInfo('battler', 'sage', result));
   setInfoPanel('tser-left-bloom', leftoverHerbInfo('tser', 'bloom', result));
   setInfoPanel('tser-left-sage', leftoverHerbInfo('tser', 'sage', result));
+  setInfoPanel('battler-left-sunpetals', leftoverSunpetalsInfo('battler', data, result));
+  setInfoPanel('tser-left-sunpetals', leftoverSunpetalsInfo('tser', data, result));
+  setInfoPanel('battler-node-yield-roi', nodeYieldRoiInfo(result.battler.nodeYieldAnalysis));
+  setInfoPanel('tser-node-yield-roi', nodeYieldRoiInfo(result.tser.nodeYieldAnalysis));
   setInfoPanel('battler-leftover-value', leftoverValueInfo('battler', data, result));
   setInfoPanel('tser-leftover-value', leftoverValueInfo('tser', data, result));
   setInfoPanel('battler-farm-tax', farmTaxInfo('battler', data, result));
@@ -797,6 +864,7 @@ function renderDetails(result) {
   setText('t-sunpetal-max', sunpetalTier);
   setMetric('b-left-bloom', result.battler.leftoverBloom, formatters.compact, true);
   setMetric('b-left-sage', result.battler.leftoverSage, formatters.compact, true);
+  setMetric('b-left-sunpetals', result.battler.leftoverSunpetals, formatters.compact, true);
   setMetric('b-dust', result.battler.leftoverSold, formatters.compact, true);
   setMetric('b-tax', result.battler.farmTax, formatters.compact, true);
   setMetric('b-md', result.battler.mdEarned, formatters.compact, true);
@@ -804,6 +872,7 @@ function renderDetails(result) {
 
   setMetric('t-left-bloom', result.tser.leftoverBloom, formatters.compact, true);
   setMetric('t-left-sage', result.tser.leftoverSage, formatters.compact, true);
+  setMetric('t-left-sunpetals', result.tser.leftoverSunpetals, formatters.compact, true);
   setMetric('t-dust', result.tser.leftoverSold, formatters.compact, true);
   setMetric('t-tax', result.tser.farmTax, formatters.compact, true);
   setMetric('t-extra', result.tser.extraResValue, formatters.compact, true);
@@ -822,6 +891,10 @@ function renderDetails(result) {
 
   setRoi('b-roi', result.roi.battler);
   setRoi('t-roi', result.roi.tser);
+  for (const [prefix, role] of [['b', 'battler'], ['t', 'tser']]) {
+    const a = result[role].nodeYieldAnalysis;
+    setText(`${prefix}-node-yield-name`, a?.name ?? 'T2 resource');
+  }
 }
 
 function render(data, result) {

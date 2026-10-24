@@ -12,6 +12,35 @@ const close = (actual, expected) => assert.ok(
 );
 const normalize = (player = {}, market = {}, inputs = {}) => Calc.normalizeFromApis(player, market, [], inputs);
 
+test('Sunpetal leftovers use entered Guidance and reconcile daily income, Laboratory and Farm ROI', () => {
+  const d = { ...base, guidancePotion: 437, sunpetalPrice: 50_000_000_000 };
+  const production = 0.05 * Math.sqrt(H.herbsPerHour(d)) * 24;
+  const used = (437 * 438 / 2 + 0.0002 * 437 ** 3) * (27400 / 1200) / (1 + d.potDuration / 100);
+  for (const role of ['battler', 'tser']) {
+    const totalsAt = H[`${role}AtPotion`];
+    const old = totalsAt(base, base.harvestPotion);
+    const current = totalsAt(d, d.harvestPotion);
+    close(current.leftoverSunpetals, production - used);
+    close(current.leftoverSold - old.leftoverSold, (production - used) * d.sunpetalPrice);
+    close(current.fullIncome - old.fullIncome, (production - used) * d.sunpetalPrice);
+    const afterLab = totalsAt({ ...d, potDuration: d.potDuration + 1 }, d.harvestPotion);
+    close(afterLab.fullIncome - current.fullIncome, H.labRoiBreakdown(d, role).totalSavingsValuePerDay);
+    for (const row of H.farmUpgradeStats(d)) {
+      const afterFarm = totalsAt({ ...d, [row.key]: d[row.key] + 1000 }, d.harvestPotion);
+      close(row.taxedROI, row.cost / (afterFarm.fullIncome - current.fullIncome));
+    }
+    const noGuidance = totalsAt({ ...d, guidancePotion: 0 }, d.harvestPotion);
+    close(noGuidance.leftoverSunpetals, production);
+    const oversized = totalsAt({ ...d, guidancePotion: 999999 }, d.harvestPotion);
+    assert.ok(oversized.leftoverSunpetals < 0);
+  }
+  const noHedge = H.farmNoHedgeRoiBreakdown(d);
+  close(noHedge.roi, noHedge.cost / noHedge.netDailyBenefit);
+  const hedge = H.farmHedgeRoiBreakdown(d);
+  close(hedge.roi, hedge.combinedCost / hedge.grossHerbValuePerDay);
+  close(hedge.grossHerbValuePerDay, hedge.extraHerbsPerDay * hedge.averageHerbPrice + hedge.extraSunpetalValue);
+});
+
 test('Atlas herb ranks multiply their own harvest, with unchanged base upkeep and Sunpetals', () => {
   for (const [bloomRanks, sageRanks] of [[1, 1], [5, 0], [0, 3], [5, 5]]) {
     const bonuses = normalize({ Constellation: { 9: sageRanks, 10: bloomRanks } });

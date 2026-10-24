@@ -23,6 +23,8 @@
     FARM_UPGRADE_SIZE: 1000,
     BASE_RES_UPGRADE_SIZE: 5000,
     SHARD_UPGRADE_SIZE: 1000,
+    NODE_YIELD_UPGRADE_SIZE: 500,
+    NODE_RARITY_CHANCES: Object.freeze([0.75, 0.15, 0.06, 0.03, 0.008, 0.002]),
     HEDGE_COST_PER_LEVEL: 1_000_000_000_000,
     HEDGE_DISCOUNT_PER_HOUR: 1_000_000_000,
     HEDGE_ROI_DAYS: 1_000_000_000_000 / (1_000_000_000 * 24),
@@ -143,8 +145,14 @@
     const harvestHr = herbsPerHourFromPotion(harvestPerPot, d.potDuration);
     const resPerPot = resonanceHerbsPerPot(d.resonancePotion);
     const resHr = herbsPerHourFromPotion(resPerPot, d.potDuration);
+    const sunpetalsPerDay = 0.05 * Math.sqrt(baseHerbHr) * 24;
+    const guidanceConsumedPerDay = herbsPerHourFromPotion(
+      harvestHerbsPerPot(d.guidancePotion), d.potDuration,
+    ) * C.BATTLE_HOURS_PER_DAY;
+    const leftoverSunpetals = sunpetalsPerDay - guidanceConsumedPerDay;
     return { baseHerbHr, baseHerbDaily, herbHr, herbDaily, bloomDaily, sageDaily,
       bloomBonusPercent: bonuses.bloomBonusPercent, sageBonusPercent: bonuses.sageBonusPercent,
+      sunpetalsPerDay, guidanceConsumedPerDay, leftoverSunpetals,
       harvestPerPot, harvestHr, resPerPot, resHr };
   }
 
@@ -152,7 +160,8 @@
     const f = farmTotals(d, harvestPotion);
     const leftoverBloom = f.bloomDaily - ((f.resHr * C.BATTLE_HOURS_PER_DAY) / 2);
     const leftoverSage = f.sageDaily - ((f.harvestHr * C.BATTLE_HOURS_PER_DAY) + ((f.resHr / 2) * C.BATTLE_HOURS_PER_DAY));
-    const leftoverSold = leftoverBloom * finite(d.bloomwellPrice) + leftoverSage * finite(d.sagerootPrice);
+    const leftoverSold = leftoverBloom * finite(d.bloomwellPrice) + leftoverSage * finite(d.sagerootPrice)
+      + f.leftoverSunpetals * finite(d.sunpetalPrice);
     const farmTax = (leftoverSold - f.baseHerbDaily * C.FARM_DUST_PER_HERB) + finite(d.farmDiscount) * 1_000_000_000 * 24;
     const mdEarned = dustDaily(d, true);
     return {
@@ -174,7 +183,8 @@
     const f = farmTotals(d, harvestPotion);
     const leftoverBloom = f.bloomDaily - ((f.harvestHr * C.BATTLE_HOURS_PER_DAY) + ((f.resHr / 2) * C.BATTLE_HOURS_PER_DAY));
     const leftoverSage = f.sageDaily - ((f.resHr * C.BATTLE_HOURS_PER_DAY) / 2);
-    const leftoverSold = leftoverBloom * finite(d.bloomwellPrice) + leftoverSage * finite(d.sagerootPrice);
+    const leftoverSold = leftoverBloom * finite(d.bloomwellPrice) + leftoverSage * finite(d.sagerootPrice)
+      + f.leftoverSunpetals * finite(d.sunpetalPrice);
     const farmTax = (leftoverSold - f.baseHerbDaily * C.FARM_DUST_PER_HERB) + finite(d.farmDiscount) * 1_000_000_000 * 24;
 
     const grossUnpotted = grossUnpottedResourcePerAction(d);
@@ -617,16 +627,20 @@
       const next = { ...d, [key]: finite(d[key]) + C.FARM_UPGRADE_SIZE };
       const extraBaseHerbsHr = herbsPerHour(next) - currentHerbs;
       const extraHerbsHr = extraBaseHerbsHr * harvestMultiplier;
+      const extraSunpetalsPerDay = 0.05 * (Math.sqrt(herbsPerHour(next)) - Math.sqrt(currentHerbs)) * 24;
+      const extraSunpetalValue = extraSunpetalsPerDay * finite(d.sunpetalPrice);
       const level = finite(d[key]);
       const cost = (1000 * level ** 2 + 1_001_000 * level + 333_833_500 + 208_500)
         * finite(d.averageResourcePrice);
-      const taxDenominator = extraHerbsHr * 24 * avgHerbPrice - extraBaseHerbsHr * 24 * C.FARM_DUST_PER_HERB;
-      const noTaxDenominator = extraHerbsHr * 24 * avgHerbPrice;
+      const noTaxDenominator = extraHerbsHr * 24 * avgHerbPrice + extraSunpetalValue;
+      const taxDenominator = noTaxDenominator - extraBaseHerbsHr * 24 * C.FARM_DUST_PER_HERB;
       return {
         label,
         key,
         extraHerbsHr,
         extraBaseHerbsHr,
+        extraSunpetalsPerDay,
+        extraSunpetalValue,
         cost,
         taxedROI: safeDiv(cost, taxDenominator),
         noTaxROI: safeDiv(cost, noTaxDenominator),
@@ -657,7 +671,7 @@
       row.taxedROI < currentBest.taxedROI ? row : currentBest
     ));
     const extraHerbsPerDay = best.extraHerbsHr * 24;
-    const grossHerbValuePerDay = extraHerbsPerDay * averageHerbPrice;
+    const grossHerbValuePerDay = extraHerbsPerDay * averageHerbPrice + best.extraSunpetalValue;
     const farmTaxPerDay = best.extraBaseHerbsHr * 24 * C.FARM_DUST_PER_HERB;
     const netDailyBenefit = grossHerbValuePerDay - farmTaxPerDay;
 
@@ -666,6 +680,8 @@
       upgradeSize: C.FARM_UPGRADE_SIZE,
       averageHerbPrice,
       extraHerbsPerDay,
+      extraSunpetalsPerDay: best.extraSunpetalsPerDay,
+      extraSunpetalValue: best.extraSunpetalValue,
       grossHerbValuePerDay,
       farmTaxPerDay,
       netDailyBenefit,
@@ -683,7 +699,7 @@
     const averageHerbPrice = averageFarmHerbPrice(d);
     const combinations = rows.map((row) => {
       const extraHerbsPerDay = row.extraHerbsHr * 24;
-      const grossHerbValuePerDay = extraHerbsPerDay * averageHerbPrice;
+      const grossHerbValuePerDay = extraHerbsPerDay * averageHerbPrice + row.extraSunpetalValue;
       const addedFarmTaxPerHour = row.extraBaseHerbsHr * C.FARM_DUST_PER_HERB;
       const hedgeLevelsNeeded = Math.ceil(Math.max(addedFarmTaxPerHour, 0)
         / C.HEDGE_DISCOUNT_PER_HOUR);
@@ -729,6 +745,8 @@
       upgradeSize: C.FARM_UPGRADE_SIZE,
       averageHerbPrice,
       extraHerbsPerDay: best.extraHerbsPerDay,
+      extraSunpetalsPerDay: best.extraSunpetalsPerDay,
+      extraSunpetalValue: best.extraSunpetalValue,
       grossHerbValuePerDay: best.grossHerbValuePerDay,
       addedFarmTaxPerHour: best.addedFarmTaxPerHour,
       hedgeLevelsNeeded: best.hedgeLevelsNeeded,
@@ -892,6 +910,113 @@
     return workshopDustCollectorRoiBreakdown(d).roi;
   }
 
+  const nodeExpectationCache = new Map();
+
+  // Renewal reward model: a cycle contains an idle period followed by one busy
+  // node episode. Each overlapping discovery raises rarity, capped at Mythic.
+  // Leo extends remaining work; otherwise a discovery refreshes the timer.
+  // Once Mythic is reached, remaining busy time has a closed-form expectation.
+  function nodeYieldExpectation(chance, ticks, leo = false, gemini = false) {
+    const p = Math.min(1, Math.max(0, chance));
+    const duration = Math.max(1, Math.round(ticks));
+    if (!Number.isFinite(p) || !Number.isFinite(duration)) return null;
+    const key = [p, duration, leo, gemini].join(':');
+    if (nodeExpectationCache.has(key)) return nodeExpectationCache.get(key);
+    if (p === 0) return { activeFraction: 0, averageActiveRarity: 0, baseYieldPerAction: 0 };
+    if (duration === 1) {
+      const averageActiveRarity = C.NODE_RARITY_CHANCES.reduce(
+        (sum, probability, i) => sum + probability * Math.max(gemini ? 2 : 1, i + 1), 0,
+      );
+      return { activeFraction: p, averageActiveRarity, baseYieldPerAction: p * averageActiveRarity };
+    }
+    if (p === 1 || (leo && p * duration >= 1)) {
+      // With Leo at/above capacity, long-run activity and rarity tend to 100%/6.
+      return { activeFraction: 1, averageActiveRarity: 6, baseYieldPerAction: 6 };
+    }
+    const q = 1 - p;
+    const logQ = Math.log1p(-p);
+    const arrivalBeforeExpiry = w => -Math.expm1(w * logQ);
+    const busyRemaining = w => leo ? w / (1 - p * duration)
+      : arrivalBeforeExpiry(w) / (p * q ** (duration - 1));
+    const memo = new Map();
+    const rewardRemaining = (w, rarity) => {
+      if (w <= 0) return 0;
+      if (rarity === 6) return 6 * busyRemaining(w);
+      const state = `${w}:${rarity}`;
+      if (memo.has(state)) return memo.get(state);
+      // Harvest at the old rarity on ticks before the next discovery.
+      let reward = rarity * q * arrivalBeforeExpiry(w) / p;
+      if (!leo) {
+        reward += arrivalBeforeExpiry(w)
+          * (rarity + 1 + rewardRemaining(duration - 1, rarity + 1));
+      } else {
+        let probability = p;
+        for (let tick = 1; tick <= w; tick++) {
+          reward += probability * (rarity + 1 + rewardRemaining(w - tick + duration, rarity + 1));
+          probability *= q;
+        }
+      }
+      memo.set(state, reward);
+      return reward;
+    };
+    // Developer-confirmed odds. Gemini moves Common's 75% to Uncommon,
+    // leaving the Rare through Mythic probabilities unchanged.
+    let expectedReward = 0;
+    for (let roll = 1; roll <= 6; roll++) {
+      const rarity = gemini ? Math.max(2, roll) : roll;
+      expectedReward += (rarity + rewardRemaining(duration - 1, rarity)) * C.NODE_RARITY_CHANCES[roll - 1];
+    }
+    const busyTicks = 1 + busyRemaining(duration - 1);
+    const cycleTicks = q / p + busyTicks;
+    const result = {
+      activeFraction: busyTicks / cycleTicks,
+      averageActiveRarity: expectedReward / busyTicks,
+      baseYieldPerAction: expectedReward / cycleTicks,
+    };
+    if (nodeExpectationCache.size >= 32) nodeExpectationCache.clear();
+    nodeExpectationCache.set(key, result);
+    return result;
+  }
+
+  function nodeYieldRoiBreakdown(d, role) {
+    const nodes = d.gatheringNodes;
+    const selection = nodes?.[role];
+    if (!selection) return null;
+    const resource = nodes.resources[selection.resource];
+    const rateMultiplier = nodes.rateMultiplier;
+    const chance = Math.min(1, Math.max(0, rateMultiplier / 2400));
+    const duration = 100 + 10 * nodes.durationRanks;
+    const expectation = nodeYieldExpectation(chance, duration, nodes.leo, nodes.gemini);
+    const levelMultiplier = 1 + selection.skillLevel * 0.001;
+    const nodeYieldBonusPercent = nodes.yieldRanks * 10;
+    const aquariusBonusPercent = nodes.aquarius ? nodes.starCount : 0;
+    // Both perks add to the same base-yield bonus. Multiplying them separately
+    // overstates harvests (checked against Hohmono's observed Rare-node ticks).
+    const constellationYieldMultiplier = 1 + (nodeYieldBonusPercent + aquariusBonusPercent) / 100;
+    const doubleChance = Math.min(1, nodes.doubleRanks * 0.1);
+    const baseDailyYield = expectation?.baseYieldPerAction * C.GATHER_ACTIONS_PER_DAY
+      * levelMultiplier * constellationYieldMultiplier * (1 + doubleChance);
+    const currentDailyYield = baseDailyYield * (1 + resource.yieldPercent / 100);
+    const upgradeSize = C.NODE_YIELD_UPGRADE_SIZE;
+    const extraDailyYield = baseDailyYield * upgradeSize / 100;
+    const upgradeResources = 1000 * farmUpgradeResources(resource.level, upgradeSize);
+    const upgradeCost = upgradeResources * resource.costPrice;
+    // T2 resources are untaxed; the Resource / MD tax does not apply.
+    const extraValuePerDay = extraDailyYield * resource.price;
+    const roi = extraValuePerDay > 0 && upgradeCost > 0
+      ? safeDiv(upgradeCost, extraValuePerDay) : null;
+    return {
+      ...resource, ...selection, upgradeSize, currentLevel: resource.level,
+      nextLevel: resource.level + upgradeSize, rateMultiplier, chance, duration,
+      ...expectation, levelMultiplier, nodeYieldBonusPercent, aquariusBonusPercent, constellationYieldMultiplier,
+      doubleChance, leo: nodes.leo, gemini: nodes.gemini,
+      starCount: nodes.starCount, starCountEstimated: nodes.aquarius && nodes.starCountEstimated,
+      actionsPerDay: C.GATHER_ACTIONS_PER_DAY, currentDailyYield,
+      nextDailyYield: currentDailyYield + extraDailyYield, extraDailyYield,
+      upgradeResources, upgradeCost, extraValuePerDay, roi,
+    };
+  }
+
   function calculate(d) {
     const battlerTotals = battler(d);
     const tserTotals = tserAtPotion(d, d.harvestPotion);
@@ -903,6 +1028,8 @@
     const maxSustainablePotion = maxSustainableTserPotion(d);
     const battlerNetHerbs = battlerTotals.leftoverBloom + battlerTotals.leftoverSage;
     const battlerMaxSustainablePotion = maxSustainableBattlerPotion(d);
+    const battlerNodes = nodeYieldRoiBreakdown(d, 'battler');
+    const tserNodes = nodeYieldRoiBreakdown(d, 'tser');
 
     const result = {
       sunpetalPotion: sunpetalPotionAnalysis(d),
@@ -911,6 +1038,7 @@
         netHerbs: battlerNetHerbs,
         maxSustainablePotion: battlerMaxSustainablePotion,
         potionAnalysis: battlerPotionAnalysis(d, battlerMaxSustainablePotion),
+        nodeYieldAnalysis: battlerNodes,
       },
       tser: {
         ...tserTotals,
@@ -922,6 +1050,7 @@
         netHerbs,
         maxSustainablePotion,
         guildPotionAnalysis: tserGuildPotionAnalysis(d),
+        nodeYieldAnalysis: tserNodes,
       },
       roi: {
         battler: {
@@ -931,6 +1060,7 @@
           farmHedge: battlerFarmHedgeROI(d),
           tomeDrop: tomeDropROI(d),
           workshopDustCollector: workshopDustCollectorROI(d),
+          nodeYield: battlerNodes?.roi ?? null,
         },
         tser: {
           lab: labROI(d, 'tser'),
@@ -943,6 +1073,7 @@
           farmHedge: battlerFarmHedgeROI(d),
           // TSer Tome Drop uses the same ROI as the Battler Tome Drop row (K31 = G148).
           tomeDrop: tomeDropROI(d),
+          nodeYield: tserNodes?.roi ?? null,
         },
       },
     };
@@ -1056,6 +1187,50 @@
       return quotes.length ? quotes.reduce((sum, value) => sum + value, 0) / quotes.length : fallback;
     };
     const averageRes = (averageMarketPrice(8) + averageMarketPrice(7) + averageMarketPrice(9)) / 3;
+    const gatheringSkills = [
+      { skill: 'Mining', skillLevel: getNum(playerData, 'MiningLevel', NaN), resource: 'quartz' },
+      { skill: 'Fishing', skillLevel: getNum(playerData, 'FishingLevel', NaN), resource: 'inkSac' },
+      { skill: 'Woodcutting', skillLevel: getNum(playerData, 'WoodcuttingLevel', NaN), resource: 'resin' },
+    ];
+    const highestSkill = gatheringSkills.reduce((best, skill) => (
+      Number.isFinite(skill.skillLevel) && (!best || skill.skillLevel > best.skillLevel) ? skill : best
+    ), null);
+    const masteries = [
+      { element: 'fire', mastery: getNum(baseBoosts, '10'), ...gatheringSkills[2] },
+      { element: 'water', mastery: getNum(baseBoosts, '11'), ...gatheringSkills[0] },
+      { element: 'nature', mastery: getNum(baseBoosts, '12'), ...gatheringSkills[1] },
+    ];
+    // Mastery selects the drop; its associated gathering skill determines yield
+    // for either role. Live Emilia/Randramb ticks support Fishing for Ink Sacs
+    // and Woodcutting for Resin. Equipped magic breaks mastery ties.
+    const maxMastery = Math.max(...masteries.map(item => item.mastery));
+    const candidates = masteries.filter(item => item.mastery === maxMastery);
+    const battleSelection = candidates.find(item => item.element === playerData?.MagicType)
+      ?? (maxMastery > 0 ? candidates[0] : null);
+    const makeNodeResource = (name, boostId, itemId, costResource, costId) => ({
+      name, level: Math.max(0, Math.trunc(getNum(baseBoosts, boostId))),
+      yieldPercent: getNum(totalBoosts, boostId, getNum(baseBoosts, boostId)),
+      price: averageMarketPrice(itemId, NaN), costResource,
+      costPrice: averageMarketPrice(costId, NaN),
+    });
+    const gatheringNodes = {
+      // The API stores a factor: 2.53 means +153%, not +2.53%.
+      rateMultiplier: getNum(totalBoosts, '39', NaN),
+      durationRanks: Math.max(0, Math.min(10, Math.trunc(getNum(constellation, '30')))),
+      yieldRanks: Math.max(0, Math.min(10, Math.trunc(getNum(constellation, '32')))),
+      doubleRanks: Math.max(0, Math.min(10, Math.trunc(getNum(constellation, '31')))),
+      aquarius: getNum(constellation, '44') > 0,
+      leo: getNum(constellation, '38') > 0,
+      gemini: getNum(constellation, '36') > 0,
+      starCount: resourceStarCount, starCountEstimated: !hasUnlockedStarCount,
+      battler: battleSelection,
+      tser: highestSkill,
+      resources: {
+        quartz: makeNodeResource('Quartz', '36', 69, 'Iron', 9),
+        inkSac: makeNodeResource('Ink Sac', '37', 70, 'Fish', 7),
+        resin: makeNodeResource('Resin', '38', 71, 'Wood', 8),
+      },
+    };
     const research = Math.max(getNum(totalBoosts, '30'), getNum(totalBoosts, '31'), getNum(totalBoosts, '32')) * 100;
     const sigilBoost = finite(playerData?.SigilBoost);
     const pets = playerData?.Pets || {};
@@ -1103,6 +1278,7 @@
       starResourceBonusPercent,
       starResourceBonusEstimated: hasGatheringStarBonus && !hasUnlockedStarCount,
       averageResourcePrice: averageRes,
+      gatheringNodes,
       farmDiscount: getNum(baseBoosts, '134'),
       spire: getNum(totalBoosts, '152'),
       equipmentBaseRes,
@@ -1157,6 +1333,7 @@
       tomeTotalCost, tomeDropRoiBreakdown, farmUpgradeStats, labRoiBreakdown, mdIncomeBreakdown,
       dustCollectorRoiBreakdown, workshopDustCollectorRoiBreakdown,
       farmNoHedgeRoiBreakdown, farmHedgeRoiBreakdown,
+      nodeYieldExpectation, nodeYieldRoiBreakdown,
     },
   };
 });

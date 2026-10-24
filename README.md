@@ -24,6 +24,8 @@ Static browser calculator converted from the supplied Google Sheet and Apps Scri
 - Farm no-hedge ROI
 - Farm + Hedge ROI
 - Battler + TSer Tome Drop ROI (same calculation)
+- Battler + TSer T2 yield ROI for 500 upgrades, with automatic Quartz / Ink Sac / Resin selection
+- Leftover Sunpetals after entered Guidance use, included in daily herb value and Farm ROI
 - Dust Collector ROI
 - Workshop -> Dust Collector ROI using live Workshop, Construction boost, and active Construction pet data
 - Fresh live API requests only after the player submits the setup form; runtime responses are not cached
@@ -46,6 +48,7 @@ node validation.test.js
 node battler-potion.test.js
 node sunpetal-potion.test.js
 node --test farm-lab-market.test.js
+node --test node-yield.test.js
 node --test star-bonus.test.js cloudflare-worker/test/worker.test.js
 ```
 
@@ -57,7 +60,11 @@ All live market valuations use the arithmetic midpoint of buy and sell orders, w
 
 Atlas Bloomwell (`Constellation[10]`) and Sageroot (`[9]`) ranks add 2% each to their own half of farm production, additively across ranks. Daily leftovers, sustainable potion tiers, potion comparisons, and Farm ROI include those yields; unequal bonuses use the appropriate herb prices. Upkeep and Hedge requirements use base farm production, consistent with the [official client](https://manarion.com/assets/GameRoutes-BrQEYLa-.js). The Sunpetal estimate continues to use base farm output because these nodes boost only Bloomwells and Sageroots.
 
-The optional Potion of Guidance input is saved with the player setup. Laboratory ROI includes the Sunpetals saved by +1 Potion Duration at that entered tier, valued at the Sunpetal midpoint, alongside Wisdom/Harvest and Resonance savings. Blank or zero excludes Guidance. The sustainable Guidance estimate stays separate, and the Laboratory comparison holds the entered tier fixed. Its information panel shows the tier, consumption, savings, and price. This adds marginal Laboratory savings without adding Sunpetal sales or spending to the existing daily-income totals.
+The optional Potion of Guidance input is saved with the player setup. Laboratory ROI includes the Sunpetals saved by +1 Potion Duration at that entered tier, valued at the Sunpetal midpoint, alongside Wisdom/Harvest and Resonance savings. Blank or zero excludes Guidance consumption. Both daily breakdowns show leftover Sunpetals above leftover herb value and include their midpoint value (or deficit) in income. Farm ROI includes the additional Sunpetals produced by the upgrade, with no extra Sunpetal upkeep. The sustainable Guidance estimate stays separate, and the Laboratory comparison holds the entered tier fixed. Renewal and dungeon spending are not modeled. If no Sunpetal quote exists, daily totals omit its value and the information panel explains this; Guidance-inclusive Laboratory ROI remains unavailable.
+
+T2 ROI compares 500 purchased yield upgrades. Battler selection follows the highest elemental mastery: Fire → Resin with Woodcutting levels, Nature → Ink Sac with Fishing levels, Water → Quartz with Mining levels. The level bonus follows the dropped resource’s gathering skill for both roles. TSer selection uses the highest gathering level: Mining → Quartz, Fishing → Ink Sac, Woodcutting → Resin. Each upgrade is +1 percentage point, funded with Iron/Fish/Wood respectively at that resource's own buy/sell midpoint. T2 output is untaxed and also valued at its own midpoint. It is shown in the ROI breakdown, not added to the main daily income total.
+
+The node model uses API `TotalBoosts[39] / 2400` directly: this field is a multiplier and already includes gathering-rate bonuses. Duration, double yield, Node Yield, Gemini, Leo, and Aquarius come from the constellation. Aquarius includes unassigned unlocked stars via the existing leaderboard lookup, with an explicit assigned-star fallback. Starting rarity odds supplied by the developer are 75/15/6/3/0.8/0.2%; Gemini changes these to 0/90/6/3/0.8/0.2%. A deterministic renewal model includes lost duration on refresh, extended duration with Leo, and increasing rarity on overlaps up to Mythic. It calculates long-run expected income, not a guarantee for a particular day. Node Yield and Aquarius add into one base-yield multiplier: `1 + 0.1*NodeYieldRanks + 0.01*unlockedStars` when Aquarius is active. Hohmono’s observed Rare-node harvests support this stacking rule. `node-yield.test.js` cross-checks the result against an independent per-tick stationary Markov chain.
 
 Both TSer Potion Boost ROI and the Battler potion comparison price the next upgrade from purchased `BaseBoosts[108]`, while potion effectiveness uses `TotalBoosts[108]`. Extra bonus points therefore improve potion effects without increasing the purchased upgrade's cost. Legacy inputs without a separate purchased level fall back to their total boost.
 
@@ -91,7 +98,7 @@ The elemental star harvest bonus multiplies gathered resources by `1 + unlockedS
 
 See `VALIDATION.md` for exact comparison values and the discrepancy between the older stored 79.99 / 52.07 values and the formulas in the newest workbook.
 
-The fourth Battler summary card and the TSer potion analysis card show an estimated maximum sustainable Potion of Guidance tier. The developer's approximate production is `0.05 × sqrt(base farm herbs/hour)` Sunpetals/hour, produced for 24 hours. Potion cost uses the same `L(L+1)/2 + 0.0002L³` scaling as Harvest/Wisdom, the player's total Potion Duration, and 22 hours 50 minutes of daily use. A whole-tier search stops at 999,999. The estimate assumes all produced Sunpetals are available for Guidance, with none spent on Renewal or dungeon skips; its information panel shows production and consumption. It does not change existing herb balances or income.
+The fourth Battler summary card and the TSer potion analysis card show an estimated maximum sustainable Potion of Guidance tier. The developer's approximate production is `0.05 × sqrt(base farm herbs/hour)` Sunpetals/hour, produced for 24 hours. Potion cost uses the same `L(L+1)/2 + 0.0002L³` scaling as Harvest/Wisdom, the player's total Potion Duration, and 22 hours 50 minutes of daily use. A whole-tier search stops at 999,999. The estimate assumes all produced Sunpetals are available for Guidance, with none spent on Renewal or dungeon skips; its information panel shows production and consumption. Actual leftover Sunpetals use the entered Guidance tier, not this sustainable ceiling.
 
 ## Files
 

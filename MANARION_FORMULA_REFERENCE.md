@@ -8,6 +8,7 @@ Also updated for Ambidextrous construction timing and the Shards constellation d
 
 Updated 2026-10-18 for Pinnacle in Nexus inference and the marginal research gain used in Shard ROI, verified against live API totals.
 Updated 2026-10-21 to include Pinnacle's increasing multiplier in Spire ROI.
+Updated 2026-10-23 for Sunpetal leftovers and T2 yield ROI (500 upgrades), including developer-supplied rarity probabilities.
 
 Also updated for the separate elemental star harvest multiplier and its unlocked-star leaderboard source, including the assigned-star fallback.
 
@@ -133,7 +134,8 @@ Battler:
   leftoverSage  = sageProduced - mainUsed - resUsed/2
 
 netHerbs = leftoverBloom + leftoverSage
-leftoverHerbValue = leftoverBloom*pBloom + leftoverSage*pSage
+leftoverSunpetals = sunpetalsPerDay - sunpetalsConsumedPerDay(enteredGuidanceTier)
+leftoverHerbValue = leftoverBloom*pBloom + leftoverSage*pSage + leftoverSunpetals*pSun
 farmLevy = baseHerbsPerDay * 50,000
 hedgeDiscount = HedgeLevel * 10^9 * 24
 farmNetIncome = leftoverHerbValue - farmLevy + hedgeDiscount
@@ -375,7 +377,9 @@ extraHerbsPerDay = extraBaseHerbsPerDay * (bloomMultiplier + sageMultiplier) / 2
 yieldWeightedHerbPrice = (bloomMultiplier*pBloom + sageMultiplier*pSage)
                         / (bloomMultiplier + sageMultiplier)
 cost = [1000L^2 + 1,001,000L + 333,833,500 + 208,500] * pRes
-dailyBenefit = extraHerbsPerDay * yieldWeightedHerbPrice - extraBaseHerbsPerDay * 50,000
+extraSunpetalsPerDay = 0.05 * (sqrt(nextBaseHerbsPerHour) - sqrt(currentBaseHerbsPerHour)) * 24
+dailyBenefit = extraHerbsPerDay * yieldWeightedHerbPrice + extraSunpetalsPerDay*pSun
+               - extraBaseHerbsPerDay * 50,000
 ROI = cost / dailyBenefit
 ```
 
@@ -387,7 +391,7 @@ The legacy farm ROI cost includes an extra **208,500 resource units** beyond the
 extraBaseHerbsPerHour = extraBaseHerbsPerDay / 24
 hedgeLevels = ceil(max(0, extraBaseHerbsPerHour*50,000) / 10^9)
 combinedCost = farmCostFromPreviousFormula + hedgeLevels*10^12
-dailyBenefit = extraHerbsPerDay * yieldWeightedHerbPrice
+dailyBenefit = extraHerbsPerDay * yieldWeightedHerbPrice + extraSunpetalsPerDay*pSun
 ROI = combinedCost / dailyBenefit
 ```
 
@@ -555,3 +559,65 @@ combinedPlayerAndGuildValue = playerNetIncome + guildActivityTaxValue
 Sum each column over successfully fetched, uniquely identified members. Gross activity includes the tax portion; do not add guild tax to gross activity again. TSer full income already includes baseline resources; do not add potted and unpotted days together. The farm production levy is not automatically guild income. Shard/tome income and their tax rates are separate optional categories; the current daily-income totals omit them. Partial API failures and missing settings should remain identifiable instead of silently contributing a fabricated zero.
 
 For an exact implementation reference, carry `calculator.js` alongside this document. `validation.test.js`, `battler-potion.test.js`, and `data.js` provide historical regression fixtures; they are not fresh player data. All special cases above describe the source as captured, not additional changes to the current website.
+
+
+## 13. T2 node yield ROI (500 upgrades)
+
+Confirmed mappings:
+
+| Role / activity | Drop | Level used for +0.1% yield / level | Funding resource |
+|---|---|---|---|
+| Fire battler | Resin | Woodcutting | Wood |
+| Nature battler | Ink Sac | Fishing | Fish |
+| Water battler | Quartz | Mining | Iron |
+| Mining TSer | Quartz | Mining | Iron |
+| Fishing TSer | Ink Sac | Fishing | Fish |
+| Woodcutting TSer | Resin | Woodcutting | Wood |
+
+Battlers use the highest BaseBoosts[10/11/12] mastery (Fire/Water/Nature); MagicType breaks ties. TSers use their highest gathering level, with ties preferring Mining then Fishing. The gathering level follows the dropped resource, not the battler’s damage element. This corrects the original mapping using observed Emilia and Randramb harvest ticks.
+
+API and market mappings:
+
+- Quartz: purchased BaseBoosts[36], total yield percent TotalBoosts[36], item 69, Iron item 9.
+- Ink Sac: purchased BaseBoosts[37], total yield percent TotalBoosts[37], item 70, Fish item 7.
+- Resin: purchased BaseBoosts[38], total yield percent TotalBoosts[38], item 71, Wood item 8.
+- Gathering rate factor: TotalBoosts[39]. For example, 2.53 means +153% and p = 2.53/2400. Do not add codex, Moonstone, pet, Wayfinding or Node Rate again.
+- Constellation: Node Rate 29 (already in API rate), Duration 30, Double 31, Yield 32, Gemini 36, Leo 38, Aquarius 44.
+
+Yield formula (ordinary Harvest, research, Ambitious and elemental star bonuses do not apply):
+
+```text
+p = clamp(TotalBoosts[39]/2400, 0, 1)
+D = 100 + 10*DurationRanks
+levelFactor = 1 + relevantGatheringLevel*0.001
+constellationYieldFactor = 1 + NodeYieldRanks*0.1 + (Aquarius ? unlockedStars*0.01 : 0)
+doubleFactor = 1 + min(1, NodeDoubleRanks*0.1)
+M = levelFactor * constellationYieldFactor * doubleFactor
+
+B = expected rarity-weighted active ticks per main action (model below)
+currentT2PerDay = 27400 * B * M * (1 + totalYieldPercent/100)
+extraT2PerDay = 27400 * B * M * (500/100)
+
+C(L) = 1000*L*(L+1)*(2*L+1)/6
+upgradeResources = C(purchasedYieldLevel+500) - C(purchasedYieldLevel)
+upgradeMD = upgradeResources * midpoint(funding resource)
+extraMDPerDay = extraT2PerDay * midpoint(T2 resource)
+ROI_days = upgradeMD / extraMDPerDay
+```
+
+Use the expanded incremental square sum in code to avoid cancellation when subtracting large cumulative costs. All output is untaxed (confirmed by the user); use each individual funding resource midpoint, not the three-resource average. Node Yield and Aquarius add into one base-yield multiplier, consistent with Hohmono’s observed Rare-node harvests. Aquarius counts unassigned unlocked stars too; fetch the leaderboard even when Aquarius is the only perk that needs it. Missing rate or market quotes produce unavailable ROI. Missing exact stars fall back to assigned ranks, visibly marked as an estimate.
+
+The developer supplied initial Common → Mythic odds of **75%, 15%, 6%, 3%, 0.8%, 0.2%**. Gemini promotes Common to Uncommon: **0%, 90%, 6%, 3%, 0.8%, 0.2%**. Base yield per active tick is rarity 1–6. A discovery while active raises rarity by one (cap 6); without Leo it resets the timer to D, with Leo it adds D. Double harvest changes yield only and consumes one tick. The official client changelog confirms rarity increases on overlap even without Leo.
+
+The implementation calculates a long-run renewal reward, assuming a new node can harvest on its discovery action. At each active tick, discovery occurs with chance p, the timer is refreshed/extended and rarity increased, then one tick is harvested. Idle failures have mean (1-p)/p. A new busy episode begins with one harvest at the randomly selected starting rarity and D-1 ticks left. Propagate probabilities of the next discovery until rarity 6; at that cap, expected remaining active ticks from w remaining are:
+
+```text
+Leo:     w/(1-p*D), when p*D < 1
+No Leo:  [1-(1-p)^w] / [p*(1-p)^(D-1)]
+B = expected total rarity-weighted harvests in a busy episode
+    / (expected busy ticks + expected idle failures)
+```
+
+The active fraction is p*D with subcritical Leo, and 1-(1-p)^D without Leo. If Leo reaches p*D >= 1, the long-run limit is continuous Mythic harvesting. This model includes overlap and lost/extended duration rather than multiplying discoveries by a full independent duration. It represents sustained activity across days and does not guarantee one day's random drops. Tests compare it to an independent per-tick stationary Markov model.
+
+Sunpetal daily value now also affects Farm ROI: add [0.05*sqrt(nextBaseFarmHerbsPerHour) - 0.05*sqrt(currentBaseFarmHerbsPerHour)]*24*pSun to the additional daily herb value. Guidance stays at the entered tier, and Sunpetals add no farm levy. Existing daily income excludes T2 output, as it does shard/tome drops; the new T2 panel shows current and upgraded yields for the ROI comparison.
