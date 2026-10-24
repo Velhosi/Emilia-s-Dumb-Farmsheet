@@ -87,8 +87,8 @@ const formatters = Object.freeze({
       : value.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 }))
     : 'N/A',
   integer: (value) => Number.isFinite(value) ? Math.round(value).toLocaleString() : 'N/A',
-  percent: (value) => Number.isFinite(value)
-    ? `${value.toLocaleString(undefined, { maximumFractionDigits: 3 })}%`
+  percent: (value, options = {}) => Number.isFinite(value)
+    ? `${value.toLocaleString(undefined, { maximumFractionDigits: 3, ...options })}%`
     : 'N/A',
 });
 
@@ -428,7 +428,7 @@ function nodeYieldRoiInfo(analysis) {
       { label: `${a.skill} level`, value: formatters.integer(a.skillLevel) },
       { label: 'Level yield multiplier', value: `${formatFull(a.levelMultiplier)}×` },
       { label: 'Gathering rate (all bonuses included)', value: `+${formatters.percent((a.rateMultiplier - 1) * 100)}` },
-      { label: 'Effective node chance / action', value: formatters.percent(a.chance * 100) },
+      { label: 'Effective node chance / action', value: formatters.percent(a.chance * 100, { minimumFractionDigits: 5, maximumFractionDigits: 5 }) },
       { label: 'Ticks per discovery', value: formatters.integer(a.duration) },
       { label: 'Node Yield bonus', value: `+${formatters.percent(a.nodeYieldBonusPercent)}` },
       { label: `Aquarius bonus (${formatters.integer(a.starCount)} stars)`, value: `+${formatters.percent(a.aquariusBonusPercent)}` },
@@ -893,7 +893,7 @@ function renderDetails(result) {
   setRoi('t-roi', result.roi.tser);
   for (const [prefix, role] of [['b', 'battler'], ['t', 'tser']]) {
     const a = result[role].nodeYieldAnalysis;
-    setText(`${prefix}-node-yield-name`, a?.name ?? 'T2 resource');
+    setText(`${prefix}-node-yield-name`, `${a?.name ?? 'T2 resource'} yield`);
   }
 }
 
