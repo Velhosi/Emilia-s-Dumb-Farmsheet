@@ -1126,8 +1126,11 @@
     const assignedStars = Object.values(constellation).reduce(
       (sum, ranks) => sum + Math.max(0, Math.trunc(finite(ranks))), 0,
     );
-    const hasUnlockedStarCount = Number.isSafeInteger(unlockedStars) && unlockedStars >= assignedStars;
-    const resourceStarCount = hasUnlockedStarCount ? unlockedStars : assignedStars;
+    const profileStars = playerData?.StarsUnlocked;
+    const exactStars = Number.isSafeInteger(profileStars) && profileStars >= assignedStars
+      ? profileStars : unlockedStars;
+    const hasUnlockedStarCount = Number.isSafeInteger(exactStars) && exactStars >= assignedStars;
+    const resourceStarCount = hasUnlockedStarCount ? exactStars : assignedStars;
     const starResourceBonusPercent = hasGatheringStarBonus ? resourceStarCount / 10 : 0;
     const spireBase = finite(baseBoosts['152']);
     const pinnacleResearchItemCount = equipmentItems.filter(
@@ -1201,7 +1204,7 @@
       { element: 'nature', mastery: getNum(baseBoosts, '12'), ...gatheringSkills[1] },
     ];
     // Mastery selects the drop; its associated gathering skill determines yield
-    // for either role. Live Emilia/Randramb ticks support Fishing for Ink Sacs
+    // for either role. Live Emilia/Randramb ticks support Fishing for Ink
     // and Woodcutting for Resin. Equipped magic breaks mastery ties.
     const maxMastery = Math.max(...masteries.map(item => item.mastery));
     const candidates = masteries.filter(item => item.mastery === maxMastery);
@@ -1227,7 +1230,7 @@
       tser: highestSkill,
       resources: {
         quartz: makeNodeResource('Quartz', '36', 69, 'Iron', 9),
-        inkSac: makeNodeResource('Ink Sac', '37', 70, 'Fish', 7),
+        inkSac: makeNodeResource('Ink', '37', 70, 'Fish', 7),
         resin: makeNodeResource('Resin', '38', 71, 'Wood', 8),
       },
     };
@@ -1273,7 +1276,7 @@
       baseRes: getNum(totalBoosts, '124') / 100,
       baseResResearch: getNum(totalBoosts, '106'),
       research,
-      unlockedStars: hasUnlockedStarCount ? unlockedStars : null,
+      unlockedStars: hasUnlockedStarCount ? exactStars : null,
       resourceStarCount,
       starResourceBonusPercent,
       starResourceBonusEstimated: hasGatheringStarBonus && !hasUnlockedStarCount,

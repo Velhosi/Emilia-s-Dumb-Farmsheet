@@ -10,9 +10,9 @@ Updated 2026-10-18 for Pinnacle in Nexus inference and the marginal research gai
 Updated 2026-10-21 to include Pinnacle's increasing multiplier in Spire ROI.
 Updated 2026-10-23 for Sunpetal leftovers and T2 yield ROI (500 upgrades), including developer-supplied rarity probabilities.
 
-Also updated for the separate elemental star harvest multiplier and its unlocked-star leaderboard source, including the assigned-star fallback.
+Also updated for the separate elemental star harvest multiplier and the StarsUnlocked profile field, with leaderboard and assigned-star fallbacks.
 
-October 19: the user confirmed with the developer that unassigned unlocked stars count. Live verification through the deployed relay found Hohmono at 44 unlocked versus 39 assigned, giving +4.4% Fish. The profile API still lacked a direct count field; replace the lookup with that field once its name and meaning are confirmed, retaining the leaderboard fallback.
+October 19: the user confirmed with the developer that unassigned unlocked stars count. Live verification through the deployed relay found Hohmono at 44 unlocked versus 39 assigned, giving +4.4% Fish. The profile API lacked a direct count field then. October 27: StarsUnlocked is now available and is preferred over the leaderboard for both elemental harvest and Aquarius. The resource previously named Ink Sac is now displayed as Ink.
 
 This document describes the current calculator. Formulas added from the screenshot are identified below; they have not been added to the calculator itself. No live player or market values are hardcoded here. Code blocks use mathematical notation: `^` means exponentiation (use `**` in JavaScript).
 
@@ -466,9 +466,11 @@ The source calls `m` `buildSeconds` internally but returns it as `currentConstru
 
 The current app requests `/players/:username`, `/market`, and `/guilds` from the Manarion API, using its browser relay with a direct-API fallback. The direct base is `https://api.manarion.com`. These are the existing app's routes; this reference does not verify a guild-member roster endpoint. Role, potion tiers, and resource/MD tax come from entered settings, not automatic API inference.
 
-For profiles with an elemental constellation perk, it additionally requests `/leaderboards/stars_unlocked?page=1&gameMode=0&guild={GuildID}`. The optional guild filter reduces pagination; normal mode is 0, solo ironman is 1 when supplied by the player data. Match `Entries[].Name` case-insensitively to the profile name and use its integer `Score`; follow `TotalPages` when necessary (up to 100 pages). See the [official API documentation](https://api.manarion.com/docs). Pass the result as the optional fifth `unlockedStars` argument to `normalizeFromApis`.
+First read `playerData.StarsUnlocked`, accepting a nonnegative safe integer at least as large as the assigned-star count. Use it directly, including zero, and skip the leaderboard request. Both `fetchUnlockedStars` and `normalizeFromApis` prefer this field over any older lookup result.
 
-Summing the values of `Constellation` effects 1–51 counts assigned stars, including every rank. It can undercount the harvest bonus: the October 18 game fix includes stars that are available but unassigned. An October 18 Pepo capture has 27 assigned and 32 unlocked. If the leaderboard request fails, the player is absent, or its score is below the assigned count, the calculator uses the assigned count and sets `starResourceBonusEstimated` when the resource perk applies. The UI identifies that estimate. Do not treat missing lookup data as an exact zero or remove this multiplier while inferring Nexus.
+For profiles without a valid direct count and with an elemental constellation perk or Aquarius, it additionally requests `/leaderboards/stars_unlocked?page=1&gameMode=0&guild={GuildID}`. The optional guild filter reduces pagination; normal mode is 0, solo ironman is 1 when supplied by the player data. Match `Entries[].Name` case-insensitively to the profile name and use its integer `Score`; follow `TotalPages` when necessary (up to 100 pages). See the [official API documentation](https://api.manarion.com/docs). Pass the result as the optional fifth `unlockedStars` argument to `normalizeFromApis`.
+
+Summing the values of `Constellation` effects 1–51 counts assigned stars, including every rank. It can undercount the harvest bonus: the October 18 game fix includes stars that are available but unassigned. An October 18 Pepo capture has 27 assigned and 32 unlocked. If the profile count is unavailable or invalid and the leaderboard request fails, the player is absent, or its score is below the assigned count, the calculator uses the assigned count and sets `starResourceBonusEstimated` when the resource perk applies. The UI identifies that estimate. Do not treat missing lookup data as an exact zero or remove this multiplier while inferring Nexus.
 
 | Normalized input | Source / conversion |
 | --- | --- |
@@ -568,10 +570,10 @@ Confirmed mappings:
 | Role / activity | Drop | Level used for +0.1% yield / level | Funding resource |
 |---|---|---|---|
 | Fire battler | Resin | Woodcutting | Wood |
-| Nature battler | Ink Sac | Fishing | Fish |
+| Nature battler | Ink | Fishing | Fish |
 | Water battler | Quartz | Mining | Iron |
 | Mining TSer | Quartz | Mining | Iron |
-| Fishing TSer | Ink Sac | Fishing | Fish |
+| Fishing TSer | Ink | Fishing | Fish |
 | Woodcutting TSer | Resin | Woodcutting | Wood |
 
 Battlers use the highest BaseBoosts[10/11/12] mastery (Fire/Water/Nature); MagicType breaks ties. TSers use their highest gathering level, with ties preferring Mining then Fishing. The gathering level follows the dropped resource, not the battler’s damage element. This corrects the original mapping using observed Emilia and Randramb harvest ticks.
@@ -579,7 +581,7 @@ Battlers use the highest BaseBoosts[10/11/12] mastery (Fire/Water/Nature); Magic
 API and market mappings:
 
 - Quartz: purchased BaseBoosts[36], total yield percent TotalBoosts[36], item 69, Iron item 9.
-- Ink Sac: purchased BaseBoosts[37], total yield percent TotalBoosts[37], item 70, Fish item 7.
+- Ink: purchased BaseBoosts[37], total yield percent TotalBoosts[37], item 70, Fish item 7.
 - Resin: purchased BaseBoosts[38], total yield percent TotalBoosts[38], item 71, Wood item 8.
 - Gathering rate factor: TotalBoosts[39]. For example, 2.53 means +153% and p = 2.53/2400. Do not add codex, Moonstone, pet, Wayfinding or Node Rate again.
 - Constellation: Node Rate 29 (already in API rate), Duration 30, Double 31, Yield 32, Gemini 36, Leo 38, Aquarius 44.
@@ -605,7 +607,7 @@ extraMDPerDay = extraT2PerDay * midpoint(T2 resource)
 ROI_days = upgradeMD / extraMDPerDay
 ```
 
-Use the expanded incremental square sum in code to avoid cancellation when subtracting large cumulative costs. All output is untaxed (confirmed by the user); use each individual funding resource midpoint, not the three-resource average. Node Yield and Aquarius add into one base-yield multiplier, consistent with Hohmono’s observed Rare-node harvests. Aquarius counts unassigned unlocked stars too; fetch the leaderboard even when Aquarius is the only perk that needs it. Missing rate or market quotes produce unavailable ROI. Missing exact stars fall back to assigned ranks, visibly marked as an estimate.
+Use the expanded incremental square sum in code to avoid cancellation when subtracting large cumulative costs. All output is untaxed (confirmed by the user); use each individual funding resource midpoint, not the three-resource average. Node Yield and Aquarius add into one base-yield multiplier, consistent with Hohmono’s observed Rare-node harvests. Aquarius counts unassigned unlocked stars too; use StarsUnlocked, with a leaderboard fallback even when Aquarius is the only perk that needs it. Missing rate or market quotes produce unavailable ROI. Missing exact stars fall back to assigned ranks, visibly marked as an estimate.
 
 The developer supplied initial Common → Mythic odds of **75%, 15%, 6%, 3%, 0.8%, 0.2%**. Gemini promotes Common to Uncommon: **0%, 90%, 6%, 3%, 0.8%, 0.2%**. Base yield per active tick is rarity 1–6. A discovery while active raises rarity by one (cap 6); without Leo it resets the timer to D, with Leo it adds D. Double harvest changes yield only and consumes one tick. The official client changelog confirms rarity increases on overlap even without Leo.
 

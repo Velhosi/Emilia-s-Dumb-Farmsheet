@@ -87,7 +87,7 @@ test('mastery selects battler drops, highest gathering level selects TSer drops'
   for (const [mastery, resource, skill, skillLevel, costResource] of [
     [10, 'Resin', 'Woodcutting', 3000, 'Wood'],
     [11, 'Quartz', 'Mining', 1000, 'Iron'],
-    [12, 'Ink Sac', 'Fishing', 2000, 'Fish'],
+    [12, 'Ink', 'Fishing', 2000, 'Fish'],
   ]) {
     const d = normalize({ ...player, BaseBoosts: { ...player.BaseBoosts, [mastery]: 100 } });
     const a = H.nodeYieldRoiBreakdown(d, 'battler');
@@ -96,7 +96,7 @@ test('mastery selects battler drops, highest gathering level selects TSer drops'
     assert.equal(a.skillLevel, skillLevel);
     assert.equal(a.costResource, costResource);
   }
-  for (const [field, resource] of [['MiningLevel', 'Quartz'], ['FishingLevel', 'Ink Sac'], ['WoodcuttingLevel', 'Resin']]) {
+  for (const [field, resource] of [['MiningLevel', 'Quartz'], ['FishingLevel', 'Ink'], ['WoodcuttingLevel', 'Resin']]) {
     const a = H.nodeYieldRoiBreakdown(normalize({ ...player, [field]: 5000 }), 'tser');
     assert.equal(a.name, resource);
     assert.equal(a.skillLevel, 5000);

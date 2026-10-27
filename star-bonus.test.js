@@ -65,6 +65,60 @@ test('personal and guild optimizers value the star harvest gain at every potion 
   }
 });
 
+test('profile StarsUnlocked supplies harvest and Aquarius bonuses without a leaderboard request', async () => {
+  const player = { Name: 'Example', FishingLevel: 10, StarsUnlocked: 66,
+    Constellation: { 2: 1, 44: 1, 7: 3 } };
+  const paths = [];
+  const raw = await Api.fetchPlayerInputs('Example', async path => {
+    paths.push(path);
+    if (path === '/players/Example') return player;
+    if (path === '/market') return {};
+    if (path === '/guilds') return [];
+    assert.fail(`Unexpected request: ${path}`);
+  });
+  assert.equal(raw.unlockedStars, 66);
+  assert.equal(paths.length, 3);
+  // Direct normalization must also work, including when callers pass stale data.
+  for (const fallback of [null, 60, 70]) {
+    const d = normalize(player, fallback);
+    assert.equal(d.unlockedStars, 66);
+    assert.equal(d.resourceStarCount, 66);
+    assert.equal(d.starResourceBonusPercent, 6.6);
+    assert.equal(d.starResourceBonusEstimated, false);
+    const node = Calc.helpers.nodeYieldRoiBreakdown(d, 'tser');
+    assert.equal(node.aquariusBonusPercent, 66);
+    assert.equal(node.starCountEstimated, false);
+  }
+});
+
+test('profile stars accept exact zero and do not require a star-related perk', async () => {
+  for (const StarsUnlocked of [0, 12]) {
+    const player = { StarsUnlocked, Constellation: {} };
+    assert.equal(await Api.fetchUnlockedStars(player, () => assert.fail('Profile count needs no lookup')), StarsUnlocked);
+    assert.equal(normalize(player).unlockedStars, StarsUnlocked);
+  }
+  const player = { StarsUnlocked: 8, Constellation: { 44: 1 } };
+  assert.equal(await Api.fetchUnlockedStars(player, () => assert.fail('Aquarius uses profile count')), 8);
+});
+
+test('missing, invalid or lagging profile counts retain leaderboard and assigned-star fallbacks', async () => {
+  for (const StarsUnlocked of [undefined, null, '8', -1, 2.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, 2]) {
+    const player = { Name: 'Example', FishingLevel: 10, StarsUnlocked, Constellation: { 2: 1, 7: 2 } };
+    let calls = 0;
+    const stars = await Api.fetchUnlockedStars(player, async () => {
+      calls++;
+      return { Entries: [{ Name: 'Example', Score: 8 }], TotalPages: 1 };
+    });
+    assert.equal(calls, 1);
+    assert.equal(stars, 8);
+    assert.equal(normalize(player, stars).unlockedStars, 8);
+    const estimated = normalize(player);
+    assert.equal(estimated.unlockedStars, null);
+    assert.equal(estimated.resourceStarCount, 3);
+    assert.equal(estimated.starResourceBonusEstimated, true);
+  }
+});
+
 test('leaderboard lookup includes unassigned stars, paginates, and matches names exactly', async () => {
   const paths = [];
   const stars = await Api.fetchUnlockedStars({ Name: 'Hohmono', GuildID: 5, Constellation: { 2: 1 } }, async path => {

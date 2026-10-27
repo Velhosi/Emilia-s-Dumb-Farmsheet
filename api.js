@@ -27,8 +27,15 @@
   }
 
   async function fetchUnlockedStars(player, request = fetchJson) {
-    // The profile's Constellation map contains assigned stars only. The leaderboard
-    // counts all unlocked stars for elemental resources and Aquarius node yield.
+    // StarsUnlocked includes unassigned stars. Prefer the profile's current count
+    // to the leaderboard, which can lag behind recent unlocks.
+    const assignedStars = Object.values(player.Constellation || {}).reduce((sum, ranks) => (
+      sum + (Number.isFinite(Number(ranks)) ? Math.max(0, Math.trunc(Number(ranks))) : 0)
+    ), 0);
+    if (Number.isSafeInteger(player.StarsUnlocked) && player.StarsUnlocked >= assignedStars) {
+      return player.StarsUnlocked;
+    }
+    // Older profiles can still use the leaderboard for bonuses that need stars.
     if (![1, 2, 3, 44].some(id => Number(player.Constellation?.[id]) > 0)) return null;
     const params = new URLSearchParams({ page: '1', gameMode: player.GameMode === 1 ? '1' : '0' });
     if (Number.isSafeInteger(player.GuildID) && player.GuildID > 0) {
