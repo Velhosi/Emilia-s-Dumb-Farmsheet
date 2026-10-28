@@ -429,6 +429,8 @@ function nodeYieldRoiInfo(analysis) {
       { label: 'Level yield multiplier', value: `${formatFull(a.levelMultiplier)}×` },
       { label: 'Gathering rate (all bonuses included)', value: `+${formatters.percent((a.rateMultiplier - 1) * 100)}` },
       { label: 'Effective node chance / action', value: formatters.percent(a.chance * 100, { minimumFractionDigits: 5, maximumFractionDigits: 5 }) },
+      { label: 'Simplified chance', value: Number.isFinite(a.chance) && a.chance > 0
+        ? `1 in ${formatters.integer(1 / a.chance)}` : a.chance === 0 ? 'No chance' : 'N/A' },
       { label: 'Ticks per discovery', value: formatters.integer(a.duration) },
       { label: 'Node Yield bonus', value: `+${formatters.percent(a.nodeYieldBonusPercent)}` },
       { label: `Aquarius bonus (${formatters.integer(a.starCount)} stars)`, value: `+${formatters.percent(a.aquariusBonusPercent)}` },
