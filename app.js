@@ -884,6 +884,7 @@ function renderDetails(result) {
   setMetric('t-loss-pct', result.tser.percentLoss, formatters.percent, true);
   setMetric('t-max-sustainable-pot', result.tser.maxSustainablePotion, formatters.integer);
   const guildPotion = result.tser.guildPotionAnalysis;
+  setMetric('t-guild-efficient-pot', guildPotion.bestPotion, formatters.integer);
   setMetric('t-guild-best-pot', guildPotion.bestPotion, formatters.integer);
   setMetric('t-guild-resource-value', guildPotion.grossResourceValue, formatters.compact, true);
   setMetric('t-guild-current-resource-value', guildPotion.currentGrossResourceValue, formatters.compact, true);

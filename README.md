@@ -14,7 +14,7 @@ Static browser calculator converted from the supplied Google Sheet and Apps Scri
 - Battle potion analysis comparing one Potion Boost upgrade with a stronger sustainable Wisdom potion funded by balanced farm upgrades and Hedge Fund coverage
 - TSer daily totals
 - TSer best-potion optimizer (0-1,000,000 in 1,000 steps)
-- TSer guild potion optimizer using all resource value before guild tax, with herb and farm costs retained (card currently hidden; set `SHOW_GUILD_POTION` to `true` in `app.js` to restore it)
+- TSer guild potion optimizer using all resource value before guild tax, with herb and farm costs retained. Its recommended tier appears as "Guild efficient pot (disregarding tax)" in the Highest-income potion card. The full guild comparison card remains hidden; set `SHOW_GUILD_POTION` to `true` in `app.js` to restore it.
 - Ambitious equipment-prefix detection and -1% total TSer resources per equipped item (maximum 8%)
 - Lab ROI
 - Spire ROI
