@@ -1199,13 +1199,14 @@
       Number.isFinite(skill.skillLevel) && (!best || skill.skillLevel > best.skillLevel) ? skill : best
     ), null);
     const masteries = [
-      { element: 'fire', mastery: getNum(baseBoosts, '10'), ...gatheringSkills[2] },
-      { element: 'water', mastery: getNum(baseBoosts, '11'), ...gatheringSkills[0] },
-      { element: 'nature', mastery: getNum(baseBoosts, '12'), ...gatheringSkills[1] },
+      { element: 'fire', mastery: getNum(baseBoosts, '10'), ...gatheringSkills[0], resource: 'resin' },
+      { element: 'water', mastery: getNum(baseBoosts, '11'), ...gatheringSkills[1], resource: 'quartz' },
+      { element: 'nature', mastery: getNum(baseBoosts, '12'), ...gatheringSkills[2], resource: 'inkSac' },
     ];
-    // Mastery selects the drop; its associated gathering skill determines yield
-    // for either role. Live Emilia/Randramb ticks support Fishing for Ink
-    // and Woodcutting for Resin. Equipped magic breaks mastery ties.
+    // Battler yield uses the element's skill, independently of the dropped
+    // resource: Fire/Mining, Water/Fishing, Nature/Woodcutting. The resource
+    // still selects its own yield investment, funding item and market price.
+    // Equipped magic breaks mastery ties.
     const maxMastery = Math.max(...masteries.map(item => item.mastery));
     const candidates = masteries.filter(item => item.mastery === maxMastery);
     const battleSelection = candidates.find(item => item.element === playerData?.MagicType)

@@ -569,14 +569,14 @@ Confirmed mappings:
 
 | Role / activity | Drop | Level used for +0.1% yield / level | Funding resource |
 |---|---|---|---|
-| Fire battler | Resin | Woodcutting | Wood |
-| Nature battler | Ink | Fishing | Fish |
-| Water battler | Quartz | Mining | Iron |
+| Fire battler | Resin | Mining | Wood |
+| Nature battler | Ink | Woodcutting | Fish |
+| Water battler | Quartz | Fishing | Iron |
 | Mining TSer | Quartz | Mining | Iron |
 | Fishing TSer | Ink | Fishing | Fish |
 | Woodcutting TSer | Resin | Woodcutting | Wood |
 
-Battlers use the highest BaseBoosts[10/11/12] mastery (Fire/Water/Nature); MagicType breaks ties. TSers use their highest gathering level, with ties preferring Mining then Fishing. The gathering level follows the dropped resource, not the battler’s damage element. This corrects the original mapping using observed Emilia and Randramb harvest ticks.
+Battlers use the highest BaseBoosts[10/11/12] mastery (Fire/Water/Nature); MagicType breaks ties. Their yield level follows the element: Fire uses Mining, Water uses Fishing, Nature uses Woodcutting. The dropped resource independently selects its purchased yield, market value and funding resource. TSers use their highest gathering level, with ties preferring Mining then Fishing, and the resource associated with that gathering skill. This restores the user-confirmed battler mapping on October 29; earlier uncontrolled tick samples were insufficient to infer the TSer mapping for battlers.
 
 API and market mappings:
 

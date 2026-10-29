@@ -85,9 +85,9 @@ test('node overlap, rarity caps, Gemini and Leo match an independent stationary 
 
 test('mastery selects battler drops, highest gathering level selects TSer drops', () => {
   for (const [mastery, resource, skill, skillLevel, costResource] of [
-    [10, 'Resin', 'Woodcutting', 3000, 'Wood'],
-    [11, 'Quartz', 'Mining', 1000, 'Iron'],
-    [12, 'Ink', 'Fishing', 2000, 'Fish'],
+    [10, 'Resin', 'Mining', 1000, 'Wood'],
+    [11, 'Quartz', 'Fishing', 2000, 'Iron'],
+    [12, 'Ink', 'Woodcutting', 3000, 'Fish'],
   ]) {
     const d = normalize({ ...player, BaseBoosts: { ...player.BaseBoosts, [mastery]: 100 } });
     const a = H.nodeYieldRoiBreakdown(d, 'battler');
@@ -173,28 +173,30 @@ test('yield perks add together for both roles and each works on its own', () => 
   }
 });
 
-test('Emilia and Randramb Uncommon ticks use the dropped resource gathering level', () => {
-  const captures = [
-    {
-      player: { MiningLevel: 52950, FishingLevel: 52950, WoodcuttingLevel: 79413,
-        BaseBoosts: { 12: 82430727557442, 37: 40000 }, TotalBoosts: { 37: 40000, 39: 2.64 },
-        Constellation: { 30: 6, 31: 1, 32: 2, 36: 1, 38: 1, 44: 1 } },
-      stars: 60, skill: 'Fishing', expected: 77882.22, observed: 77882, tolerance: 1,
-    },
-    {
-      player: { MiningLevel: 20159, FishingLevel: 20606, WoodcuttingLevel: 20002,
-        BaseBoosts: { 10: 14363746665613, 38: 22500 }, TotalBoosts: { 38: 22500, 39: 2.22 },
-        Constellation: { 36: 1, 44: 1 } },
-      stars: 43, skill: 'Woodcutting', expected: 13574.85272, observed: 13570, tolerance: 5,
-    },
-  ];
-  for (const capture of captures) {
-    const a = H.nodeYieldRoiBreakdown(normalize(capture.player, capture.stars), 'battler');
-    assert.equal(a.skill, capture.skill);
-    const uncommonTick = a.currentDailyYield / (a.actionsPerDay * a.activeFraction)
-      / a.averageActiveRarity / (1 + a.doubleChance) * 2;
-    close(uncommonTick, capture.expected);
-    assert.ok(Math.abs(uncommonTick - capture.observed) < capture.tolerance);
+test('battler income and ROI follow the elemental skill, independently of the resource gathering skill', () => {
+  // Earlier uncontrolled tick samples were used to infer the TSer mapping for
+  // battlers. Keep the user-confirmed battler mapping separate for every element.
+  for (const [mastery, elementalField, resourceField] of [
+    [10, 'MiningLevel', 'WoodcuttingLevel'],
+    [11, 'FishingLevel', 'MiningLevel'],
+    [12, 'WoodcuttingLevel', 'FishingLevel'],
+  ]) {
+    const profile = { ...player, BaseBoosts: { ...player.BaseBoosts, [mastery]: 100 } };
+    const before = H.nodeYieldRoiBreakdown(normalize(profile), 'battler');
+    const after = H.nodeYieldRoiBreakdown(normalize({
+      ...profile, [elementalField]: profile[elementalField] + 1000,
+    }), 'battler');
+    const gain = (1000 + profile[elementalField] + 1000) / (1000 + profile[elementalField]);
+    close(after.currentDailyYield, before.currentDailyYield * gain);
+    close(after.extraDailyYield, before.extraDailyYield * gain);
+    close(after.roi, before.roi / gain);
+    assert.equal(after.resource, before.resource);
+    assert.equal(after.upgradeCost, before.upgradeCost);
+
+    const unrelatedLevel = H.nodeYieldRoiBreakdown(normalize({
+      ...profile, [resourceField]: profile[resourceField] + 100000,
+    }), 'battler');
+    assert.deepEqual(unrelatedLevel, before);
   }
 });
 
