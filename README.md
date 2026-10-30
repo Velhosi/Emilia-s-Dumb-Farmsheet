@@ -17,7 +17,7 @@ Static browser calculator converted from the supplied Google Sheet and Apps Scri
 - TSer guild potion optimizer using all resource value before guild tax, with herb and farm costs retained. Its recommended tier appears as "Guild efficient pot (disregarding tax)" in the Highest-income potion card. The full guild comparison card remains hidden; set `SHOW_GUILD_POTION` to `true` in `app.js` to restore it.
 - Ambitious equipment-prefix detection and -1% total TSer resources per equipped item (maximum 8%)
 - Lab ROI
-- Building cost multiplier (0.1–50×) with a whole-number slider and decimal entry, shared between roles and saved locally. Scales MD and resource costs for Laboratory, Dust Collector, Spire and Workshop; updates ROI immediately from the last player pull. Income, upgrade benefits and construction speed stay fixed.
+- Building cost multiplier (0.1–50×) with whole-number snapping when dragging, 0.1× arrow-key steps, and decimal entry, shared between roles and saved locally. Scales MD and resource costs for Laboratory, Dust Collector, Spire and Workshop; updates ROI immediately from the last player pull. Income, upgrade benefits and construction speed stay fixed.
 - Spire ROI
 - Potion Boost ROI
 - Base Resource ROI

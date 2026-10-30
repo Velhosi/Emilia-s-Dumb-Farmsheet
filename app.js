@@ -881,8 +881,8 @@ function setupConstructionControls() {
     });
     input.addEventListener('keydown', (event) => {
       let next;
-      if (event.key === 'ArrowRight' || event.key === 'ArrowUp') next = Math.floor(constructionMultiplier) + 1;
-      else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') next = Math.ceil(constructionMultiplier) - 1;
+      if (event.key === 'ArrowRight' || event.key === 'ArrowUp') next = Number((constructionMultiplier + 0.1).toFixed(10));
+      else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') next = Number((constructionMultiplier - 0.1).toFixed(10));
       else if (event.key === 'Home') next = 0.1;
       else if (event.key === 'End') next = 50;
       else if (event.key === 'PageUp') next = Math.round(constructionMultiplier) + 5;
