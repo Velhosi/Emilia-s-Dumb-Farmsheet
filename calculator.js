@@ -40,9 +40,15 @@
   const pctAfterTax = (tax) => 1 - finite(tax) / 100;
   const safeDiv = (a, b) => (Number.isFinite(a) && Number.isFinite(b) && Math.abs(b) > 1e-12) ? a / b : null;
 
-  function buildingCost(level, averageResourcePrice) {
+  function constructionCostMultiplier(value) {
+    if (value == null || value === '') return 1;
+    return Math.max(0.1, Math.min(50, finite(value, 1)));
+  }
+
+  function buildingCost(level, averageResourcePrice, multiplier = 1) {
     const n = finite(level) + 1;
-    return 7_500_000 * n ** 3 + ((10_000 * n ** 3 * 3) * finite(averageResourcePrice));
+    return (7_500_000 * n ** 3 + ((10_000 * n ** 3 * 3) * finite(averageResourcePrice)))
+      * constructionCostMultiplier(multiplier);
   }
 
   function herbsPerHour(p) {
@@ -133,6 +139,14 @@
     return dustPerBattle(d, collectorDeltaPct, taxed) * C.TS_POTTED_ACTIONS;
   }
 
+  function farmUpkeep(d, baseHerbDaily = herbsPerHour(d) * 24) {
+    const baseFarmTaxPerDay = baseHerbDaily * C.FARM_DUST_PER_HERB;
+    const hedgeDiscountAvailablePerDay = Math.max(0, finite(d.farmDiscount)) * 1_000_000_000 * 24;
+    const hedgeDiscountAppliedPerDay = Math.min(baseFarmTaxPerDay, hedgeDiscountAvailablePerDay);
+    const farmUpkeepPerDay = Math.max(0, baseFarmTaxPerDay - hedgeDiscountAppliedPerDay);
+    return { baseFarmTaxPerDay, hedgeDiscountAvailablePerDay, hedgeDiscountAppliedPerDay, farmUpkeepPerDay };
+  }
+
   function farmTotals(d, harvestPotion) {
     const baseHerbHr = herbsPerHour(d);
     const baseHerbDaily = baseHerbHr * 24;
@@ -150,7 +164,7 @@
       harvestHerbsPerPot(d.guidancePotion), d.potDuration,
     ) * C.BATTLE_HOURS_PER_DAY;
     const leftoverSunpetals = sunpetalsPerDay - guidanceConsumedPerDay;
-    return { baseHerbHr, baseHerbDaily, herbHr, herbDaily, bloomDaily, sageDaily,
+    return { ...farmUpkeep(d, baseHerbDaily), baseHerbHr, baseHerbDaily, herbHr, herbDaily, bloomDaily, sageDaily,
       bloomBonusPercent: bonuses.bloomBonusPercent, sageBonusPercent: bonuses.sageBonusPercent,
       sunpetalsPerDay, guidanceConsumedPerDay, leftoverSunpetals,
       harvestPerPot, harvestHr, resPerPot, resHr };
@@ -162,7 +176,7 @@
     const leftoverSage = f.sageDaily - ((f.harvestHr * C.BATTLE_HOURS_PER_DAY) + ((f.resHr / 2) * C.BATTLE_HOURS_PER_DAY));
     const leftoverSold = leftoverBloom * finite(d.bloomwellPrice) + leftoverSage * finite(d.sagerootPrice)
       + f.leftoverSunpetals * finite(d.sunpetalPrice);
-    const farmTax = (leftoverSold - f.baseHerbDaily * C.FARM_DUST_PER_HERB) + finite(d.farmDiscount) * 1_000_000_000 * 24;
+    const farmTax = leftoverSold - f.farmUpkeepPerDay;
     const mdEarned = dustDaily(d, true);
     return {
       ...f,
@@ -185,7 +199,7 @@
     const leftoverSage = f.sageDaily - ((f.resHr * C.BATTLE_HOURS_PER_DAY) / 2);
     const leftoverSold = leftoverBloom * finite(d.bloomwellPrice) + leftoverSage * finite(d.sagerootPrice)
       + f.leftoverSunpetals * finite(d.sunpetalPrice);
-    const farmTax = (leftoverSold - f.baseHerbDaily * C.FARM_DUST_PER_HERB) + finite(d.farmDiscount) * 1_000_000_000 * 24;
+    const farmTax = leftoverSold - f.farmUpkeepPerDay;
 
     const grossUnpotted = grossUnpottedResourcePerAction(d);
     const taxedUnpotted = grossUnpotted * pctAfterTax(d.tax);
@@ -486,7 +500,7 @@
     const totalSavingsValuePerDay = Math.abs(
       harvestSavingsValuePerDay + resonanceSavingsValuePerDay + guidanceSavingsValuePerDay,
     );
-    const nextLevelCost = buildingCost(d.labLevel, d.averageResourcePrice);
+    const nextLevelCost = buildingCost(d.labLevel, d.averageResourcePrice, d.constructionCostMultiplier);
 
     return {
       nextLevelCost,
@@ -556,7 +570,7 @@
     const taxedExtra = grossExtra * pctAfterTax(d.tax);
     const valuePerDay = taxedExtra * finite(d.averageResourcePrice)
       * ambitiousResourceMultiplier(d) * starResourceMultiplier(d);
-    return safeDiv(buildingCost(d.spire, d.averageResourcePrice), valuePerDay);
+    return safeDiv(buildingCost(d.spire, d.averageResourcePrice, d.constructionCostMultiplier), valuePerDay);
   }
 
   function potionBoostROI(d) {
@@ -831,7 +845,7 @@
     const currentLevel = finite(d.dustCollector);
     const currentBoostPercent = currentLevel * 0.2;
     const nextBoostPercent = currentBoostPercent + 0.2;
-    const cost = buildingCost(d.dustCollector, d.averageResourcePrice);
+    const cost = buildingCost(d.dustCollector, d.averageResourcePrice, d.constructionCostMultiplier);
     const currentDailyMd = dustDaily(d, true, 0);
     const upgradedDailyMd = dustDaily(d, true, 0.2);
     const extraDailyMd = upgradedDailyMd - currentDailyMd;
@@ -878,7 +892,7 @@
     const dustTowerValuePerSecond = collectorDailyValue * buildSeconds / 86400;
     const valuePerFutureBuild = timeSavePerBuild * dustTowerValuePerSecond;
     const dailyCumulativeValue = valuePerFutureBuild * buildSeconds;
-    const workshopCost = buildingCost(workshop, d.averageResourcePrice);
+    const workshopCost = buildingCost(workshop, d.averageResourcePrice, d.constructionCostMultiplier);
     const denominator = 0.5 * dailyCumulativeValue;
     const numerator = collectorDailyValue + workshopCost * speed;
     return {
@@ -908,6 +922,14 @@
 
   function workshopDustCollectorROI(d) {
     return workshopDustCollectorRoiBreakdown(d).roi;
+  }
+
+  function constructionROI(d) {
+    return {
+      battler: { lab: labROI(d, 'battler'), dustCollector: dustCollectorROI(d),
+        workshopDustCollector: workshopDustCollectorROI(d) },
+      tser: { lab: labROI(d, 'tser'), spire: spireROI(d) },
+    };
   }
 
   const nodeExpectationCache = new Map();
@@ -1017,6 +1039,23 @@
     };
   }
 
+  function dailyIncomeBreakdown(d, role, totals, nodes) {
+    const herbsAmount = totals.leftoverBloom + totals.leftoverSage + totals.leftoverSunpetals;
+    const herbsValue = totals.leftoverSold;
+    const { farmUpkeepPerDay } = farmUpkeep(d, totals.baseHerbDaily);
+    const farmTaxValue = farmUpkeepPerDay === 0 ? 0 : -farmUpkeepPerDay;
+    const mainAmount = role === 'battler' ? totals.mdEarned : totals.pottedAfterEvent;
+    const mainValue = role === 'battler' ? mainAmount : mainAmount * finite(d.averageResourcePrice);
+    const nodeAmount = Number.isFinite(nodes?.currentDailyYield) ? nodes.currentDailyYield : null;
+    const nodeValue = nodeAmount != null && Number.isFinite(nodes?.price) && nodes.price > 0
+      ? nodeAmount * nodes.price : null;
+    const total = [herbsValue, farmTaxValue, mainValue, nodeValue].every(Number.isFinite)
+      ? herbsValue + farmTaxValue + mainValue + nodeValue : null;
+    // Keep the potion/upgrade models separate: this displayed total includes
+    // current T2 income, not the incremental benefit of 500 yield upgrades.
+    return { herbsAmount, herbsValue, farmTaxValue, mainAmount, mainValue, nodeAmount, nodeValue, total };
+  }
+
   function calculate(d) {
     const battlerTotals = battler(d);
     const tserTotals = tserAtPotion(d, d.harvestPotion);
@@ -1030,6 +1069,7 @@
     const battlerMaxSustainablePotion = maxSustainableBattlerPotion(d);
     const battlerNodes = nodeYieldRoiBreakdown(d, 'battler');
     const tserNodes = nodeYieldRoiBreakdown(d, 'tser');
+    const construction = constructionROI(d);
 
     const result = {
       sunpetalPotion: sunpetalPotionAnalysis(d),
@@ -1039,6 +1079,7 @@
         maxSustainablePotion: battlerMaxSustainablePotion,
         potionAnalysis: battlerPotionAnalysis(d, battlerMaxSustainablePotion),
         nodeYieldAnalysis: battlerNodes,
+        incomeBreakdown: dailyIncomeBreakdown(d, 'battler', battlerTotals, battlerNodes),
       },
       tser: {
         ...tserTotals,
@@ -1051,20 +1092,18 @@
         maxSustainablePotion,
         guildPotionAnalysis: tserGuildPotionAnalysis(d),
         nodeYieldAnalysis: tserNodes,
+        incomeBreakdown: dailyIncomeBreakdown(d, 'tser', tserTotals, tserNodes),
       },
       roi: {
         battler: {
-          lab: labROI(d, 'battler'),
-          dustCollector: dustCollectorROI(d),
+          ...construction.battler,
           farmNoHedge: battlerFarmROI(d),
           farmHedge: battlerFarmHedgeROI(d),
           tomeDrop: tomeDropROI(d),
-          workshopDustCollector: workshopDustCollectorROI(d),
           nodeYield: battlerNodes?.roi ?? null,
         },
         tser: {
-          lab: labROI(d, 'tser'),
-          spire: spireROI(d),
+          ...construction.tser,
           potionBoost: potionBoostROI(d),
           baseRes: baseResourceROI(d),
           shards: shardROI(d),
@@ -1136,10 +1175,10 @@
     const pinnacleResearchItemCount = equipmentItems.filter(
       item => finite(item.Boosts?.[gatheringId]) > 0,
     ).length;
-    // Live API totals use the full Spire factor (including its base 1x), per matching item.
+    // Pinnacle now uses only purchased Spire levels, with no extra 100 levels.
     // Pinnacle multiplies the research bonus, leaving TotalBoosts' baseline 1 untouched.
     const pinnacleResearchMultiplier = getNum(constellation, '49') > 0
-      ? 1 + pinnacleResearchItemCount * 0.0005 * (1 + spireBase / 100)
+      ? 1 + pinnacleResearchItemCount * spireBase * 0.000005
       : 1;
     const pinnacleResearchPerSpireLevel = getNum(constellation, '49') > 0
       ? pinnacleResearchItemCount * 0.000005
@@ -1255,6 +1294,7 @@
       harvestPotion: finite(userInputs.harvestPotion),
       resonancePotion: finite(userInputs.resonancePotion),
       guidancePotion: Math.max(0, Math.min(C.MAX_SUNPETAL_POTION, Math.trunc(finite(userInputs.guidancePotion)))),
+      constructionCostMultiplier: constructionCostMultiplier(userInputs.constructionCostMultiplier),
       potDuration: getNum(totalBoosts, '110'),
       bloomwellPrice: averageMarketPrice(41),
       sagerootPrice: averageMarketPrice(40),
@@ -1329,7 +1369,7 @@
     calculate,
     normalizeFromApis,
     helpers: {
-      buildingCost, herbsPerHour, harvestHerbsPerPot, resonanceHerbsPerPot,
+      buildingCost, constructionCostMultiplier, constructionROI, herbsPerHour, harvestHerbsPerPot, resonanceHerbsPerPot,
       ambitiousResourceMultiplier, battlerAtPotion, tserAtPotion, optimizeTserPotion, tserGuildPotionAnalysis,
       maxSustainableBattlerPotion, maxSustainableTserPotion,
       sunpetalPotionAnalysis,
@@ -1338,6 +1378,7 @@
       dustCollectorRoiBreakdown, workshopDustCollectorRoiBreakdown,
       farmNoHedgeRoiBreakdown, farmHedgeRoiBreakdown,
       nodeYieldExpectation, nodeYieldRoiBreakdown,
+      dailyIncomeBreakdown, farmUpkeep,
     },
   };
 });

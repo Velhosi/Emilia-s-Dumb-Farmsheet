@@ -8,6 +8,7 @@ Also updated for Ambidextrous construction timing and the Shards constellation d
 
 Updated 2026-10-18 for Pinnacle in Nexus inference and the marginal research gain used in Shard ROI, verified against live API totals.
 Updated 2026-10-21 to include Pinnacle's increasing multiplier in Spire ROI.
+Updated 2026-10-30 after the developer removed the extra 100 Spire levels from Pinnacle. Current Pinnacle uses actual Spire level only.
 Updated 2026-10-23 for Sunpetal leftovers and T2 yield ROI (500 upgrades), including developer-supplied rarity probabilities.
 
 Also updated for the separate elemental star harvest multiplier and the StarsUnlocked profile field, with leaderboard and assigned-star fallbacks.
@@ -55,14 +56,14 @@ Farm MD value = resources needed * average resource price
 Other upgrade costs:
 
 ```text
-BuildingCost(L) = 7,500,000(L + 1)^3
-                + 30,000(L + 1)^3 * averageResourcePrice
+BuildingCost(L) = constructionCostMultiplier * [7,500,000(L + 1)^3
+                + 30,000(L + 1)^3 * averageResourcePrice]
 
 PotionBoostCost(b) = floor(10,000,000 * 1.1^b)
 HedgeCost(n)        = n * 10^12 MD
 ```
 
-Building cost combines direct MD plus 10,000 times the new level cubed of each of three resources, valued at their average price. It is used for Laboratory, Spire, Dust Collector, and Workshop.
+Building cost combines direct MD plus 10,000 times the new level cubed of each of three resources, valued at their average price. It is used for Laboratory, Spire, Dust Collector, and Workshop. `constructionCostMultiplier` defaults to 1 and supports 0.1–50; it scales both the direct MD and resource quantities. Upgrade benefits and construction speed remain unchanged. Workshop retains its cumulative-payback formula and fixed opportunity-cost term, so its ROI does not scale linearly with this setting.
 
 For Potion Boost, `b` is the purchased level. Both the Battler comparison and TSer Potion Boost ROI use `potionBoostLevel` for cost and total `potionBoost` for effect. Extra bonus points do not increase the purchase price. Legacy inputs without a separate purchased level fall back to the total boost.
 
@@ -137,11 +138,13 @@ netHerbs = leftoverBloom + leftoverSage
 leftoverSunpetals = sunpetalsPerDay - sunpetalsConsumedPerDay(enteredGuidanceTier)
 leftoverHerbValue = leftoverBloom*pBloom + leftoverSage*pSage + leftoverSunpetals*pSun
 farmLevy = baseHerbsPerDay * 50,000
-hedgeDiscount = HedgeLevel * 10^9 * 24
-farmNetIncome = leftoverHerbValue - farmLevy + hedgeDiscount
+hedgeDiscountAvailable = HedgeLevel * 10^9 * 24
+hedgeDiscountApplied = min(farmLevy, hedgeDiscountAvailable)
+farmUpkeep = max(0, farmLevy - hedgeDiscountApplied)
+farmNetIncome = leftoverHerbValue - farmUpkeep
 ```
 
-The implementation's `farmTax` field actually means **farmNetIncome**, not the amount of tax paid. Negative herb leftovers use the same midpoint prices. Atlas herb bonuses affect their respective harvested amounts, not base upkeep or Sunpetals. The October 21 [official client](https://manarion.com/assets/GameRoutes-BrQEYLa-.js) calculates upkeep from the base farm formula. The current model applies the full Hedge discount without capping it at the levy.
+The implementation's `farmTax` field actually means **farmNetIncome**, not the amount of tax paid. Negative herb leftovers use the same midpoint prices. Atlas herb bonuses affect their respective harvested amounts, not base upkeep or Sunpetals. The October 21 [official client](https://manarion.com/assets/GameRoutes-BrQEYLa-.js) calculates upkeep from the base farm formula. Upkeep stops at zero; excess Hedge Fund discount never becomes income. The income subtable shows only the applied discount, so it reconciles with the displayed tax. This cap also applies to personal/guild income and potion optimization.
 
 Maximum sustainable potion is the highest whole-number `P` satisfying:
 
@@ -522,7 +525,7 @@ Only equipped items contribute below (missing IsEquipped defaults to equipped).
 
 matchingItems = count(equipped items with positive Boosts[gatheringId])
 pinnacleResearchMultiplier = Constellation[49] > 0
-  ? 1 + matchingItems * 0.0005 * (1 + BaseBoosts[152]/100)
+  ? 1 + matchingItems * 0.000005 * BaseBoosts[152]
   : 1
 pinnacleResearchPerSpireLevel = Constellation[49] > 0
   ? matchingItems * 0.000005
@@ -542,7 +545,7 @@ NexusLevel = round((
 
 Missing item boosts contribute zero. Imbued is recognized by numeric prefix ID 10, an Imbued item name, or an explicit Imbued prefix name. The API's `Infusions` excludes the extra infusion; add it exactly once even when multiple identifiers match. Ambitious is counted from equipped items' names or explicit prefix names, capped at eight.
 
-The Pinnacle formula matches the October 18 API totals for Hohmono, Ownin, and Pepo. The observed multiplier uses the **full Spire factor**, including its base 1x (equivalently, `1 + matchingItems * (Spire + 100) * 0.000005`). It multiplies the research bonus, excluding the API's baseline 1. For Hohmono, eight matching items and Spire 1,415 give `1.0606x` and Nexus 25,921. Current research already contains Pinnacle: remove it for the inverse Nexus calculation and for the existing bonus in the Spire marginal-gain formula. Shard ROI applies the current multiplier to newly gained research; Spire ROI also accounts for that multiplier increasing with the next Spire level.
+The developer's updated Pinnacle rule uses actual Spire level only: `1 + matchingItems * Spire * 0.000005`. At zero Spire the multiplier is 1. For example, eight matching items and Spire 1,415 now give `1.0566x`. The October 18 captures used the previous Spire-plus-100 rule; tests retain those historical captures and explicitly rebase them to the updated rule. Ordinary equipment scaling still uses `1 + Spire/100`. Pinnacle multiplies the research bonus, excluding the API's baseline 1. Current research already contains Pinnacle: retain the API total for income, and remove the current multiplier only for inverse Nexus inference and the existing-bonus term in Spire marginal gain. Shard ROI applies the current multiplier to newly gained research; Spire ROI also accounts for its increase at the next Spire level.
 
 `equipmentBaseRes` is available from normalization but the income formula already uses `TotalBoosts[124]/100`; do not add equipment base resources again. Nexus inference uses the highest gathering **level** to select its boost ID, while normalized research independently uses the largest total gathering boost. Do not confuse the two selections. An invalid Nexus inference returns unavailable, not a genuine level zero.
 
@@ -622,4 +625,4 @@ B = expected total rarity-weighted harvests in a busy episode
 
 The active fraction is p*D with subcritical Leo, and 1-(1-p)^D without Leo. If Leo reaches p*D >= 1, the long-run limit is continuous Mythic harvesting. This model includes overlap and lost/extended duration rather than multiplying discoveries by a full independent duration. It represents sustained activity across days and does not guarantee one day's random drops. Tests compare it to an independent per-tick stationary Markov model.
 
-Sunpetal daily value now also affects Farm ROI: add [0.05*sqrt(nextBaseFarmHerbsPerHour) - 0.05*sqrt(currentBaseFarmHerbsPerHour)]*24*pSun to the additional daily herb value. Guidance stays at the entered tier, and Sunpetals add no farm levy. Existing daily income excludes T2 output, as it does shard/tome drops; the new T2 panel shows current and upgraded yields for the ROI comparison.
+Sunpetal daily value now also affects Farm ROI: add [0.05*sqrt(nextBaseFarmHerbsPerHour) - 0.05*sqrt(currentBaseFarmHerbsPerHour)]*24*pSun to the additional daily herb value. Guidance stays at the entered tier, and Sunpetals add no farm levy. The income table and headline now include current T2 output: displayedDailyIncome = fullIncome + currentT2PerDay × T2 midpoint. fullIncome remains the farm-plus-action subtotal used by potion and upgrade models; T2 income is constant across potion tiers. The table splits leftover herb value (leftoverSold), signed Farm tax after Hedge Fund (applied discount minus base production levy, at most zero), taxed Mana Dust or all potted resources, and untaxed current T2 value without double counting. The Herbs dropdown shows daily production and leftover quantities and values for all three herbs; only the leftover rows form the Herbs subtotal. The legacy farmTax field remains net herb income including upkeep. Missing T2 yield/price makes the displayed total unavailable. Shard/tome drops remain outside this daily total.

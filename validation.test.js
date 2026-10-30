@@ -16,6 +16,10 @@ approximately(
 approximately(Calc.C.HEDGE_ROI_DAYS, 41.666666666666664, 'Standalone Hedge Fund ROI');
 
 const result = Calc.calculate(WORKBOOK_SNAPSHOTS.hohmono);
+// The workbook credited unused Hedge Fund discount as income. The game caps
+// upkeep at zero, so remove that historical credit from absolute income checks.
+const unusedHedgeCredit = Math.max(0, WORKBOOK_SNAPSHOTS.hohmono.farmDiscount * 1e9 * 24
+  - Calc.helpers.herbsPerHour(WORKBOOK_SNAPSHOTS.hohmono) * 24 * Calc.C.FARM_DUST_PER_HERB);
 
 function approximately(actual, expected, label) {
   const tolerance = Math.max(Math.abs(expected) * 1e-15, 1e-12);
@@ -32,13 +36,13 @@ const validatedOutputs = {
   'TSer leftover Sageroots': [result.tser.leftoverSage, 565149207131.2521],
   'TSer net herbs': [result.tser.netHerbs, 106518758838.28857],
   'TSer leftover herb sale value': [result.tser.leftoverSold, 8717660153120744],
-  'TSer farm tax value': [result.tser.farmTax, 8717679293508576],
+  'TSer farm tax value': [result.tser.farmTax, 8717679293508576 - unusedHedgeCredit],
   'TSer extra resource value': [result.tser.extraResValue, 208048611835618300],
-  'TSer farm + potion income': [result.tser.farmPlusPotIncome, 216766291129126880],
-  'TSer full income': [result.tser.fullIncome, 305679808585759500],
-  'TSer best-potion income': [result.tser.bestIncome, 240013380516306200],
+  'TSer farm + potion income': [result.tser.farmPlusPotIncome, 216766291129126880 - unusedHedgeCredit],
+  'TSer full income': [result.tser.fullIncome, 305679808585759500 - unusedHedgeCredit],
+  'TSer best-potion income': [result.tser.bestIncome, 240013380516306200 - unusedHedgeCredit],
   'TSer current-potion loss': [result.tser.lossFromCurrentPotion, 23247089387179330],
-  'TSer percent loss': [result.tser.percentLoss, 9.68574724341252],
+  'TSer percent loss': [result.tser.percentLoss, 23247089387179330 / (240013380516306200 - unusedHedgeCredit) * 100],
   'Battler Lab ROI': [result.roi.battler.lab, 146.89458614873018],
   'TSer Lab ROI': [result.roi.tser.lab, 137.67279002733477],
   'Spire ROI': [result.roi.tser.spire, 142.21093788669074],
@@ -66,9 +70,10 @@ assert.equal(
   0,
   'Gross resource change is zero when already using the recommended potion',
 );
-approximately(guildPotion.farmIncome, 30190727219356870, 'Guild potion still accounts for farm and herb costs');
-approximately(guildPotion.dailyIncome, 504850065287882800, 'Guild total daily income includes baseline resources');
-approximately(guildPotion.changeFromCurrent, 1195503840622720, 'Guild gain compared with the entered potion');
+approximately(guildPotion.farmIncome, 30190727219356870 - unusedHedgeCredit, 'Guild potion still accounts for farm and herb costs');
+approximately(guildPotion.dailyIncome, 504850065287882800 - unusedHedgeCredit, 'Guild total daily income includes baseline resources');
+assert.ok(Math.abs(guildPotion.changeFromCurrent - 1195503840622720) <= Number.EPSILON * guildPotion.dailyIncome,
+  'Guild gain is unchanged, allowing rounding from subtracting two large daily totals');
 approximately(
   guildPotion.grossResourceValue + guildPotion.farmIncome,
   guildPotion.dailyIncome,
@@ -624,12 +629,16 @@ function assertSpireMatchesUpgrade(current, nextResearch, label) {
 }
 
 for (const capture of pinnacleCaptures) {
+  // Rebase historical API captures to the developer's October 30 rule. Keep
+  // the observed old totals above intact; these are synthetic updated totals.
+  const multiplier = capture.pinnacle ? 1 + capture.boosts.length * capture.spire * 0.000005 : 1;
+  const currentTotal = 1 + (capture.total - 1) / capture.multiplier * multiplier;
   const player = {
     MiningLevel: capture.gatheringId === 30 ? 2 : 1,
     FishingLevel: capture.gatheringId === 31 ? 2 : 1,
     WoodcuttingLevel: capture.gatheringId === 32 ? 2 : 1,
     BaseBoosts: { [capture.gatheringId]: capture.base, 152: capture.spire },
-    TotalBoosts: { [capture.gatheringId]: capture.total, 152: capture.spire },
+    TotalBoosts: { [capture.gatheringId]: currentTotal, 152: capture.spire },
     Constellation: { 49: capture.pinnacle },
     Equipment: Object.fromEntries(capture.boosts.map((boost, i) => [i + 1, {
       IsEquipped: true, Infusions: capture.infusions?.[i] ?? 32, Prefix: capture.prefixes?.[i] ?? 0,
@@ -638,14 +647,15 @@ for (const capture of pinnacleCaptures) {
   };
   const normalized = normalizeImbuedPlayer(player);
   assert.equal(normalized.nexusLevel, capture.nexus, `${capture.name} Nexus matches the independent level check`);
-  approximately(normalized.pinnacleResearchMultiplier, capture.multiplier, `${capture.name} Pinnacle multiplier`);
-  assert.equal(normalized.research, capture.total * 100, 'Current income retains the full API research total');
+  approximately(normalized.pinnacleResearchMultiplier, multiplier, `${capture.name} Pinnacle multiplier without 100 extra levels`);
+  assert.equal(normalized.research, currentTotal * 100, 'Current income retains the updated API research total without double-applying Pinnacle');
+  if (capture.pinnacle) assert.ok(currentTotal < capture.total, 'Removing 100 virtual Spire levels reduces current research');
 
   // Rebuild a +1 Spire API total independently from equipment and the confirmed Nexus.
   const nextSpire = capture.spire + 1;
   const equipmentLevels = Object.values(player.Equipment).reduce((sum, item) => sum
     + Math.floor(item.Boosts[capture.gatheringId] * (1 + (item.Infusions + (item.Prefix === 10 ? 1 : 0)) / 20)), 0);
-  const nextPinnacle = capture.pinnacle ? 1 + capture.boosts.length * (nextSpire + 100) * 0.000005 : 1;
+  const nextPinnacle = capture.pinnacle ? 1 + capture.boosts.length * nextSpire * 0.000005 : 1;
   const nextTotal = 1 + (capture.base * (1 + capture.nexus / 100)
     + equipmentLevels * (1 + nextSpire / 100)) * 0.0002 * nextPinnacle;
   const upgraded = normalizeImbuedPlayer({
@@ -666,13 +676,13 @@ for (const capture of pinnacleCaptures) {
 const pinnacleImbuedPlayer = normalizeImbuedPlayer({
   ...imbuedNexusPlayer,
   Constellation: { 49: 1 },
-  TotalBoosts: { 30: 1 + (449185.792206 - 1) * 1.04324 },
+  TotalBoosts: { 30: 1 + (449185.792206 - 1) * 1.03924 },
 });
 assert.equal(pinnacleImbuedPlayer.nexusLevel, 23970, 'Pinnacle and the extra Imbued infusion work together');
 
-// At zero Spire, the live model still has the base 1x Spire component.
+// At zero Spire, Pinnacle contributes nothing; ordinary Spire still has its base 1x.
 const smallPinnaclePlayer = {
-  MiningLevel: 1, BaseBoosts: { 30: 100, 152: 0 }, TotalBoosts: { 30: 1.06003 },
+  MiningLevel: 1, BaseBoosts: { 30: 100, 152: 0 }, TotalBoosts: { 30: 1.06 },
   Constellation: { 49: 1 },
   Equipment: {
     1: { Infusions: 0, Boosts: { 30: 100 } },
@@ -682,13 +692,13 @@ const smallPinnaclePlayer = {
 };
 const smallPinnacle = normalizeImbuedPlayer(smallPinnaclePlayer);
 assert.equal(smallPinnacle.nexusLevel, 100, 'Only equipped items with the relevant research stat count');
-approximately(smallPinnacle.pinnacleResearchMultiplier, 1.0005, 'One matching item contributes one Pinnacle bonus');
+approximately(smallPinnacle.pinnacleResearchMultiplier, 1, 'Pinnacle at zero Spire has no bonus even with matching gear');
 approximately(smallPinnacle.pinnacleResearchPerSpireLevel, 0.000005,
   'Only the matching equipped item contributes additional Pinnacle per Spire level');
 assertSpireMatchesUpgrade({
   ...WORKBOOK_SNAPSHOTS.hohmono, ...smallPinnacle,
   averageResourcePrice: 50, harvestPotion: 171000,
-}, (1 + (100 * 2 + 100 * 1.01) * 0.0002 * 1.000505) * 100,
+}, (1 + (100 * 2 + 100 * 1.01) * 0.0002 * 1.000005) * 100,
 'First Spire level with Pinnacle excludes the baseline and includes the cross-term');
 const noPinnacle = normalizeImbuedPlayer({
   ...smallPinnaclePlayer, Constellation: { 49: 0 }, TotalBoosts: { 30: 1.06 },
@@ -707,10 +717,10 @@ assert.equal(Calc.calculate({ ...noPinnacleEquipment, averageResourcePrice: 50 }
 // Compare Shard ROI with the income difference from an independently reconstructed +1,000 snapshot.
 const pinnacleShardInputs = {
   ...WORKBOOK_SNAPSHOTS.hohmono,
-  nexusLevel: 25921, shardBoost: 8649032, research: 648856.4271074544 * 100,
-  pinnacleResearchMultiplier: 1.0606,
+  nexusLevel: 25921, shardBoost: 8649032, research: (1 + (648856.4271074544 - 1) / 1.0606 * 1.0566) * 100,
+  pinnacleResearchMultiplier: 1.0566,
 };
-const afterShardResearch = 100 + ((8649032 + 1000) * 260.21 + 808342733.4) * 0.02 * 1.0606;
+const afterShardResearch = 100 + ((8649032 + 1000) * 260.21 + 808342733.4) * 0.02 * 1.0566;
 const beforeShards = Calc.helpers.tserAtPotion(pinnacleShardInputs, pinnacleShardInputs.harvestPotion);
 const afterShards = Calc.helpers.tserAtPotion(
   { ...pinnacleShardInputs, research: afterShardResearch }, pinnacleShardInputs.harvestPotion,

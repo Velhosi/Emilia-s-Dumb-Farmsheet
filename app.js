@@ -4,6 +4,8 @@ const Calc = window.ManarionCalculator;
 const INPUT_STORAGE_KEY = 'emilia-farm-sheet-inputs-v1';
 const SHOW_GUILD_POTION = false; // Set to true to restore the TSer guild potion card.
 let hasRenderedResults = false;
+let constructionMultiplier = 1;
+let lastCalculation = null;
 const infoPanels = new Map();
 
 const $ = (id) => document.getElementById(id);
@@ -136,12 +138,9 @@ function createInfoElement(tag, className, text) {
   return element;
 }
 
-function setInfoPanel(key, { title, description, rows, note }) {
-  const entry = infoPanels.get(key);
-  if (!entry) return;
-
+function createInfoContent({ title, description, rows, note }) {
   const content = document.createDocumentFragment();
-  content.append(createInfoElement('span', 'info-title', title));
+  if (title) content.append(createInfoElement('span', 'info-title', title));
   if (description) content.append(createInfoElement('span', 'info-copy', description));
 
   const rowGroup = createInfoElement('span', 'info-rows');
@@ -161,7 +160,12 @@ function setInfoPanel(key, { title, description, rows, note }) {
   content.append(rowGroup);
 
   if (note) content.append(createInfoElement('span', 'info-note', note));
-  entry.panel.replaceChildren(content);
+  return content;
+}
+
+function setInfoPanel(key, info) {
+  const entry = infoPanels.get(key);
+  if (entry) entry.panel.replaceChildren(createInfoContent(info));
 }
 
 function closeInfoPanels(exceptKey = null) {
@@ -376,29 +380,29 @@ function leftoverHerbInfo(role, herb, result) {
   return { title: `Leftover ${herbName}`, rows, note };
 }
 
-function leftoverValueInfo(role, data, result) {
+function dailyHerbInfo(role, herb, data, result) {
   const totals = result[role];
-  const bloomValue = totals.leftoverBloom * data.bloomwellPrice;
-  const sageValue = totals.leftoverSage * data.sagerootPrice;
+  const sunpetals = herb === 'sunpetals';
+  const bloom = herb === 'bloom';
+  const name = sunpetals ? 'Sunpetals' : bloom ? 'Bloomwells' : 'Sageroots';
+  const produced = sunpetals ? totals.sunpetalsPerDay : bloom ? totals.bloomDaily : totals.sageDaily;
+  const price = sunpetals ? data.sunpetalPrice : bloom ? data.bloomwellPrice : data.sagerootPrice;
   return {
-    title: 'Leftover herb value',
-    description: 'Each leftover herb balance is valued at the midpoint of current Manarion buy and sell orders.',
+    title: `Daily ${name}`,
     rows: [
-      {
-        label: `Bloomwells: ${formatSignedCompact(totals.leftoverBloom)} × ${formatFull(data.bloomwellPrice)}`,
-        value: formatSignedCompact(bloomValue),
-      },
-      {
-        label: `Sageroots: ${formatSignedCompact(totals.leftoverSage)} × ${formatFull(data.sagerootPrice)}`,
-        value: formatSignedCompact(sageValue),
-      },
-      {
-        label: `Sunpetals: ${formatSignedCompact(totals.leftoverSunpetals)} × ${formatFull(data.sunpetalPrice)}`,
-        value: formatSignedCompact(totals.leftoverSunpetals * data.sunpetalPrice),
-      },
-      { label: 'Leftover herb value', value: formatSignedCompact(totals.leftoverSold), tone: infoTone(totals.leftoverSold), total: true },
+      ...(sunpetals ? [
+        { label: 'Base farm herbs / hour', value: formatFull(totals.baseHerbHr) },
+        { label: 'Sunpetals / hour', value: formatFull(0.05 * Math.sqrt(totals.baseHerbHr)) },
+      ] : [
+        { label: `Base daily ${name}`, value: formatFull(totals.baseHerbDaily / 2) },
+        { label: 'Atlas harvest bonus', value: formatters.percent(bloom ? totals.bloomBonusPercent : totals.sageBonusPercent) },
+      ]),
+      { label: `${name} produced / day`, value: formatFull(produced), total: true },
+      { label: 'Buy/sell midpoint', value: `${formatFull(price)} MD` },
+      { label: 'Production value / day', value: formatCompact(produced * price) },
     ],
-    note: Number.isFinite(data.sunpetalPrice) ? '' : 'No Sunpetal quote is available, so Sunpetals are excluded from the value total.',
+    note: sunpetals ? 'Sunpetal production is 0.05 × √(base farm herbs/hour), over 24 hours. Only leftover herbs contribute to the Herbs subtotal.'
+      : 'Production is before potion consumption. Only leftover herbs contribute to the Herbs subtotal.',
   };
 }
 
@@ -459,22 +463,6 @@ function nodeYieldRoiInfo(analysis) {
   };
 }
 
-function farmTaxInfo(role, data, result) {
-  const totals = result[role];
-  const productionTax = totals.baseHerbDaily * Calc.C.FARM_DUST_PER_HERB;
-  const hedgeDiscount = data.farmDiscount * 1_000_000_000 * 24;
-  return {
-    title: 'Farm tax taken',
-    description: 'Farm upkeep is 50,000 MD per base herb, before Atlas harvest bonuses. Hedge Fund’s permanent Farm Discount offsets that charge.',
-    rows: [
-      { label: 'Leftover herb value', value: formatSignedCompact(totals.leftoverSold) },
-      { label: 'Herb production tax', value: formatDebit(productionTax) },
-      { label: 'Hedge Fund Farm Discount', value: formatSignedCompact(hedgeDiscount) },
-      { label: 'Farm tax taken', value: formatSignedCompact(totals.farmTax), tone: infoTone(totals.farmTax), total: true },
-    ],
-  };
-}
-
 function mdIncomeInfo(data) {
   const breakdown = Calc.helpers.mdIncomeBreakdown(data);
   return {
@@ -501,6 +489,7 @@ function labRoiInfo(role, data) {
     description: 'The next Laboratory level adds 1 Potion Duration. ROI compares its cost with the daily value of the herbs that extra duration saves.',
     rows: [
       { section: 'Laboratory cost' },
+      { label: 'Building cost multiplier', value: `${Calc.helpers.constructionCostMultiplier(data.constructionCostMultiplier)}×` },
       { label: 'Total Laboratory cost', value: formatCompact(breakdown.nextLevelCost) },
       { section: `${potionName} potion — ${roleHerb}s` },
       { label: 'Current herb use / hour', value: formatFull(breakdown.harvestHerbsPerHour) },
@@ -537,6 +526,7 @@ function dustCollectorRoiInfo(data) {
     description: 'The next Dust Collector level adds 0.2 percentage points to MD earned per battle.',
     rows: [
       { section: 'Upgrade' },
+      { label: 'Building cost multiplier', value: `${Calc.helpers.constructionCostMultiplier(data.constructionCostMultiplier)}×` },
       { label: 'Next-level cost', value: formatCompact(breakdown.cost) },
       { section: 'Daily benefit' },
       { label: 'Current Dust Collector boost', value: formatters.percent(breakdown.currentBoostPercent) },
@@ -643,6 +633,7 @@ function workshopDustCollectorRoiInfo(data) {
     description: 'Estimates the payback from the next Workshop level making future Dust Collector construction complete sooner.',
     rows: [
       { section: 'Workshop upgrade' },
+      { label: 'Building cost multiplier', value: `${Calc.helpers.constructionCostMultiplier(data.constructionCostMultiplier)}×` },
       { label: 'Workshop upgrade cost', value: formatCompact(breakdown.workshopCost) },
       { section: 'Construction speed' },
       { label: 'Total Construction Speed', value: formatters.percent(breakdown.constructionBoost) },
@@ -670,20 +661,13 @@ function workshopDustCollectorRoiInfo(data) {
 }
 
 function renderInfoPanels(data, result) {
-  setInfoPanel('tser-resources', {
-    title: 'Extra resource value',
-    description: 'Resource income with your Harvest potion compared with unpotted income, after resource tax.',
-    rows: [
-      { label: data.unlockedStars == null ? 'Assigned stars (minimum)' : 'Unlocked stars', value: formatters.integer(data.resourceStarCount) },
-      { label: 'Matching elemental star bonus', value: `+${formatters.percent(data.starResourceBonusPercent)}` },
-      { label: 'Resources / day with potion, after tax', value: formatCompact(result.tser.pottedAfterEvent) },
-      { label: 'Unpotted resources / day, after tax', value: formatCompact(result.tser.unpottedAfterEvent) },
-      { label: 'Extra resource value / day', value: formatCompact(result.tser.extraResValue), total: true },
-    ],
-    note: data.starResourceBonusEstimated
-      ? 'The unlocked-star count could not be confirmed. The bonus uses assigned stars and may be understated.'
-      : 'Fire boosts Iron, Water boosts Fish, and Nature boosts Wood by 0.1% per unlocked star. The matching perk must be active. This multiplier applies to gathered resources, including Harvest potion gains.',
-  });
+  for (const role of ['battler', 'tser']) {
+    for (const herb of ['sage', 'bloom', 'sunpetals']) {
+      setInfoPanel(`${role}-daily-${herb}`, dailyHerbInfo(role, herb, data, result));
+      setInfoPanel(`${role}-left-${herb}`, herb === 'sunpetals'
+        ? leftoverSunpetalsInfo(role, data, result) : leftoverHerbInfo(role, herb, result));
+    }
+  }
   setInfoPanel('battler-net-herbs', netHerbsInfo('battler', result));
   setInfoPanel('tser-net-herbs', netHerbsInfo('tser', result));
   setInfoPanel('battler-max-potion', sustainablePotionInfo('battler', data, result));
@@ -691,19 +675,8 @@ function renderInfoPanels(data, result) {
   setInfoPanel('battler-sunpetal-potion', sunpetalPotionInfo(result.sunpetalPotion));
   setInfoPanel('tser-sunpetal-potion', sunpetalPotionInfo(result.sunpetalPotion));
   setInfoPanel('tser-guild-potion', guildPotionInfo(data, result.tser.guildPotionAnalysis));
-  setInfoPanel('battler-left-bloom', leftoverHerbInfo('battler', 'bloom', result));
-  setInfoPanel('battler-left-sage', leftoverHerbInfo('battler', 'sage', result));
-  setInfoPanel('tser-left-bloom', leftoverHerbInfo('tser', 'bloom', result));
-  setInfoPanel('tser-left-sage', leftoverHerbInfo('tser', 'sage', result));
-  setInfoPanel('battler-left-sunpetals', leftoverSunpetalsInfo('battler', data, result));
-  setInfoPanel('tser-left-sunpetals', leftoverSunpetalsInfo('tser', data, result));
   setInfoPanel('battler-node-yield-roi', nodeYieldRoiInfo(result.battler.nodeYieldAnalysis));
   setInfoPanel('tser-node-yield-roi', nodeYieldRoiInfo(result.tser.nodeYieldAnalysis));
-  setInfoPanel('battler-leftover-value', leftoverValueInfo('battler', data, result));
-  setInfoPanel('tser-leftover-value', leftoverValueInfo('tser', data, result));
-  setInfoPanel('battler-farm-tax', farmTaxInfo('battler', data, result));
-  setInfoPanel('tser-farm-tax', farmTaxInfo('tser', data, result));
-  setInfoPanel('battler-md', mdIncomeInfo(data));
   setInfoPanel('battler-lab-roi', labRoiInfo('battler', data));
   setInfoPanel('battler-dust-collector-roi', dustCollectorRoiInfo(data));
   setInfoPanel('battler-farm-no-hedge-roi', farmNoHedgeRoiInfo(data));
@@ -820,12 +793,12 @@ function renderBattlerPotionAnalysis(analysis) {
 }
 
 function renderSummary(result) {
-  setText('summary-battler', formatCompact(result.battler.fullIncome));
+  setMetric('summary-battler', result.battler.incomeBreakdown.total, formatCompact, true);
   setMetric('summary-battler-net-herbs', result.battler.netHerbs, formatSignedCompact, true);
   setText('summary-battler-max-potion', formatters.integer(result.battler.maxSustainablePotion));
   setText('summary-battler-guidance', result.sunpetalPotion
     ? formatters.integer(result.sunpetalPotion.maximumSustainablePotion) : 'N/A');
-  setText('summary-tser', formatCompact(result.tser.fullIncome));
+  setMetric('summary-tser', result.tser.incomeBreakdown.total, formatCompact, true);
   setText('summary-potion', formatters.integer(result.tser.bestPotion));
   setText('summary-loss', formatters.percent(result.tser.percentLoss));
   setText(
@@ -859,27 +832,193 @@ function applyRoleView(role) {
   closeInfoPanels();
 }
 
+function setupIncomeTables() {
+  elements.resultGrid.addEventListener('click', (event) => {
+    const button = event.target.closest('.income-toggle');
+    if (!button) return;
+    const open = button.getAttribute('aria-expanded') !== 'true';
+    button.setAttribute('aria-expanded', String(open));
+    $(button.getAttribute('aria-controls')).hidden = !open;
+  });
+}
+
+function syncConstructionControls(editingInput = null) {
+  document.querySelectorAll('.construction-range, .construction-number').forEach((input) => {
+    if (input !== editingInput) input.value = String(constructionMultiplier);
+    if (input.type === 'range') input.setAttribute('aria-valuetext', `${constructionMultiplier} times cost`);
+  });
+  document.querySelectorAll('[data-construction-name]').forEach((label) => {
+    label.textContent = `${label.dataset.constructionName} ${constructionMultiplier}×`;
+  });
+}
+
+function setConstructionMultiplier(value, editingInput = null) {
+  constructionMultiplier = Calc.helpers.constructionCostMultiplier(value);
+  syncConstructionControls(editingInput);
+  // Revalue just the four buildings using the last player pull. Dragging does
+  // not refetch data or rerun the potion/farm optimizers.
+  if (lastCalculation) {
+    const { data, result } = lastCalculation;
+    data.constructionCostMultiplier = constructionMultiplier;
+    const construction = Calc.helpers.constructionROI(data);
+    Object.assign(result.roi.battler, construction.battler);
+    Object.assign(result.roi.tser, construction.tser);
+    setRoi('b-roi', result.roi.battler);
+    setRoi('t-roi', result.roi.tser);
+    setInfoPanel('battler-lab-roi', labRoiInfo('battler', data));
+    setInfoPanel('tser-lab-roi', labRoiInfo('tser', data));
+    setInfoPanel('battler-dust-collector-roi', dustCollectorRoiInfo(data));
+    setInfoPanel('battler-workshop-dust-collector-roi', workshopDustCollectorRoiInfo(data));
+  }
+  saveInputs();
+}
+
+function setupConstructionControls() {
+  document.querySelectorAll('.construction-range').forEach((input) => {
+    input.addEventListener('input', () => {
+      // The left endpoint is 0.1; the remaining stops are 1, 2, ... 50.
+      setConstructionMultiplier(Math.max(0.1, Math.round(Number(input.value))));
+    });
+    input.addEventListener('keydown', (event) => {
+      let next;
+      if (event.key === 'ArrowRight' || event.key === 'ArrowUp') next = Math.floor(constructionMultiplier) + 1;
+      else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') next = Math.ceil(constructionMultiplier) - 1;
+      else if (event.key === 'Home') next = 0.1;
+      else if (event.key === 'End') next = 50;
+      else if (event.key === 'PageUp') next = Math.round(constructionMultiplier) + 5;
+      else if (event.key === 'PageDown') next = Math.round(constructionMultiplier) - 5;
+      else return;
+      event.preventDefault();
+      setConstructionMultiplier(next);
+    });
+  });
+  document.querySelectorAll('.construction-number').forEach((input) => {
+    input.addEventListener('input', () => {
+      const value = input.valueAsNumber;
+      if (Number.isFinite(value) && value >= 0.1 && value <= 50) setConstructionMultiplier(value, input);
+    });
+    input.addEventListener('change', () => {
+      const value = input.valueAsNumber;
+      setConstructionMultiplier(Number.isFinite(value) ? value : constructionMultiplier);
+    });
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        input.blur();
+      }
+    });
+  });
+}
+
+function renderIncomeGroups(prefix, category, groups) {
+  const content = document.createDocumentFragment();
+  for (const group of groups) {
+    const section = createInfoElement('section', 'income-detail-group');
+    section.append(createInfoElement('h4', 'income-detail-title', group.title));
+    section.append(createInfoContent({ ...group, title: null }));
+    content.append(section);
+  }
+  $(`${prefix}-income-${category}-content`).replaceChildren(content);
+}
+
+function resourceIncomeInfo(data, totals) {
+  return {
+    title: 'Gathered resources',
+    description: 'Includes baseline resources and the gain from your current Harvest potion.',
+    rows: [
+      { label: 'Resources / action before tax', value: formatFull(totals.grossPotted) },
+      { label: 'Resource tax', value: formatters.percent(data.tax) },
+      { label: 'Resources / action after tax', value: formatFull(totals.taxedPotted) },
+      { label: 'Daily actions', value: formatters.integer(Calc.C.TS_POTTED_ACTIONS) },
+      { label: 'Resources / day after tax', value: formatCompact(totals.pottedAfterEvent), total: true },
+      { label: 'Average resource buy/sell midpoint', value: `${formatFull(data.averageResourcePrice)} MD` },
+      { label: 'Resource value / day', value: formatSignedCompact(totals.incomeBreakdown.mainValue), total: true },
+      { section: 'Harvest contribution' },
+      { label: 'Unpotted resources / day after tax', value: formatCompact(totals.unpottedAfterEvent) },
+      { label: 'Extra value from Harvest potion / day', value: formatCompact(totals.extraResValue) },
+      { label: data.unlockedStars == null ? 'Assigned stars (minimum)' : 'Unlocked stars', value: formatters.integer(data.resourceStarCount) },
+      { label: 'Matching elemental star bonus', value: `+${formatters.percent(data.starResourceBonusPercent)}` },
+    ],
+    note: data.starResourceBonusEstimated
+      ? 'The unlocked-star count could not be confirmed. The star bonus uses assigned stars and may be understated.'
+      : 'Resource values use the average of the Iron, Fish and Wood buy/sell midpoints.',
+  };
+}
+
+function nodeIncomeInfo(analysis, income) {
+  if (!analysis) return {
+    title: 'T2 resource income',
+    description: 'The player data needed to calculate T2 income is unavailable.',
+    rows: [],
+  };
+  const a = analysis;
+  return {
+    title: `${a.name} income`,
+    description: 'Expected daily harvest from your current yield investment. T2 resources are untaxed.',
+    rows: [
+      { label: 'Resource selection', value: a.element ? `${a.element[0].toUpperCase()}${a.element.slice(1)} mastery` : `${a.skill} (highest gathering level)` },
+      { label: `${a.skill} level`, value: formatters.integer(a.skillLevel) },
+      { label: 'Level yield multiplier', value: `${formatFull(a.levelMultiplier)}×` },
+      { label: 'Current yield bonus', value: `+${formatters.percent(a.yieldPercent)}` },
+      { label: 'Node Yield bonus', value: `+${formatters.percent(a.nodeYieldBonusPercent)}` },
+      { label: `Aquarius bonus (${formatters.integer(a.starCount)} stars)`, value: `+${formatters.percent(a.aquariusBonusPercent)}` },
+      { label: 'Combined constellation yield', value: `${formatFull(a.constellationYieldMultiplier)}×` },
+      { label: 'Double harvest chance', value: formatters.percent(a.doubleChance * 100) },
+      { section: 'Node activity' },
+      { label: 'Gathering rate', value: `+${formatters.percent((a.rateMultiplier - 1) * 100)}` },
+      { label: 'Effective chance / action', value: formatters.percent(a.chance * 100, { minimumFractionDigits: 5, maximumFractionDigits: 5 }) },
+      { label: 'Simplified chance', value: Number.isFinite(a.chance) && a.chance > 0 ? `1 in ${formatters.integer(1 / a.chance)}` : a.chance === 0 ? 'No chance' : 'N/A' },
+      { label: 'Ticks per discovery', value: formatters.integer(a.duration) },
+      { label: 'Leo / Gemini', value: `${a.leo ? 'Active' : 'Inactive'} / ${a.gemini ? 'Active' : 'Inactive'}` },
+      { label: 'Time harvesting a node', value: formatters.percent(a.activeFraction * 100) },
+      { label: 'Average active rarity (1–6)', value: formatFull(a.averageActiveRarity) },
+      { section: 'Daily value' },
+      { label: 'Actions / day', value: formatters.integer(a.actionsPerDay) },
+      { label: `${a.name} / day`, value: formatFull(income.nodeAmount) },
+      { label: `${a.name} buy/sell midpoint`, value: `${formatFull(a.price)} MD` },
+      { label: 'T2 value / day', value: formatCompact(income.nodeValue), total: true },
+    ],
+  };
+}
+
+function renderIncomeTables(data, result) {
+  for (const [prefix, role] of [['b', 'battler'], ['t', 'tser']]) {
+    const totals = result[role];
+    const income = totals.incomeBreakdown;
+    for (const [category, amount, value] of [
+      ['herbs', income.herbsAmount, income.herbsValue],
+      ['main', income.mainAmount, income.mainValue],
+      ['nodes', income.nodeAmount, income.nodeValue],
+    ]) {
+      setMetric(`${prefix}-income-${category}-amount`, amount, formatCompact, true);
+      setMetric(`${prefix}-income-${category}-value`, value, formatCompact, true);
+    }
+    setMetric(`${prefix}-income-total`, income.total, formatCompact, true);
+    setMetric(`${prefix}-income-farm-tax-value`, income.farmTaxValue, formatCompact, true);
+    setMetric(`${prefix}-income-tax-production-amount`, totals.baseHerbDaily, formatCompact);
+    setMetric(`${prefix}-income-tax-production-value`, -totals.baseFarmTaxPerDay, formatCompact, true);
+    setMetric(`${prefix}-income-tax-discount-value`, totals.hedgeDiscountAppliedPerDay, formatCompact, true);
+    setText(`${prefix}-income-nodes-name`, totals.nodeYieldAnalysis?.name ?? 'T2 resources');
+    for (const [herb, daily, leftover, price] of [
+      ['sage', totals.sageDaily, totals.leftoverSage, data.sagerootPrice],
+      ['bloom', totals.bloomDaily, totals.leftoverBloom, data.bloomwellPrice],
+      ['sunpetals', totals.sunpetalsPerDay, totals.leftoverSunpetals, data.sunpetalPrice],
+    ]) {
+      for (const [stage, amount] of [['daily', daily], ['left', leftover]]) {
+        setMetric(`${prefix}-income-${stage}-${herb}-amount`, amount, formatCompact, stage === 'left');
+        setMetric(`${prefix}-income-${stage}-${herb}-value`, amount * price, formatCompact, stage === 'left');
+      }
+    }
+    renderIncomeGroups(prefix, 'main', [role === 'battler' ? mdIncomeInfo(data) : resourceIncomeInfo(data, totals)]);
+    renderIncomeGroups(prefix, 'nodes', [nodeIncomeInfo(totals.nodeYieldAnalysis, income)]);
+  }
+}
+
 function renderDetails(result) {
   renderBattlerPotionAnalysis(result.battler.potionAnalysis);
   const sunpetalTier = result.sunpetalPotion
     ? formatters.integer(result.sunpetalPotion.maximumSustainablePotion) : 'N/A';
   setText('t-sunpetal-max', sunpetalTier);
-  setMetric('b-left-bloom', result.battler.leftoverBloom, formatters.compact, true);
-  setMetric('b-left-sage', result.battler.leftoverSage, formatters.compact, true);
-  setMetric('b-left-sunpetals', result.battler.leftoverSunpetals, formatters.compact, true);
-  setMetric('b-dust', result.battler.leftoverSold, formatters.compact, true);
-  setMetric('b-tax', result.battler.farmTax, formatters.compact, true);
-  setMetric('b-md', result.battler.mdEarned, formatters.compact, true);
-  setMetric('b-total', result.battler.fullIncome, formatters.compact, true);
-
-  setMetric('t-left-bloom', result.tser.leftoverBloom, formatters.compact, true);
-  setMetric('t-left-sage', result.tser.leftoverSage, formatters.compact, true);
-  setMetric('t-left-sunpetals', result.tser.leftoverSunpetals, formatters.compact, true);
-  setMetric('t-dust', result.tser.leftoverSold, formatters.compact, true);
-  setMetric('t-tax', result.tser.farmTax, formatters.compact, true);
-  setMetric('t-extra', result.tser.extraResValue, formatters.compact, true);
-  setMetric('t-farm-pot', result.tser.farmPlusPotIncome, formatters.compact, true);
-  setMetric('t-total', result.tser.fullIncome, formatters.compact, true);
   setMetric('t-best-pot', result.tser.bestPotion, formatters.integer);
   setMetric('t-best-income', result.tser.bestIncome, formatters.compact, true);
   setMetric('t-loss', result.tser.lossFromCurrentPotion, formatters.compact, true);
@@ -901,7 +1040,10 @@ function renderDetails(result) {
 }
 
 function render(data, result) {
+  lastCalculation = { data, result };
+  syncConstructionControls();
   renderSummary(result);
+  renderIncomeTables(data, result);
   renderDetails(result);
   renderInfoPanels(data, result);
   setInfoPanel('battler-potion-analysis', battlerPotionInfo(data, result.battler.potionAnalysis));
@@ -913,8 +1055,13 @@ function render(data, result) {
 
 function clearResults() {
   hasRenderedResults = false;
+  lastCalculation = null;
   elements.overview.hidden = true;
   elements.results.hidden = true;
+  elements.resultGrid.querySelectorAll('.income-toggle').forEach((button) => {
+    button.setAttribute('aria-expanded', 'false');
+    $(button.getAttribute('aria-controls')).hidden = true;
+  });
   elements.overview.querySelectorAll('.summary-value').forEach((element) => {
     element.textContent = '—';
     element.classList.remove('positive', 'negative');
@@ -940,6 +1087,7 @@ function getInputs() {
     harvestPotion: num($('harvest').value),
     resonancePotion: num($('resonance').value),
     guidancePotion: num($('guidance').value),
+    constructionCostMultiplier: constructionMultiplier,
     role: elements.role.value,
   };
 }
@@ -951,6 +1099,7 @@ function getInputValues() {
     harvestPotion: $('harvest').value,
     resonancePotion: $('resonance').value,
     guidancePotion: $('guidance').value,
+    constructionCostMultiplier: constructionMultiplier,
     role: elements.role.value,
   };
 }
@@ -972,6 +1121,8 @@ function restoreInputs() {
     $('resonance').value = typeof saved.resonancePotion === 'string' ? saved.resonancePotion : '';
     $('guidance').value = typeof saved.guidancePotion === 'string' ? saved.guidancePotion : '';
     elements.role.value = ['tser', 'battler'].includes(saved.role) ? saved.role : '';
+    constructionMultiplier = Calc.helpers.constructionCostMultiplier(saved.constructionCostMultiplier);
+    syncConstructionControls();
   } catch (_) {}
 }
 
@@ -1010,6 +1161,8 @@ function resetInputs() {
     localStorage.removeItem(INPUT_STORAGE_KEY);
   } catch (_) {}
   elements.form.reset();
+  constructionMultiplier = 1;
+  syncConstructionControls();
   clearResults();
   applyRoleView(elements.role.value);
   setStatus('', '');
@@ -1026,5 +1179,7 @@ elements.role.addEventListener('change', () => applyRoleView(elements.role.value
 
 clearResults();
 setupInfoPanels();
+setupIncomeTables();
+setupConstructionControls();
 restoreInputs();
 setStatus('', '');

@@ -17,6 +17,7 @@ Static browser calculator converted from the supplied Google Sheet and Apps Scri
 - TSer guild potion optimizer using all resource value before guild tax, with herb and farm costs retained. Its recommended tier appears as "Guild efficient pot (disregarding tax)" in the Highest-income potion card. The full guild comparison card remains hidden; set `SHOW_GUILD_POTION` to `true` in `app.js` to restore it.
 - Ambitious equipment-prefix detection and -1% total TSer resources per equipped item (maximum 8%)
 - Lab ROI
+- Building cost multiplier (0.1–50×) with a whole-number slider and decimal entry, shared between roles and saved locally. Scales MD and resource costs for Laboratory, Dust Collector, Spire and Workshop; updates ROI immediately from the last player pull. Income, upgrade benefits and construction speed stay fixed.
 - Spire ROI
 - Potion Boost ROI
 - Base Resource ROI
@@ -48,11 +49,12 @@ node validation.test.js
 node battler-potion.test.js
 node sunpetal-potion.test.js
 node --test farm-lab-market.test.js
-node --test node-yield.test.js
+node --test construction-cost.test.js
+node --test node-yield.test.js income-breakdown.test.js
 node --test star-bonus.test.js cloudflare-worker/test/worker.test.js
 ```
 
-The check locks the Hohmono values documented in `VALIDATION.md`, including the best-potion search, all validated TSer ROI rows, and the shared Battler/TSer Tome Drop ROI.
+The check uses the historical Hohmono values documented in `VALIDATION.md`, including the best-potion search, all validated TSer ROI rows, and the shared Battler/TSer Tome Drop ROI. Absolute income expectations now remove the workbook's unused Hedge Fund credit, because in-game upkeep cannot go below zero.
 
 ## Formula notes
 
@@ -60,9 +62,11 @@ All live market valuations use the arithmetic midpoint of buy and sell orders, w
 
 Atlas Bloomwell (`Constellation[10]`) and Sageroot (`[9]`) ranks add 2% each to their own half of farm production, additively across ranks. Daily leftovers, sustainable potion tiers, potion comparisons, and Farm ROI include those yields; unequal bonuses use the appropriate herb prices. Upkeep and Hedge requirements use base farm production, consistent with the [official client](https://manarion.com/assets/GameRoutes-BrQEYLa-.js). The Sunpetal estimate continues to use base farm output because these nodes boost only Bloomwells and Sageroots.
 
+Farm upkeep is capped at zero: `max(0, base herbs/day × 50,000 − Hedge Fund discount/day)`. Excess discount never creates income. The Farm tax dropdown shows only the discount actually applied, and the cap feeds both roles' totals and potion optimizers. Daily herb production MD values are gray reference values; only leftover herbs contribute to the Herbs subtotal.
+
 The optional Potion of Guidance input is saved with the player setup. Laboratory ROI includes the Sunpetals saved by +1 Potion Duration at that entered tier, valued at the Sunpetal midpoint, alongside Wisdom/Harvest and Resonance savings. Blank or zero excludes Guidance consumption. Both daily breakdowns show leftover Sunpetals above leftover herb value and include their midpoint value (or deficit) in income. Farm ROI includes the additional Sunpetals produced by the upgrade, with no extra Sunpetal upkeep. The sustainable Guidance estimate stays separate, and the Laboratory comparison holds the entered tier fixed. Renewal and dungeon spending are not modeled. If no Sunpetal quote exists, daily totals omit its value and the information panel explains this; Guidance-inclusive Laboratory ROI remains unavailable.
 
-T2 ROI compares 500 purchased yield upgrades. Battler selection follows the highest elemental mastery: Fire → Resin with Mining levels, Nature → Ink with Woodcutting levels, Water → Quartz with Fishing levels. The battler level bonus follows the damage element independently of the dropped resource. TSer selection uses the highest gathering level: Mining → Quartz, Fishing → Ink, Woodcutting → Resin. Each upgrade is +1 percentage point; Quartz/Ink/Resin upgrades are funded with Iron/Fish/Wood respectively at that resource's own buy/sell midpoint for both roles. T2 output is untaxed and also valued at its own midpoint. It is shown in the ROI breakdown, not added to the main daily income total.
+T2 ROI compares 500 purchased yield upgrades. Battler selection follows the highest elemental mastery: Fire → Resin with Mining levels, Nature → Ink with Woodcutting levels, Water → Quartz with Fishing levels. The battler level bonus follows the damage element independently of the dropped resource. TSer selection uses the highest gathering level: Mining → Quartz, Fishing → Ink, Woodcutting → Resin. Each upgrade is +1 percentage point; Quartz/Ink/Resin upgrades are funded with Iron/Fish/Wood respectively at that resource's own buy/sell midpoint for both roles. T2 output is untaxed and also valued at its own midpoint. The income table and headline daily income include current T2 output at that midpoint. The Herbs dropdown continues the table with production and leftover rows for Sageroots, Bloomwells and Sunpetals. Its subtotal is leftover herb value before upkeep. Farm tax appears separately as a signed MD entry after the Hedge Fund discount. TSer resource income includes both baseline and Harvest gains. The total is unavailable when T2 yield or its market price is missing.
 
 The node model uses API `TotalBoosts[39] / 2400` directly: this field is a multiplier and already includes gathering-rate bonuses. Duration, double yield, Node Yield, Gemini, Leo, and Aquarius come from the constellation. Aquarius uses the profile’s StarsUnlocked total, including unassigned stars, with leaderboard and visibly estimated assigned-star fallbacks. Starting rarity odds supplied by the developer are 75/15/6/3/0.8/0.2%; Gemini changes these to 0/90/6/3/0.8/0.2%. A deterministic renewal model includes lost duration on refresh, extended duration with Leo, and increasing rarity on overlaps up to Mythic. It calculates long-run expected income, not a guarantee for a particular day. Node Yield and Aquarius add into one base-yield multiplier: `1 + 0.1*NodeYieldRanks + 0.01*unlockedStars` when Aquarius is active. Hohmono’s observed Rare-node harvests support this stacking rule. `node-yield.test.js` cross-checks the result against an independent per-tick stationary Markov chain.
 
@@ -90,9 +94,9 @@ The post-workbook Ambitious rule is applied as a final multiplier to TSer resour
 
 Imbued equipment contributes one additional effective infusion beyond the API's `Infusions` field. The API parser recognizes prefix ID `10` or the Imbued name and applies the bonus once per item when calculating equipment research, equipment base resources, and the equipment contribution subtracted to infer Nexus level for Shard ROI.
 
-Pinnacle (`Constellation[49]`) is removed from the API research bonus before inferring Nexus. The October 18 live data matches `P = 1 + matching equipped items × 0.0005 × (1 + BaseBoosts[152]/100)`: the full Spire factor includes its base 1x. Divide `TotalBoosts[gatheringId] - 1` by `P`, then subtract equipment research to infer Nexus. Current income keeps the full API total; Shard ROI multiplies newly gained research by `P`. Missing or locked Pinnacle defaults to `P = 1`. Hohmono now resolves to Nexus 25,921; Pepo and Mephisto resolve to 24,600.
+Pinnacle (`Constellation[49]`) now uses `P = 1 + matching equipped items × Spire level × 0.000005`, following the developer's removal of the extra 100 Spire levels on October 30. At zero Spire it gives no bonus. Divide `TotalBoosts[gatheringId] - 1` by `P`, then subtract equipment research to infer Nexus. Current income keeps the full API total, which already includes the revised bonus; Shard ROI multiplies newly gained research by `P`. Missing or locked Pinnacle defaults to `P = 1`. Ordinary equipment scaling retains `1 + Spire/100`.
 
-Spire ROI also includes Pinnacle's growth: one Spire level raises `P` by `dP = matching equipped items × 0.000005` when the perk is active. Additional research is `equipmentResearch × 0.01 × (P + dP) + ((research − 100) / P) × dP`. This counts both ordinary equipment scaling and the stronger multiplier on existing research, including their cross-term; the API baseline is excluded. Equipment research uses the same per-item flooring and effective infusions as Nexus inference. Tests compare the ROI against independently reconstructed +1 Spire API totals for the three Pinnacle captures and the Mephisto control.
+Spire ROI also includes Pinnacle's growth: one Spire level raises `P` by `dP = matching equipped items × 0.000005` when the perk is active. Additional research is `equipmentResearch × 0.01 × (P + dP) + ((research − 100) / P) × dP`. This counts both ordinary equipment scaling and the stronger multiplier on existing research, including their cross-term; the API baseline is excluded. Equipment research uses the same per-item flooring and effective infusions as Nexus inference. Tests explicitly rebase historical Pinnacle captures to the updated rule, then compare ROI against independently reconstructed +1 Spire totals, including a no-Pinnacle control and zero-Spire case.
 
 The elemental star harvest bonus multiplies gathered resources by `1 + unlockedStars × 0.001` when the modeled gathering skill has its matching perk: Fire (`Constellation[1]`) for Mining/Iron, Water (`2`) for Fishing/Fish, or Nature (`3`) for Woodcutting/Wood. It applies to potted and unpotted income, potion optimization, and resource-derived ROI, without changing API research/Nexus or farm herbs. `api.js` and direct normalization prefer the profile’s `StarsUnlocked` field, verified on October 27. It includes unassigned unlocked stars; the `Constellation` rank sum counts assigned stars only. A valid count is a nonnegative safe integer at least as large as the assigned count. Profiles without a valid count retain the guild-filtered, paginated `stars_unlocked` leaderboard lookup, then an assigned-star estimate if no exact count is available. The resource information panel shows the count and bonus. The existing relay passes the new profile field through without a deployment.
 
@@ -104,6 +108,7 @@ The fourth Battler summary card and the TSer potion analysis card show an estima
 
 - `index.html` - page structure
 - `styles.css` - responsive dark UI
+- `theme-preview.css` - charcoal/gold theme and expandable income table styling
 - `calculator.js` - spreadsheet formulas converted to named JavaScript functions
 - `data.js` - validated Emilia and Hohmono fixtures used only by the regression test
 - `api.js` - live API requests, profile unlocked-star count, and leaderboard fallback

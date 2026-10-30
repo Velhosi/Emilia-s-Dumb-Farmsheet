@@ -25,9 +25,12 @@ test('Sunpetal leftovers use entered Guidance and reconcile daily income, Labora
     close(current.fullIncome - old.fullIncome, (production - used) * d.sunpetalPrice);
     const afterLab = totalsAt({ ...d, potDuration: d.potDuration + 1 }, d.harvestPotion);
     close(afterLab.fullIncome - current.fullIncome, H.labRoiBreakdown(d, role).totalSavingsValuePerDay);
+    // "Farm — no hedge" deliberately compares production with no Hedge Fund.
+    const noHedgeInputs = { ...d, farmDiscount: 0 };
+    const beforeNoHedge = totalsAt(noHedgeInputs, d.harvestPotion);
     for (const row of H.farmUpgradeStats(d)) {
-      const afterFarm = totalsAt({ ...d, [row.key]: d[row.key] + 1000 }, d.harvestPotion);
-      close(row.taxedROI, row.cost / (afterFarm.fullIncome - current.fullIncome));
+      const afterFarm = totalsAt({ ...noHedgeInputs, [row.key]: d[row.key] + 1000 }, d.harvestPotion);
+      close(row.taxedROI, row.cost / (afterFarm.fullIncome - beforeNoHedge.fullIncome));
     }
     const noGuidance = totalsAt({ ...d, guidancePotion: 0 }, d.harvestPotion);
     close(noGuidance.leftoverSunpetals, production);
@@ -76,9 +79,10 @@ test('Farm ROI values unequal herb bonuses and charges upkeep only on extra base
   const d = { ...base, bloomwellConstellationLevel: 5, sagerootConstellationLevel: 1,
     bloomwellPrice: 220000, sagerootPrice: 180000 };
   const before = H.battlerAtPotion(d, d.harvestPotion);
+  const beforeNoHedge = H.battlerAtPotion({ ...d, farmDiscount: 0 }, d.harvestPotion);
   for (const row of H.farmUpgradeStats(d)) {
-    const after = H.battlerAtPotion({ ...d, [row.key]: d[row.key] + 1000 }, d.harvestPotion);
-    close(row.taxedROI, row.cost / (after.fullIncome - before.fullIncome));
+    const after = H.battlerAtPotion({ ...d, farmDiscount: 0, [row.key]: d[row.key] + 1000 }, d.harvestPotion);
+    close(row.taxedROI, row.cost / (after.fullIncome - beforeNoHedge.fullIncome));
     close(row.noTaxROI, row.cost / (after.leftoverSold - before.leftoverSold));
   }
   const hedge = H.farmHedgeRoiBreakdown(d);
