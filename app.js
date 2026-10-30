@@ -757,7 +757,7 @@ function resonanceValueInfo(resonance) {
 
 function renderBattlerPotionAnalysis(analysis) {
   setText('b-potion-max', formatters.integer(analysis.maximumSustainablePotion));
-  setText('b-potion-boost-range', `${formatters.percent(analysis.potionBoost)} → ${formatters.percent(analysis.nextPotionBoost)}`);
+  setText('b-potion-boost-range', `(${formatters.percent(analysis.potionBoostLevel)}) ${formatters.percent(analysis.potionBoost)} → ${formatters.percent(analysis.nextPotionBoost)}`);
   setText('b-potion-boost-cost', formatCompact(analysis.potionBoostCost));
   setText('b-potion-boost-gain', analysis.maximumSustainablePotion > 0 ? formatWisdomGain(analysis.potionBoostGainPercent) : 'N/A');
   setText('b-potion-resonance-value', analysis.resonanceValue
