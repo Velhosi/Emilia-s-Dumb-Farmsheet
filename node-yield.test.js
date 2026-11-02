@@ -85,9 +85,9 @@ test('node overlap, rarity caps, Gemini and Leo match an independent stationary 
 
 test('mastery selects battler drops, highest gathering level selects TSer drops', () => {
   for (const [mastery, resource, skill, skillLevel, costResource] of [
-    [10, 'Resin', 'Mining', 1000, 'Wood'],
-    [11, 'Quartz', 'Fishing', 2000, 'Iron'],
-    [12, 'Ink', 'Woodcutting', 3000, 'Fish'],
+    [10, 'Resin', 'Woodcutting', 3000, 'Wood'],
+    [11, 'Quartz', 'Mining', 1000, 'Iron'],
+    [12, 'Ink', 'Fishing', 2000, 'Fish'],
   ]) {
     const d = normalize({ ...player, BaseBoosts: { ...player.BaseBoosts, [mastery]: 100 } });
     const a = H.nodeYieldRoiBreakdown(d, 'battler');
@@ -173,20 +173,18 @@ test('yield perks add together for both roles and each works on its own', () => 
   }
 });
 
-test('battler income and ROI follow the elemental skill, independently of the resource gathering skill', () => {
-  // Earlier uncontrolled tick samples were used to infer the TSer mapping for
-  // battlers. Keep the user-confirmed battler mapping separate for every element.
-  for (const [mastery, elementalField, resourceField] of [
-    [10, 'MiningLevel', 'WoodcuttingLevel'],
-    [11, 'FishingLevel', 'MiningLevel'],
-    [12, 'WoodcuttingLevel', 'FishingLevel'],
+test('battler income and ROI scale with the dropped resource’s gathering skill', () => {
+  for (const [mastery, yieldField, unrelatedField] of [
+    [10, 'WoodcuttingLevel', 'MiningLevel'],
+    [11, 'MiningLevel', 'FishingLevel'],
+    [12, 'FishingLevel', 'WoodcuttingLevel'],
   ]) {
     const profile = { ...player, BaseBoosts: { ...player.BaseBoosts, [mastery]: 100 } };
     const before = H.nodeYieldRoiBreakdown(normalize(profile), 'battler');
     const after = H.nodeYieldRoiBreakdown(normalize({
-      ...profile, [elementalField]: profile[elementalField] + 1000,
+      ...profile, [yieldField]: profile[yieldField] + 1000,
     }), 'battler');
-    const gain = (1000 + profile[elementalField] + 1000) / (1000 + profile[elementalField]);
+    const gain = (1000 + profile[yieldField] + 1000) / (1000 + profile[yieldField]);
     close(after.currentDailyYield, before.currentDailyYield * gain);
     close(after.extraDailyYield, before.extraDailyYield * gain);
     close(after.roi, before.roi / gain);
@@ -194,7 +192,7 @@ test('battler income and ROI follow the elemental skill, independently of the re
     assert.equal(after.upgradeCost, before.upgradeCost);
 
     const unrelatedLevel = H.nodeYieldRoiBreakdown(normalize({
-      ...profile, [resourceField]: profile[resourceField] + 100000,
+      ...profile, [unrelatedField]: profile[unrelatedField] + 100000,
     }), 'battler');
     assert.deepEqual(unrelatedLevel, before);
   }

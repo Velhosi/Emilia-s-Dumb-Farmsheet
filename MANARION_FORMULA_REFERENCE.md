@@ -572,14 +572,14 @@ Confirmed mappings:
 
 | Role / activity | Drop | Level used for +0.1% yield / level | Funding resource |
 |---|---|---|---|
-| Fire battler | Resin | Mining | Wood |
-| Nature battler | Ink | Woodcutting | Fish |
-| Water battler | Quartz | Fishing | Iron |
+| Fire battler | Resin | Woodcutting | Wood |
+| Nature battler | Ink | Fishing | Fish |
+| Water battler | Quartz | Mining | Iron |
 | Mining TSer | Quartz | Mining | Iron |
 | Fishing TSer | Ink | Fishing | Fish |
 | Woodcutting TSer | Resin | Woodcutting | Wood |
 
-Battlers use the highest BaseBoosts[10/11/12] mastery (Fire/Water/Nature); MagicType breaks ties. Their yield level follows the element: Fire uses Mining, Water uses Fishing, Nature uses Woodcutting. The dropped resource independently selects its purchased yield, market value and funding resource. TSers use their highest gathering level, with ties preferring Mining then Fishing, and the resource associated with that gathering skill. This restores the user-confirmed battler mapping on October 29; earlier uncontrolled tick samples were insufficient to infer the TSer mapping for battlers.
+Battlers select the drop by highest mastery (`BaseBoosts[10/11/12]` for Fire/Water/Nature), with `MagicType` breaking ties. TSers select it by highest gathering level, with ties preferring Mining then Fishing. Both roles use the drop’s gathering skill for the level yield bonus, and its own yield investment, market value and funding resource.
 
 API and market mappings:
 

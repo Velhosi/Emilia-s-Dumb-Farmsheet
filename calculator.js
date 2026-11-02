@@ -1229,22 +1229,17 @@
       return quotes.length ? quotes.reduce((sum, value) => sum + value, 0) / quotes.length : fallback;
     };
     const averageRes = (averageMarketPrice(8) + averageMarketPrice(7) + averageMarketPrice(9)) / 3;
-    const gatheringSkills = [
-      { skill: 'Mining', skillLevel: getNum(playerData, 'MiningLevel', NaN), resource: 'quartz' },
-      { skill: 'Fishing', skillLevel: getNum(playerData, 'FishingLevel', NaN), resource: 'inkSac' },
-      { skill: 'Woodcutting', skillLevel: getNum(playerData, 'WoodcuttingLevel', NaN), resource: 'resin' },
-    ];
-    const highestSkill = gatheringSkills.reduce((best, skill) => (
+    const quartz = { skill: 'Mining', skillLevel: getNum(playerData, 'MiningLevel', NaN), resource: 'quartz' };
+    const ink = { skill: 'Fishing', skillLevel: getNum(playerData, 'FishingLevel', NaN), resource: 'inkSac' };
+    const resin = { skill: 'Woodcutting', skillLevel: getNum(playerData, 'WoodcuttingLevel', NaN), resource: 'resin' };
+    const highestSkill = [quartz, ink, resin].reduce((best, skill) => (
       Number.isFinite(skill.skillLevel) && (!best || skill.skillLevel > best.skillLevel) ? skill : best
     ), null);
     const masteries = [
-      { element: 'fire', mastery: getNum(baseBoosts, '10'), ...gatheringSkills[0], resource: 'resin' },
-      { element: 'water', mastery: getNum(baseBoosts, '11'), ...gatheringSkills[1], resource: 'quartz' },
-      { element: 'nature', mastery: getNum(baseBoosts, '12'), ...gatheringSkills[2], resource: 'inkSac' },
+      { element: 'fire', mastery: getNum(baseBoosts, '10'), ...resin },
+      { element: 'water', mastery: getNum(baseBoosts, '11'), ...quartz },
+      { element: 'nature', mastery: getNum(baseBoosts, '12'), ...ink },
     ];
-    // Battler yield uses the element's skill, independently of the dropped
-    // resource: Fire/Mining, Water/Fishing, Nature/Woodcutting. The resource
-    // still selects its own yield investment, funding item and market price.
     // Equipped magic breaks mastery ties.
     const maxMastery = Math.max(...masteries.map(item => item.mastery));
     const candidates = masteries.filter(item => item.mastery === maxMastery);
